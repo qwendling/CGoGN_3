@@ -33,6 +33,7 @@
 #include <cgogn/ui/modules/surface_render/surface_render.h>
 #include <cgogn/modeling/algos/subdivision.h>
 #include <cgogn/ui/modules/multiresolution_modeling/multiresolution_modeling.h>
+#include <cgogn/ui/modules/volume_selection/volume_selection.h>
 
 using Mesh = cgogn::MRCmap3;
 
@@ -63,12 +64,14 @@ int main(int argc, char** argv)
 	cgogn::ui::MeshProvider<Mesh> mp(app);
 	cgogn::ui::SurfaceRender<Mesh> sr(app);
 	cgogn::ui::MultiresolutionModeling<Mesh> mm(app);
+	cgogn::ui::VolumeSelection<Mesh> vs(app);
 
 	app.init_modules();
 	
 	cgogn::ui::View* v1 = app.current_view();
 	v1->link_module(&mp);
 	v1->link_module(&sr);
+	v1->link_module(&vs);
 
 	Mesh* m = mp.load_volume_from_file(filename);
 	if (!m)

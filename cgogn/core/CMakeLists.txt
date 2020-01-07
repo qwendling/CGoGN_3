@@ -41,6 +41,7 @@ target_sources(${PROJECT_NAME}
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/cph2.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/cph3.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/mr_cmap3.h"
+		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/mr_adaptative_cmap3.h"
 
 		"${CMAKE_CURRENT_LIST_DIR}/types/container/attribute_container.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/container/attribute_container.cpp"
