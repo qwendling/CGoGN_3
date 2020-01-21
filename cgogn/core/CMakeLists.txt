@@ -33,6 +33,7 @@ target_sources(${PROJECT_NAME}
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/cmap3.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/cph3.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/cph3.h"
+		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/cph_infos.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/dart_marker.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/dart.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/graph.h"

@@ -79,11 +79,11 @@ inline uint32 index_of(const CPH3& m, CELL c)
 	static const Orbit orbit = CELL::ORBIT;
 
 	if constexpr (orbit == CPH3::CMAP::Edge::ORBIT)
-		c.dart = m.edge_youngest_dart(c.dart);
+		c.dart = edge_youngest_dart(m,c.dart);
 	if constexpr (orbit == CPH3::CMAP::Face::ORBIT)
-		c.dart = m.face_youngest_dart(c.dart);
+		c.dart = face_youngest_dart(m,c.dart);
 	if constexpr (orbit == CPH3::CMAP::Volume::ORBIT)
-		c.dart = m.volume_youngest_dart(c.dart);
+		c.dart = volume_youngest_dart(m,c.dart);
 
 	return index_of(static_cast<const CPH3::CMAP&>(m), c);
 }

@@ -94,13 +94,20 @@ normal(
 	else
 	{
 		Vec3 n{0.0, 0.0, 0.0};
-		for (uint32 i = 0; i < vertices.size() - 1; ++i)
+		for (int32 i = 0,size=vertices.size(); i < size - 1; ++i)
 		{
-			const Vec3& p = value<Vec3>(m, vertex_position, vertices[i]);
-			const Vec3& q = value<Vec3>(m, vertex_position, vertices[i+1]);
-			n[0] += (p[1] - q[1]) * (p[2] + q[2]);
-			n[1] += (p[2] - q[2]) * (p[0] + q[0]);
-			n[2] += (p[0] - q[0]) * (p[1] + q[1]);
+			Vec3 p,q;
+			if(i-1 < 0){
+				q = value<Vec3>(m, vertex_position, vertices[size - 1])-value<Vec3>(m, vertex_position, vertices[i]);
+			}else{
+				q = value<Vec3>(m, vertex_position, vertices[i-1])-value<Vec3>(m, vertex_position, vertices[i]);
+			}
+			if(i+1 >= size){
+				p = value<Vec3>(m, vertex_position, vertices[0])-value<Vec3>(m, vertex_position, vertices[i]);
+			}else{
+				p = value<Vec3>(m, vertex_position, vertices[i+1])-value<Vec3>(m, vertex_position, vertices[i]);
+			}
+			n += p.cross(q);
 		}
 		n.normalize();
 		return n;

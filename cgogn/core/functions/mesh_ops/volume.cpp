@@ -31,6 +31,7 @@
 
 #include <cgogn/core/types/cmap/cmap_ops.h>
 #include <cgogn/core/types/cmap/orbit_traversal.h>
+#include <cgogn/core/types/cmap/cph_infos.h>
 
 namespace cgogn
 {
@@ -241,7 +242,7 @@ CPH3::CMAP::Face cut_volume(CPH3& m, const std::vector<Dart>& path, bool set_ind
 	CPH3::CMAP& map = static_cast<CPH3::CMAP&>(m);
 
 	uint32 vid = m.refinement_face_id(path);
-	uint32 vlevel = m.volume_level(path[0]);
+	uint32 vlevel = volume_level(m,path[0]);
 
 	CPH3::CMAP::Face result = cut_volume(map, path, false);
 

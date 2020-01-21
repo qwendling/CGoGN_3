@@ -63,9 +63,10 @@ struct CPH3
 	uint32 current_level_;
 
 	CPH3(CMAP& m)
-		: m_(m), current_level_(0),
+		: m_(m),
 		  nb_darts_per_level_(m.get_attribute<std::vector<uint32>>("cph3_nb_darts_per_level")),
-		  maximum_level_(m.get_attribute<uint32>("cph3_maximum_level"))
+		  maximum_level_(m.get_attribute<uint32>("cph3_maximum_level")),
+		  current_level_(0)
 	{
 		dart_level_ = m_.darts_.get_attribute<uint32>("dart_level");
 		if (!dart_level_)
@@ -148,34 +149,6 @@ struct CPH3
 	uint32 face_id(Dart d) const;
 	void set_face_id(Dart d, uint32 i);
 	uint32 refinement_face_id(const std::vector<Dart>& cut_path) const;
-
-	/***************************************************
-	 *                  EDGE INFO                      *
-	 ***************************************************/
-
-	uint32 edge_level(Dart d) const;
-	Dart edge_youngest_dart(Dart d) const;
-	bool edge_is_subdivided(Dart d) const;
-
-	/***************************************************
-	 *                  FACE INFO                      *
-	 ***************************************************/
-
-	uint32 face_level(Dart d) const;
-	Dart face_origin(Dart d) const;
-	Dart face_oldest_dart(Dart d) const;
-	Dart face_youngest_dart(Dart d) const;
-	bool face_is_subdivided(Dart d) const;
-	bool face_is_subdivided_once(Dart d) const;
-
-	/***************************************************
-	 *                 VOLUME INFO                     *
-	 ***************************************************/
-
-	uint32 volume_level(Dart d) const;
-	Dart volume_oldest_dart(Dart d) const;
-	Dart volume_youngest_dart(Dart d) const;
-	bool volume_is_subdivided(Dart d) const;
 };
 
 } // namespace cgogn

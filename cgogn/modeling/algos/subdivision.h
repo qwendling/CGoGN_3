@@ -26,6 +26,7 @@
 
 #include <cgogn/core/types/mesh_traits.h>
 #include <cgogn/core/types/mesh_views/cell_cache.h>
+#include <cgogn/core/types/cmap/cph_infos.h>
 
 #include <cgogn/geometry/types/vector_traits.h>
 #include <cgogn/geometry/algos/angle.h>
@@ -576,7 +577,7 @@ auto subdivideListEdges(MESH& m,std::vector<Dart>& edges,std::queue<Vec3>& edge_
 void subdivideListEdges(CPH3& m,std::vector<Dart>& edges,std::queue<Vec3>& edge_points,typename mesh_traits<CPH3>::template Attribute<Vec3>* attribute){
 	CPH3 m2(m);
 	for (Dart d : edges) {
-		m2.current_level_ = m.edge_level(d)+1;
+		m2.current_level_ = edge_level(m,d)+1;
 		subdivideEdge(m2,d, edge_points.front(),attribute);
 		edge_points.pop();
 	}
@@ -595,7 +596,7 @@ auto subdivideListFaces(MESH& m,std::vector<Dart>& faces,std::queue<Vec3>& face_
 void subdivideListFaces(CPH3& m,std::vector<Dart>& faces,std::queue<Vec3>& face_points,typename mesh_traits<CPH3>::template Attribute<Vec3>* attribute){
 	CPH3 m2(m);
 	for (Dart d : faces) {
-		m2.current_level_ = m.face_level(d)+1;
+		m2.current_level_ = face_level(m,d)+1;
 		subdivideFace(m2,d, face_points.front(),attribute);
 		face_points.pop();
 	}
@@ -614,10 +615,49 @@ auto subdivideListVolumes(MESH& m,std::vector<Dart>& volumes,std::queue<Vec3>& v
 void subdivideListVolumes(CPH3& m,std::vector<Dart>& volumes,std::queue<Vec3>& volume_points,typename mesh_traits<CPH3>::template Attribute<Vec3>* attribute){
 	CPH3 m2(m);
 	for (Dart d : volumes) {
-		m2.current_level_ = m.volume_level(d)+1;													 
+		m2.current_level_ = volume_level(m,d)+1;													 
 		subdivideVolume(m2,d, volume_points.front(),attribute);
 		volume_points.pop();
 	}
+}
+
+template<typename MESH>														 
+auto isHexaVolume(MESH& m,Dart d)
+-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&>,bool>
+{
+	using Face = typename MESH::Face;
+	using Volume = typename MESH::Volume;
+	bool r = true;
+	unsigned v = 0;
+	foreach_incident_face(m,Volume(d),[&](Face f)->bool{
+		if (!(codegree(m,f)==4)) {
+			r = false;
+		}
+		++v;	
+		return r && v<=6;
+	});
+	return (r ? (v==6) : false);
+}
+															 
+template<typename MESH>
+auto isValidForSubdivision(MESH& m,Dart d)
+-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&>,bool>
+{
+	using Face = typename MESH::Face;
+	using Volume = typename MESH::Volume;
+	
+	CellMarker<MESH,Face> fm(m);
+	bool v = false;
+	if (isHexaVolume(m,d)) {
+		v = true;
+		foreach_incident_face(m,Volume(d),[&](Face f)->bool{
+			if (!is_boundary(m,phi3(m,f.dart)) && !isHexaVolume(m,phi3(m,f.dart))) {
+				v = false;
+			}
+			return v;
+		});
+	}
+	return v;
 }
 
 
@@ -627,6 +667,7 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m,double angle_threshold,typenam
 {
 	using Volume = typename MESH::Volume;
 	using Face = typename MESH::Face;
+	using Face2 = typename MESH::Face2;
 	using Edge = typename MESH::Edge;
 	
 	CellMarker<MESH,Edge> cm_surface(m);
@@ -638,11 +679,11 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m,double angle_threshold,typenam
 			while (!is_boundary(m,phi3(m,d2))) {
 				d2 = phi<32>(m,d2);
 			}
-			auto edge_angle = geometry::angle(m, typename MESH::Face2(d), typename MESH::Face2(d2), attribute);
+			auto edge_angle = geometry::angle(m, Face2(d), Face2(d2), attribute);
 			if (std::abs(edge_angle) > angle_threshold) {
-				if (!cm_cell.is_marked(Volume(d)))
+				if (!cm_cell.is_marked(Volume(d)) && isValidForSubdivision(m,d))
 					cm_cell.mark(Volume(d));
-				if (!cm_cell.is_marked(Volume(d2)))
+				if (!cm_cell.is_marked(Volume(d2)) && isValidForSubdivision(m,d2))
 					cm_cell.mark(Volume(d2));
 			}
 			cm_surface.mark(Edge(d));

@@ -30,6 +30,7 @@
 
 #include <cgogn/core/types/cmap/cmap_ops.h>
 #include <cgogn/core/types/cmap/orbit_traversal.h>
+#include <cgogn/core/types/cmap/cph_infos.h>
 
 namespace cgogn
 {
@@ -266,7 +267,7 @@ CPH3::CMAP::Edge cut_face(CPH3& m, CPH3::CMAP::Vertex v1, CPH3::CMAP::Vertex v2,
 {
 	CPH3::CMAP& map = static_cast<CPH3::CMAP&>(m);
 
-	uint32 flevel = m.face_level(v1.dart);
+	uint32 flevel = face_level(m,v1.dart);
 	Dart d = v1.dart;
 	Dart e = v2.dart;
 
