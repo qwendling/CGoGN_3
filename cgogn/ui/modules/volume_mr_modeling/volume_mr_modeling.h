@@ -41,18 +41,22 @@ namespace ui
 
 class VolumeMRModeling : public Module
 {
+	using CPH = CPH3_adaptative;
+	
 	template <typename T>
-	using Attribute = typename mesh_traits<CPH3>::template Attribute<T>;
+	using Attribute = typename mesh_traits<CPH>::template Attribute<T>;
 
-	using Vertex = typename mesh_traits<CPH3>::Vertex;
-	using Edge = typename mesh_traits<CPH3>::Edge;
+	using Vertex = typename mesh_traits<CPH>::Vertex;
+	using Edge = typename mesh_traits<CPH>::Edge;
 
 	using Vec3 = geometry::Vec3;
 	using Scalar = geometry::Scalar;
+	
+	
 
 public:
 	VolumeMRModeling(const App& app)
-		: Module(app, "VolumeMRModeling (" + std::string{mesh_traits<CPH3>::name} + ")"), selected_cph3_(nullptr),
+		: Module(app, "VolumeMRModeling (" + std::string{mesh_traits<CPH>::name} + ")"), selected_cph3_(nullptr),
 		  selected_cmap3_(nullptr), selected_vertex_position_(nullptr)
 	{
 	}
@@ -60,9 +64,9 @@ public:
 	{
 	}
 
-	CPH3* create_cph3(CPH3::CMAP& m, const std::string& name)
+	CPH* create_cph3(CPH::CMAP& m, const std::string& name)
 	{
-		CPH3* cph = new CPH3(m);
+		CPH* cph = new CPH(m);
 		std::string cph_name;
 		uint32 count = 1;
 		do
@@ -74,7 +78,7 @@ public:
 		return cph;
 	}
 
-	void subdivide(CPH3& m, Attribute<Vec3>* vertex_position)
+	void subdivide(CPH& m, Attribute<Vec3>* vertex_position)
 	{
 		uint32 cur = m.current_level_;
 		m.current_level_ = m.maximum_level_;
@@ -86,18 +90,18 @@ public:
 		cph3_provider_->emit_connectivity_changed(&m);
 		cph3_provider_->emit_attribute_changed(&m, vertex_position);
 
-		cmap3_provider_->emit_connectivity_changed(&static_cast<CPH3::CMAP&>(m));
-		cmap3_provider_->emit_attribute_changed(&static_cast<CPH3::CMAP&>(m), vertex_position);
+		cmap3_provider_->emit_connectivity_changed(&static_cast<CPH::CMAP&>(m));
+		cmap3_provider_->emit_attribute_changed(&static_cast<CPH::CMAP&>(m), vertex_position);
 	}
 
 protected:
 	void init() override
 	{
-		cph3_provider_ = static_cast<ui::MeshProvider<CPH3>*>(
-			app_.module("MeshProvider (" + std::string{mesh_traits<CPH3>::name} + ")"));
+		cph3_provider_ = static_cast<ui::MeshProvider<CPH>*>(
+			app_.module("MeshProvider (" + std::string{mesh_traits<CPH>::name} + ")"));
 
-		cmap3_provider_ = static_cast<ui::MeshProvider<CPH3::CMAP>*>(
-			app_.module("MeshProvider (" + std::string{mesh_traits<CPH3::CMAP>::name} + ")"));
+		cmap3_provider_ = static_cast<ui::MeshProvider<CPH::CMAP>*>(
+			app_.module("MeshProvider (" + std::string{mesh_traits<CPH::CMAP>::name} + ")"));
 	}
 
 	void interface() override
@@ -107,7 +111,7 @@ protected:
 
 		if (ImGui::ListBoxHeader("CMap3"))
 		{
-			cmap3_provider_->foreach_mesh([this](CPH3::CMAP* m, const std::string& name) {
+			cmap3_provider_->foreach_mesh([this](CPH::CMAP* m, const std::string& name) {
 				if (ImGui::Selectable(name.c_str(), m == selected_cmap3_))
 				{
 					selected_cmap3_ = m;
@@ -119,13 +123,13 @@ protected:
 
 		if (selected_cmap3_)
 		{
-			if (ImGui::Button("Create CPH3"))
+			if (ImGui::Button("Create CPH"))
 				create_cph3(*selected_cmap3_, selected_cmap3_name_);
 		}
 
-		if (ImGui::ListBoxHeader("CPH3"))
+		if (ImGui::ListBoxHeader("CPH"))
 		{
-			cph3_provider_->foreach_mesh([this](CPH3* m, const std::string& name) {
+			cph3_provider_->foreach_mesh([this](CPH* m, const std::string& name) {
 				if (ImGui::Selectable(name.c_str(), m == selected_cph3_))
 				{
 					selected_cph3_ = m;
@@ -179,14 +183,14 @@ protected:
 	}
 
 private:
-	CPH3* selected_cph3_;
-	CPH3::CMAP* selected_cmap3_;
+	CPH* selected_cph3_;
+	CPH::CMAP* selected_cmap3_;
 	std::string selected_cmap3_name_;
 
 	std::shared_ptr<Attribute<Vec3>> selected_vertex_position_;
 
-	MeshProvider<CPH3>* cph3_provider_;
-	MeshProvider<CPH3::CMAP>* cmap3_provider_;
+	MeshProvider<CPH>* cph3_provider_;
+	MeshProvider<CPH::CMAP>* cmap3_provider_;
 };
 
 } // namespace ui

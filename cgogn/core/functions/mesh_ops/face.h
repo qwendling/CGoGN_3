@@ -93,6 +93,13 @@ CMap3::Edge CGOGN_CORE_EXPORT cut_face(CMap3& m, CMap3::Vertex v1, CMap3::Vertex
 CPH3::CMAP::Edge CGOGN_CORE_EXPORT cut_face(CPH3& m, CPH3::CMAP::Vertex v1, CPH3::CMAP::Vertex v2,
 											bool set_indices = true);
 
+/////////////////////
+// CPH3_adaptative //
+/////////////////////
+
+CPH3_adaptative::CMAP::Edge CGOGN_CORE_EXPORT cut_face(CPH3_adaptative& m, CPH3_adaptative::CMAP::Vertex v1,
+													   CPH3_adaptative::CMAP::Vertex v2, bool set_indices = true);
+
 /*****************************************************************************/
 
 // template <typename MESH>

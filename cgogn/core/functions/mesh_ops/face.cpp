@@ -329,6 +329,24 @@ CPH3::CMAP::Edge cut_face(CPH3& m, CPH3::CMAP::Vertex v1, CPH3::CMAP::Vertex v2,
 	return result;
 }
 
+/////////////////////
+// CPH3_adaptative //
+/////////////////////
+
+CPH3_adaptative::CMAP::Edge cut_face(CPH3_adaptative& m, CPH3_adaptative::CMAP::Vertex v1, CPH3_adaptative::CMAP::Vertex v2, bool set_indices)
+{
+	CPH3& cph = static_cast<CPH3&>(m);
+
+	CPH3_adaptative::CMAP::Edge result = cut_face(cph, v1, v2, set_indices);
+
+	foreach_dart_of_orbit(m, result, [&](Dart d) -> bool {
+		m.set_representative(d,d);
+		return true;
+	});
+
+	return result;
+}
+
 /*****************************************************************************/
 
 // template <typename MESH>

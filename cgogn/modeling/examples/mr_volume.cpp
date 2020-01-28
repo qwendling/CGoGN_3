@@ -35,8 +35,8 @@
 #include <cgogn/ui/modules/volume_mr_modeling/volume_mr_modeling.h>
 #include <cgogn/ui/modules/volume_selection/volume_selection.h>
 
-using MRMesh = cgogn::CPH3;
-using Mesh = cgogn::CPH3::CMAP;
+using MRMesh = cgogn::CPH3_adaptative;
+using Mesh = MRMesh::CMAP;
 
 template <typename T>
 using Attribute = typename cgogn::mesh_traits<Mesh>::Attribute<T>;

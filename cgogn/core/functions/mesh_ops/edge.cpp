@@ -300,6 +300,28 @@ CPH3::CMAP::Vertex cut_edge(CPH3& m, CPH3::CMAP::Edge e, bool set_indices)
 	return v;
 }
 
+/////////////////////
+// CPH3_adaptative //
+/////////////////////
+
+CPH3_adaptative::CMAP::Vertex cut_edge(CPH3_adaptative& m, CPH3_adaptative::CMAP::Edge e, bool set_indices)
+{
+	CPH3& cph = static_cast<CPH3&>(m);
+	CPH3::CMAP& map = static_cast<CPH3::CMAP&>(m);
+
+	CPH3_adaptative::CMAP::Vertex v = cut_edge(cph, e, set_indices);
+
+	Dart d = e.dart;
+	do
+	{
+		m.set_representative(phi1(map, d), m.get_representative(d));
+		m.set_representative(phi2(map, d), m.get_representative(phi<12>(map, d)));
+		d = phi<23>(map, d);
+	} while (d != e.dart);
+
+	return v;
+}
+
 /*****************************************************************************/
 
 // template <typename MESH>

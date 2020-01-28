@@ -28,6 +28,7 @@
 
 #include <cgogn/core/types/cmap/cmap3.h>
 #include <cgogn/core/types/cmap/cph3.h>
+#include <cgogn/core/types/cmap/cph3_adaptative.h>
 #include <cgogn/core/types/cmap/graph.h>
 
 namespace cgogn
@@ -122,6 +123,12 @@ template <>
 struct mesh_traits<CPH3> : public mesh_traits<CMap3>
 {
 	static constexpr const char* name = "CPH3";
+};
+
+template <>
+struct mesh_traits<CPH3_adaptative> : public mesh_traits<CPH3>
+{
+	static constexpr const char* name = "CPH3_adaptative";
 };
 
 template <>

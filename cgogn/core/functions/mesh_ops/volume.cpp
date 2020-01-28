@@ -306,6 +306,24 @@ CPH3::CMAP::Face cut_volume(CPH3& m, const std::vector<Dart>& path, bool set_ind
 	return result;
 }
 
+/////////////////////
+// CPH3_adaptative //
+/////////////////////
+CPH3_adaptative::CMAP::Face cut_volume(CPH3_adaptative& m, const std::vector<Dart>& path, bool set_indices)
+{
+	CPH3& cph = static_cast<CPH3&>(m);
+
+	CPH3_adaptative::CMAP::Face result = cut_volume(cph, path, set_indices);
+
+
+	foreach_dart_of_orbit(m, result, [&](Dart d) -> bool {
+		m.set_representative(d,d);
+		return true;
+	});
+
+	return result;
+}
+
 /*****************************************************************************/
 
 // template <typename MESH>

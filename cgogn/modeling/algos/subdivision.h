@@ -41,14 +41,17 @@
 namespace cgogn
 {
 
+
 namespace modeling
 {
+
 
 using Vec3 = geometry::Vec3;
 
 ///////////
 // CMap2 //
 ///////////
+
 
 void hexagon_to_triangles(CMap2& m, CMap2::Face f)
 {
@@ -61,6 +64,7 @@ void hexagon_to_triangles(CMap2& m, CMap2::Face f)
 	Dart d3 = phi<11>(m, d2);
 	cut_face(m, CMap2::Vertex(d2), CMap2::Vertex(d3));
 }
+
 
 /////////////
 // GENERIC //
@@ -105,6 +109,73 @@ void cut_all_edges(MESH& m, const FUNC& on_edge_cut)
 		return true;
 	});
 }
+
+
+template <typename MESH, typename FUNC>
+void edges_primal_subdivision(MESH& m, typename cgogn::mesh_traits<MESH>::Edge e, const FUNC& on_edge_cut)
+{
+	on_edge_cut(cut_edge(m, e));
+}
+
+//Edges of the face are already primal subdivide
+//Vertex(f.dart) is one of the orginal face vertices
+template <typename MESH, typename FUNC>
+auto face_quadrisection(MESH& m, typename cgogn::mesh_traits<MESH>::Face f,const FUNC& on_face_cut)
+-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&>>{
+	using Edge = typename cgogn::mesh_traits<MESH>::Edge;
+	using Vertex = typename cgogn::mesh_traits<MESH>::Vertex;
+	
+	Dart d = f.dart;
+	Dart e1 = phi1(m,d);
+	Dart e2 = phi<11>(m,e1);
+	
+	Dart d2 = cut_face(m,Vertex(e1),Vertex(e2));
+	edges_primal_subdivision(m,Edge(d2),on_face_cut);
+	e2 = phi1(m,e2);
+	while(e2 != d){
+		e2 = phi1(m,e2);
+		e1 = phi1(m,d2);
+		cut_face(m,Vertex(e1),Vertex(e2));
+		e2 = phi1(m,e2);
+	}
+}
+															
+															 
+															 
+//Faces of the volume are already primal subdivide
+//Vertex(v.dart) is one of the orginal volume vertices
+/*template <typename MESH, typename FUNC>
+auto volume_primal_subdivision(MESH& m, typename cgogn::mesh_traits<MESH>::Volume v,const FUNC& on_volume_cut)
+-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&>>
+{
+	using Edge = typename cgogn::mesh_traits<MESH>::Edge;
+	using Vertex = typename cgogn::mesh_traits<MESH>::Vertex;
+
+	std::vector<Dart> cut_path;
+	Dart d = v.dart;
+	Dart e = phi1(m,d);
+	Dart it = e;
+	do{
+		cut_path.push_back(it);
+		it = phi1(m,it);
+		cut_path.push_back(it);
+		it = phi<121>(m,it);
+	}while(it != e);
+	face_primal_subdivision(m,cut_volume(m,cut_path),on_volume_cut);
+															 
+	Dart e1 = phi1(m,d);
+	Dart e2 = phi<11>(m,e1);
+	
+	Dart d2 = cut_face(m,Vertex(e1),Vertex(e2));
+	edges_primal_subdivision(m,Edge(d2),on_face_cut);
+	e2 = phi1(m,e2);
+	while(e2 != d){
+		e2 = phi1(m,e2);
+		e1 = phi1(m,d2);
+		cut_face(m,Vertex(e1),Vertex(e2));
+		e2 = phi1(m,e2);
+	}													 
+}*/
 
 /* -------------------------- BUTTERFLY VOLUME MASKS -------------------------- */
 
@@ -574,8 +645,11 @@ auto subdivideListEdges(MESH& m,std::vector<Dart>& edges,std::queue<Vec3>& edge_
 	}
 }
 
-void subdivideListEdges(CPH3& m,std::vector<Dart>& edges,std::queue<Vec3>& edge_points,typename mesh_traits<CPH3>::template Attribute<Vec3>* attribute){
-	CPH3 m2(m);
+template<typename MR_MESH>															 
+auto subdivideListEdges(MR_MESH& m,std::vector<Dart>& edges,std::queue<Vec3>& edge_points,typename mesh_traits<CPH3>::template Attribute<Vec3>* attribute)
+-> std::enable_if_t<std::is_convertible_v<MR_MESH&, CPH3&>>
+{
+	MR_MESH m2(m);
 	for (Dart d : edges) {
 		m2.current_level_ = edge_level(m,d)+1;
 		subdivideEdge(m2,d, edge_points.front(),attribute);
@@ -593,8 +667,11 @@ auto subdivideListFaces(MESH& m,std::vector<Dart>& faces,std::queue<Vec3>& face_
 	}
 }
 
-void subdivideListFaces(CPH3& m,std::vector<Dart>& faces,std::queue<Vec3>& face_points,typename mesh_traits<CPH3>::template Attribute<Vec3>* attribute){
-	CPH3 m2(m);
+template<typename MR_MESH>
+auto subdivideListFaces(MR_MESH& m,std::vector<Dart>& faces,std::queue<Vec3>& face_points,typename mesh_traits<CPH3>::template Attribute<Vec3>* attribute)
+-> std::enable_if_t<std::is_convertible_v<MR_MESH&, CPH3&>>
+{
+	MR_MESH m2(m);
 	for (Dart d : faces) {
 		m2.current_level_ = face_level(m,d)+1;
 		subdivideFace(m2,d, face_points.front(),attribute);
@@ -612,8 +689,11 @@ auto subdivideListVolumes(MESH& m,std::vector<Dart>& volumes,std::queue<Vec3>& v
 	}
 }
 
-void subdivideListVolumes(CPH3& m,std::vector<Dart>& volumes,std::queue<Vec3>& volume_points,typename mesh_traits<CPH3>::template Attribute<Vec3>* attribute){
-	CPH3 m2(m);
+template<typename MR_MESH>													 
+auto subdivideListVolumes(MR_MESH& m,std::vector<Dart>& volumes,std::queue<Vec3>& volume_points,typename mesh_traits<CPH3>::template Attribute<Vec3>* attribute)
+-> std::enable_if_t<std::is_convertible_v<MR_MESH&, CPH3&>>
+{
+	MR_MESH m2(m);
 	for (Dart d : volumes) {
 		m2.current_level_ = volume_level(m,d)+1;													 
 		subdivideVolume(m2,d, volume_points.front(),attribute);

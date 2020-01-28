@@ -84,6 +84,15 @@ Dart phi_1(const CPH3& m, Dart d);
 Dart phi2(const CPH3& m, Dart d);
 Dart phi3(const CPH3& m, Dart d);
 
+/////////////////////
+// CPH3_adaptative //
+/////////////////////
+
+Dart phi1(const CPH3_adaptative& m, Dart d);
+/*Dart phi_1(const CPH3_adaptative& m, Dart d);
+Dart phi2(const CPH3_adaptative& m, Dart d);
+Dart phi3(const CPH3_adaptative& m, Dart d);*/
+
 /////////////
 // GENERIC //
 /////////////
