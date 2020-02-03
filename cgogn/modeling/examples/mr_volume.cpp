@@ -34,6 +34,8 @@
 #include <cgogn/ui/modules/surface_render/surface_render.h>
 #include <cgogn/ui/modules/volume_mr_modeling/volume_mr_modeling.h>
 #include <cgogn/ui/modules/volume_selection/volume_selection.h>
+#include <GLFW/glfw3.h>
+#include <cgogn/core/functions/traversals/edge.h>
 
 using MRMesh = cgogn::CPH3_adaptative;
 using Mesh = MRMesh::CMAP;
@@ -41,6 +43,8 @@ using Mesh = MRMesh::CMAP;
 template <typename T>
 using Attribute = typename cgogn::mesh_traits<Mesh>::Attribute<T>;
 using Vertex = typename cgogn::mesh_traits<Mesh>::Vertex;
+using Edge = typename cgogn::mesh_traits<Mesh>::Edge;
+using Face = typename cgogn::mesh_traits<Mesh>::Face;
 
 using Vec3 = cgogn::geometry::Vec3;
 
@@ -101,6 +105,59 @@ int main(int argc, char** argv)
 	mrsr.set_vertex_position(*v1, *cph2, nullptr);
 	mrsr.set_vertex_position(*v2, *cph1, nullptr);
 	mrsr.set_vertex_position(*v2, *cph2, position);
+	
+	vs.f_keypress = [&](MRMesh* selected_mesh, std::int32_t k,
+			cgogn::ui::CellsSet<MRMesh, Vertex>* selected_vertices,cgogn::ui::CellsSet<MRMesh, Edge>*selected_edges){
+		switch(k){
+			case GLFW_KEY_E:
+				if(selected_vertices != nullptr){
+					selected_vertices->foreach_cell([&](Vertex v){
+						cgogn::foreach_incident_edge(*m,v,[&](Edge e)->bool{
+							selected_mesh->activated_edge_subdivision(e);
+							return true;
+						});
+					});
+					vmrm.changed_connectivity(*selected_mesh,position.get());
+				}
+				if(selected_edges != nullptr){
+					selected_edges->foreach_cell([&](Edge e){
+						selected_mesh->activated_edge_subdivision(e);
+					});
+					vmrm.changed_connectivity(*selected_mesh,position.get());
+				}
+				break;
+			case GLFW_KEY_F:
+				if(selected_vertices != nullptr){
+					selected_vertices->foreach_cell([&](Vertex v){
+						cgogn::foreach_incident_face(*m,v,[&](Face f)->bool{
+							std::cout << "F" << std::endl;
+							selected_mesh->activated_face_subdivision(f);
+							return true;
+						});
+					});
+					vmrm.changed_connectivity(*selected_mesh,position.get());
+				}
+				if(selected_edges != nullptr){
+					selected_edges->foreach_cell([&](Edge e){
+						cgogn::foreach_incident_face(*m,e,[&](Face f)->bool{
+							selected_mesh->activated_face_subdivision(f);
+							return true;
+						});
+					});
+					vmrm.changed_connectivity(*selected_mesh,position.get());
+				}
+				break;
+			case GLFW_KEY_A:
+				cgogn::foreach_cell(*selected_mesh,[&](Edge e)->bool{
+					selected_mesh->activated_edge_subdivision(e);
+					return true;
+				});
+				vmrm.changed_connectivity(*selected_mesh,position.get());
+				break;
+			
+		}
+		
+	};
 
 	return app.launch();
 }

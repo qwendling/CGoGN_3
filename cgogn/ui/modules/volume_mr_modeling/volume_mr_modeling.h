@@ -83,10 +83,14 @@ public:
 		uint32 cur = m.current_level_;
 		m.current_level_ = m.maximum_level_;
 		
-		modeling::butterflySubdivisionVolumeAdaptative(m,0.17f,vertex_position);
+		modeling::butterflySubdivisionVolumeAdaptative(m,0.34f,vertex_position);
 		
 		m.current_level_ = cur;
 		
+		changed_connectivity(m,vertex_position);
+	}
+	
+	void changed_connectivity(CPH& m,Attribute<Vec3>* vertex_position){
 		cph3_provider_->emit_connectivity_changed(&m);
 		cph3_provider_->emit_attribute_changed(&m, vertex_position);
 

@@ -242,7 +242,7 @@ CPH3::CMAP::Face cut_volume(CPH3& m, const std::vector<Dart>& path, bool set_ind
 	CPH3::CMAP& map = static_cast<CPH3::CMAP&>(m);
 
 	uint32 vid = m.refinement_face_id(path);
-	uint32 vlevel = volume_level(m,path[0]);
+	uint32 vlevel = m.volume_level(path[0]);
 
 	CPH3::CMAP::Face result = cut_volume(map, path, false);
 
@@ -312,11 +312,12 @@ CPH3::CMAP::Face cut_volume(CPH3& m, const std::vector<Dart>& path, bool set_ind
 CPH3_adaptative::CMAP::Face cut_volume(CPH3_adaptative& m, const std::vector<Dart>& path, bool set_indices)
 {
 	CPH3& cph = static_cast<CPH3&>(m);
+	CPH3::CMAP& map = static_cast<CPH3::CMAP&>(m);
 
 	CPH3_adaptative::CMAP::Face result = cut_volume(cph, path, set_indices);
 
 
-	foreach_dart_of_orbit(m, result, [&](Dart d) -> bool {
+	foreach_dart_of_orbit(map, result, [&](Dart d) -> bool {
 		m.set_representative(d,d);
 		return true;
 	});

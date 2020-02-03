@@ -73,17 +73,18 @@ uint32 index_of(const CMapBase& m, CELL c)
 	return (*m.cells_indices_[orbit])[c.dart.index];
 }
 
-template <typename CELL>
-inline uint32 index_of(const CPH3& m, CELL c)
+template <typename MRMAP,typename CELL>
+inline auto index_of(const MRMAP& m, CELL c)
+-> std::enable_if_t<std::is_convertible_v<MRMAP&, CPH3&>,uint32>
 {
 	static const Orbit orbit = CELL::ORBIT;
 
 	if constexpr (orbit == CPH3::CMAP::Edge::ORBIT)
-		c.dart = edge_youngest_dart(m,c.dart);
+		c.dart = m.edge_youngest_dart(c.dart);
 	if constexpr (orbit == CPH3::CMAP::Face::ORBIT)
-		c.dart = face_youngest_dart(m,c.dart);
+		c.dart = m.face_youngest_dart(c.dart);
 	if constexpr (orbit == CPH3::CMAP::Volume::ORBIT)
-		c.dart = volume_youngest_dart(m,c.dart);
+		c.dart = m.volume_youngest_dart(c.dart);
 
 	return index_of(static_cast<const CPH3::CMAP&>(m), c);
 }

@@ -651,7 +651,7 @@ auto subdivideListEdges(MR_MESH& m,std::vector<Dart>& edges,std::queue<Vec3>& ed
 {
 	MR_MESH m2(m);
 	for (Dart d : edges) {
-		m2.current_level_ = edge_level(m,d)+1;
+		m2.current_level_ = m.edge_level(d)+1;
 		subdivideEdge(m2,d, edge_points.front(),attribute);
 		edge_points.pop();
 	}
@@ -673,7 +673,7 @@ auto subdivideListFaces(MR_MESH& m,std::vector<Dart>& faces,std::queue<Vec3>& fa
 {
 	MR_MESH m2(m);
 	for (Dart d : faces) {
-		m2.current_level_ = face_level(m,d)+1;
+		m2.current_level_ = m.face_level(d)+1;
 		subdivideFace(m2,d, face_points.front(),attribute);
 		face_points.pop();
 	}
@@ -695,7 +695,7 @@ auto subdivideListVolumes(MR_MESH& m,std::vector<Dart>& volumes,std::queue<Vec3>
 {
 	MR_MESH m2(m);
 	for (Dart d : volumes) {
-		m2.current_level_ = volume_level(m,d)+1;													 
+		m2.current_level_ = m.volume_level(d)+1;													 
 		subdivideVolume(m2,d, volume_points.front(),attribute);
 		volume_points.pop();
 	}
