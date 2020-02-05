@@ -260,27 +260,28 @@ Dart CPH3_adaptative::face_youngest_dart(Dart d)const
 						 "Access to a dart not visible at this level") ;
 	Dart it = d;
 	Dart youngest = it;
-	uint32 l_young = UINT32_MAX;
+    int32 l_young = -1;
 	Dart it2 = phi_1(*this,it);
 	do{
 		if(edge_id(it) != edge_id(it2)){
-			uint32 l = dart_level(it);
+            int32 l = dart_level(it);
 			if (l > l_young)
 			{
 				youngest = it;
 				l_young = l;
 			}else{
-				if(l == l_young && it.index <  youngest.index)
-					youngest = it;
+                if(l == l_young){
+                    if(it.index <  youngest.index)
+                        youngest = it;
+                    it2 = phi<31>(*this,it);
+                    if(it2.index <  youngest.index)
+                        youngest = it2;
+                }
 			}
 		}
 		it2=it;
 		it = phi1(*this,it);
 	}while(it != d);
-	
-	it = phi<31>(*this,youngest);
-	if(it.index < youngest.index)
-		youngest = it;
 	
 	/*do
 	{
