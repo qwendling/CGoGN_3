@@ -156,6 +156,7 @@ struct CPH3
 	
 	uint32 edge_level(Dart d)const;
 	Dart edge_youngest_dart(Dart d)const;
+	Dart edge_oldest_dart(Dart d)const;
 	bool edge_is_subdivided(Dart d) const;
 	
 	/***************************************************

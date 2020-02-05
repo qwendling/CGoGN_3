@@ -289,10 +289,10 @@ CPH3::CMAP::Edge cut_face(CPH3& m, CPH3::CMAP::Vertex v1, CPH3::CMAP::Vertex v2,
 	{
 		if (is_indexed<CPH3::CMAP::Vertex>(m))
 		{
-			copy_index<CPH3::CMAP::Vertex>(m, phi_1(m, e), v1.dart);
-			copy_index<CPH3::CMAP::Vertex>(m, phi_1(m, ee), v1.dart);
-			copy_index<CPH3::CMAP::Vertex>(m, phi_1(m, d), e);
-			copy_index<CPH3::CMAP::Vertex>(m, phi_1(m, dd), e);
+			copy_index<CPH3::CMAP::Vertex>(map, phi_1(m, e), v1.dart);
+			copy_index<CPH3::CMAP::Vertex>(map, phi_1(m, ee), v1.dart);
+			copy_index<CPH3::CMAP::Vertex>(map, phi_1(m, d), e);
+			copy_index<CPH3::CMAP::Vertex>(map, phi_1(m, dd), e);
 		}
 		if (is_indexed<CPH3::CMAP::Edge>(m))
 			set_index(m, CPH3::CMAP::Edge(phi_1(m, v1.dart)), new_index<CPH3::CMAP::Edge>(m));

@@ -154,6 +154,25 @@ int main(int argc, char** argv)
 				});
 				vmrm.changed_connectivity(*selected_mesh,position.get());
 				break;
+			case GLFW_KEY_L:
+				if(selected_vertices != nullptr){
+					selected_vertices->foreach_cell([&](Vertex v){
+						cgogn::foreach_incident_face(*selected_mesh,v,[&](Face f)->bool{
+							std::cout << "face level : " << selected_mesh->face_level(f.dart) << std::endl;
+							return true;
+						});
+					});
+				}
+				if(selected_edges != nullptr){
+					selected_edges->foreach_cell([&](Edge e){
+						cgogn::foreach_incident_face(*selected_mesh,e,[&](Face f)->bool{
+							std::cout << "face level : " << selected_mesh->face_level(f.dart) << std::endl;
+							return true;
+						});
+						std::cout << "edge level : " << selected_mesh->edge_level(e.dart) << std::endl;
+					});
+				}
+				break;
 			
 		}
 		

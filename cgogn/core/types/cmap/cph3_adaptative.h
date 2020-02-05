@@ -82,6 +82,7 @@ struct CPH3_adaptative : public CPH3
 	 ***************************************************/
 	
 	uint32 edge_level(Dart d)const;
+	Dart edge_oldest_dart(Dart d)const;
 	Dart edge_youngest_dart(Dart d)const;
 	bool edge_is_subdivided(Dart d) const;
 	
@@ -110,6 +111,7 @@ struct CPH3_adaptative : public CPH3
 	
 	void activated_edge_subdivision(CMAP::Edge e);
 	void activated_face_subdivision(CMAP::Face f);
+	//void activated_volume_subdivision(CMAP::Volume f);
 };
 
 }

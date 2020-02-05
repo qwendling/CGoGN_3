@@ -261,7 +261,7 @@ CPH3::CMAP::Face cut_volume(CPH3& m, const std::vector<Dart>& path, bool set_ind
 		if (is_indexed<CPH3::CMAP::Vertex>(m))
 		{
 			foreach_dart_of_orbit(m, CPH3::CMAP::Face(f0), [&](Dart d) -> bool {
-				copy_index<CPH3::CMAP::Vertex>(m, d, phi<21>(m, d));
+				copy_index<CPH3::CMAP::Vertex>(map, d, phi<21>(m, d));
 				return true;
 			});
 		}

@@ -138,6 +138,15 @@ Dart CPH3::edge_youngest_dart(Dart d)const
 	return d2;
 }
 
+
+Dart CPH3::edge_oldest_dart(Dart d)const
+{
+	cgogn_message_assert(dart_level(d) <= current_level_, "Access to a dart introduced after current level");
+	Dart d2 = phi2(*this, d);
+	if (dart_level(d) < dart_level(d2))
+		return d;
+	return d2;
+}
 bool CPH3::edge_is_subdivided(Dart d) const
 {
 	cgogn_message_assert(dart_level(d) <= current_level_, "Access to a dart introduced after current level");
