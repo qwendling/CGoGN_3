@@ -148,11 +148,28 @@ int main(int argc, char** argv)
 				}
 				break;
 			case GLFW_KEY_A:
+			{
+				std::vector<Edge> list_cut_edges;
 				cgogn::foreach_cell(*selected_mesh,[&](Edge e)->bool{
-					selected_mesh->activated_edge_subdivision(e);
+					list_cut_edges.push_back(e);
 					return true;
 				});
+				for(Edge e:list_cut_edges)
+					selected_mesh->activated_edge_subdivision(e);
 				vmrm.changed_connectivity(*selected_mesh,position.get());
+			}
+				break;
+			case GLFW_KEY_Q:
+			{
+				std::vector<Face> list_cut_faces;
+				cgogn::foreach_cell(*selected_mesh,[&list_cut_faces](Face f)->bool{
+					list_cut_faces.push_back(f);
+					return true;
+				});
+				for(Face f:list_cut_faces)
+					selected_mesh->activated_face_subdivision(f);
+				vmrm.changed_connectivity(*selected_mesh,position.get());
+			}
 				break;
 			case GLFW_KEY_L:
 				if(selected_vertices != nullptr){
@@ -167,10 +184,13 @@ int main(int argc, char** argv)
 					selected_edges->foreach_cell([&](Edge e){
 						cgogn::foreach_incident_face(*selected_mesh,e,[&](Face f)->bool{
 							std::cout << "face level : " << selected_mesh->face_level(f.dart) << std::endl;
+							std::cout << "face oldest : " << selected_mesh->face_youngest_dart(f.dart).index << std::endl;
 							return true;
 						});
 						std::cout << "edge level : " << selected_mesh->edge_level(e.dart) << std::endl;
+						std::cout << "_____________________________________" << std::endl;
 					});
+					std::cout << "######################################" << std::endl;
 				}
 				break;
 			
