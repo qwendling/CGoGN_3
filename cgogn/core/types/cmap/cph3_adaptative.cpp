@@ -213,9 +213,23 @@ Dart CPH3_adaptative::face_youngest_dart(Dart d)const
 						 "Access to a dart not visible at this level") ;
 	Dart it = d;
 	Dart youngest = it;
-    int32 l_young = -1;
+    uint32 l_young;
 	Dart it2 = phi_1(*this,it);
-	do{
+	while(get_representative(it) == get_representative(it2)){
+		it2 = it;
+		it = phi1(*this,it);
+	}
+	l_young = dart_level(it);
+	youngest = it;
+	it2 = it;
+	it = phi1(*this,it);
+	while(get_representative(it) == get_representative(it2)){
+		it2 = it;
+		it = phi1(*this,it);
+	}
+	if(dart_level(it) > l_young)
+		youngest = it;
+	/*do{
 		if(edge_id(it) != edge_id(it2) || dart_level(it) == 0){
             int32 l = dart_level(it);
 			if (l > l_young)
@@ -234,7 +248,7 @@ Dart CPH3_adaptative::face_youngest_dart(Dart d)const
 		}
 		it2=it;
 		it = phi1(*this,it);
-	}while(it != d);
+	}while(it != d);*/
 
 	return youngest;
 }
@@ -259,13 +273,10 @@ bool CPH3_adaptative::face_is_subdivided(Dart d)const
 {
 	cgogn_message_assert(dart_is_visible(d),
 						 "Access to a dart not visible at this level") ;
-	uint32 fLevel = face_level(d) ;
+	d = face_youngest_dart(d);
+	uint32 fLevel = dart_level(d);
 	if(fLevel < current_level_)
 		return false ;
-
-	do{
-		d = phi1(*this,d);
-	}while(dart_level(d) > fLevel);
 
 	bool subd = false ;
 
