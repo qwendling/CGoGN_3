@@ -139,46 +139,6 @@ uint32 CPH3_adaptative::face_level(Dart d)const
 {
 	cgogn_message_assert(dart_is_visible(d),
 						 "Access to a dart not visible at this level") ;
-	
-	/*Dart it = d;
-	Dart old = it;
-	uint32 l_old = dart_level(old);
-	uint32 fLevel = edge_level(it);
-	do
-	{
-		it = phi1(*this, it);
-		uint32 dl = dart_level(it);
-
-		// compute the oldest dart of the face in the same time
-		if (dl < l_old)
-		{
-			old = it;
-			l_old = dl;
-		}
-		uint32 l = edge_level(it);
-		fLevel = l < fLevel ? l : fLevel;
-	} while (it != d);
-
-	CPH3 m2(CPH3(*this));
-	m2.current_level_ = fLevel;
-
-	uint32 nbSubd = 0;
-	it = old;
-	uint32 eId = m2.edge_id(old);
-	uint32 init_dart_level = m2.dart_level(it);
-	do
-	{
-		++nbSubd;
-		it = phi1(m2, it);
-	} while (m2.edge_id(it) == eId && m2.dart_level(it) != init_dart_level);
-
-	while (nbSubd > 1)
-	{
-		nbSubd /= 2;
-		--fLevel;
-	}
-
-	return fLevel;*/
 	return dart_level(face_youngest_dart(d));
 }
 
@@ -229,26 +189,6 @@ Dart CPH3_adaptative::face_youngest_dart(Dart d)const
 	}
 	if(dart_level(it) > l_young)
 		youngest = it;
-	/*do{
-		if(edge_id(it) != edge_id(it2) || dart_level(it) == 0){
-            int32 l = dart_level(it);
-			if (l > l_young)
-			{
-				youngest = it;
-				l_young = l;
-			}else{
-                if(l == l_young){
-                    if(it.index <  youngest.index)
-                        youngest = it;
-                    it2 = phi<31>(*this,it);
-                    if(!is_boundary(*this,it2) && it2.index <  youngest.index)
-                        youngest = it2;
-                }
-			}
-		}
-		it2=it;
-		it = phi1(*this,it);
-	}while(it != d);*/
 
 	return youngest;
 }

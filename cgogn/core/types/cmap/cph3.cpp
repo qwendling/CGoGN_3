@@ -117,6 +117,8 @@ uint32 CPH3::refinement_face_id(const std::vector<Dart>& cut_path) const
 	while (set_fid.find(result) != set_fid.end())
 		++result;
 	return result;
+	/*static uint32 id =0;
+	return ++id;*/
 }
 
 /***************************************************
