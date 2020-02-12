@@ -277,29 +277,20 @@ CPH3::CMAP::Face cut_volume(CPH3& m, const std::vector<Dart>& path, bool set_ind
 			set_index(m, CPH3::CMAP::Face(f0), new_index<CPH3::CMAP::Face>(m));
 		if (is_indexed<CPH3::CMAP::Volume>(m))
 		{
-			if (vlevel == m.current_level_)
-			{
-				foreach_dart_of_orbit(m, CPH3::CMAP::Face2(f0), [&](Dart d) -> bool {
-					copy_index<CPH3::CMAP::Volume>(map, d, phi2(m, d));
-					return true;
-				});
-				set_index(m, CPH3::CMAP::Volume(f1), new_index<CPH3::CMAP::Volume>(m));
-			}
-			else
-			{
-				uint32 ved1 = new_index<CPH3::CMAP::Volume>(m);
-				uint32 ved2 = new_index<CPH3::CMAP::Volume>(m);
-				foreach_dart_of_orbit(m, CPH3::CMAP::Volume(f0), [&](Dart d) -> bool {
-					if (m.dart_level(d) == m.current_level_)
-						set_index<CPH3::CMAP::Volume>(m, d, ved1);
-					return true;
-				});
-				foreach_dart_of_orbit(m, CPH3::CMAP::Volume(f1), [&](Dart d) -> bool {
-					if (m.dart_level(d) == m.current_level_)
-						set_index<CPH3::CMAP::Volume>(m, d, ved2);
-					return true;
-				});
-			}
+
+			uint32 ved1 = new_index<CPH3::CMAP::Volume>(m);
+			uint32 ved2 = new_index<CPH3::CMAP::Volume>(m);
+			foreach_dart_of_orbit(m, CPH3::CMAP::Volume(f0), [&](Dart d) -> bool {
+				if (m.dart_level(d) == m.current_level_)
+					set_index<CPH3::CMAP::Volume>(m, d, ved1);
+				return true;
+			});
+			foreach_dart_of_orbit(m, CPH3::CMAP::Volume(f1), [&](Dart d) -> bool {
+				if (m.dart_level(d) == m.current_level_)
+					set_index<CPH3::CMAP::Volume>(m, d, ved2);
+				return true;
+			});
+			
 		}
 	}
 

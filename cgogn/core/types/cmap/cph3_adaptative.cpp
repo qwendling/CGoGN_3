@@ -237,46 +237,8 @@ uint32 CPH3_adaptative::volume_level(Dart d) const
 {
 	cgogn_message_assert(dart_is_visible(d),
 						 "Access to a dart not visible at this level") ;
-
-	// The level of a volume is the
-	// minimum of the levels of its faces
-
-	Dart oldest = d;
-	uint32 lold = dart_level(oldest);
-	uint32 vLevel = std::numeric_limits<uint32>::max();
-
-	foreach_incident_face(*this, CPH3_adaptative::CMAP::Volume(d), [&](CPH3_adaptative::CMAP::Face f) -> bool {
-		uint32 fLevel = face_level(f.dart);
-		vLevel = fLevel < vLevel ? fLevel : vLevel;
-		Dart old = face_oldest_dart(f.dart);
-		if (dart_level(old) < lold)
-		{
-			oldest = old;
-			lold = dart_level(old);
-		}
-		return true;
-	});
-
-	CPH3 m2(CPH3(*this));
-	m2.current_level_ = vLevel;
-
-	uint32 nbSubd = 0;
-	Dart it = oldest;
-	uint32 eId = edge_id(oldest);
-	do
-	{
-		++nbSubd;
-		it = phi<121>(m2, it);
-	} while (edge_id(it) == eId && lold != dart_level(it));
-
-	while (nbSubd > 1)
-	{
-		nbSubd /= 2;
-		--vLevel;
-	}
-
-
-	return vLevel;
+	
+	return dart_level(volume_youngest_dart(d));
 }
 
 Dart CPH3_adaptative::volume_oldest_dart(Dart d)const
@@ -304,21 +266,58 @@ Dart CPH3_adaptative::volume_youngest_dart(Dart d)const
 {
 	cgogn_message_assert(dart_is_visible(d),
 						 "Access to a dart not visible at this level") ;
-
-	Dart youngest = d;
-	uint32 l_young = dart_level(youngest);
-	foreach_incident_face(*this, CPH3_adaptative::CMAP::Volume(youngest), [&](CPH3_adaptative::CMAP::Face f) -> bool {
-		Dart young = face_youngest_dart(f.dart);
-		uint32 l = dart_level(young);
-		if (l > l_young)
-		{
-			youngest = young;
-			l_young = l;
+	//find signifiant edge
+	
+	auto is_signifiant_edge = [&](Dart d){
+		Dart tmp = phi2(*this,d);
+		return dart_level(get_representative(d)) == 0 || face_id(tmp) != face_id(d);
+	};
+	
+	Dart it = d;
+	Dart it2;
+	while(1){
+		do{
+			it2 = it;
+			it = phi1(*this,it);
+		}while(get_representative(it) == get_representative(it2));
+		if(is_signifiant_edge(it)){
+			break;
+		}else{
+			it = phi<21>(*this,it);
 		}
-		return true;
-	});
-
-	return youngest;
+	}
+	
+	//find significant vertex
+	
+	Dart eRep = get_representative(it);
+	do{
+		do{
+			it2 = it;
+			it = phi1(*this,it);
+		}while(get_representative(it) == get_representative(it2));
+		if(is_signifiant_edge(it))
+			break;
+		do{
+			it =phi<21>(*this,it);	
+		}while(get_representative(it) != eRep);
+	}while(1);
+	
+	Dart y = it;
+	eRep = get_representative(it);
+	do{
+		do{
+			it2 = it;
+			it = phi1(*this,it);
+		}while(get_representative(it) == get_representative(it2));
+		if(is_signifiant_edge(it))
+			break;
+		do{
+			it =phi<21>(*this,it);	
+		}while(get_representative(it) != eRep);
+	}while(1);
+	if(dart_level(it) > dart_level(y))
+		y = it;
+	return y;
 }
 
 bool CPH3_adaptative::volume_is_subdivided(Dart d) const

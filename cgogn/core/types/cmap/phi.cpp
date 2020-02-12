@@ -144,7 +144,6 @@ Dart phi_1(const CPH3_adaptative& m, Dart d){
 	cgogn_message_assert(m.dart_is_visible(d),
 						 "Access to a dart not visible at this level") ;
 	
-	
 	const CPH3::CMAP& map = static_cast<const CPH3::CMAP&>(m);
 	
 	if(m.maximum_level_ == m.current_level_)
