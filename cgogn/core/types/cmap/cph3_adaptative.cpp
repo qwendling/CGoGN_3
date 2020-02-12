@@ -2,6 +2,7 @@
 #include <cgogn/core/types/cmap/phi.h>
 #include <cgogn/core/functions/traversals/face.h>
 #include <cgogn/core/functions/traversals/edge.h>
+#include <cgogn/core/functions/traversals/vertex.h>
 
 namespace cgogn {
 
@@ -330,9 +331,19 @@ bool CPH3_adaptative::volume_is_subdivided(Dart d) const
 		return false;
 
 	CPH3 m2(CPH3(*this));
-	d = volume_oldest_dart(d);
+	d = volume_youngest_dart(d);
 	m2.current_level_ = vLevel;
-	return m2.volume_is_subdivided(d);
+	Dart it = phi1(m2,d);
+	m2.current_level_ = vLevel+1;
+	Dart it2 = phi1(m2,it);
+	
+	if(it == it2)
+		return false;
+	
+	if(get_representative(it) == get_representative(it2) || face_id(phi2(m2,it2)) == face_id(it2))
+		return false;
+	
+	return true;
 }
 
 /***************************************************
@@ -383,6 +394,32 @@ void CPH3_adaptative::activated_face_subdivision(CMAP::Face f){
 		it = phi1(m2,it);
 		set_representative_visibility_level(it,current_level_);
 		set_representative_visibility_level(phi3(m2,it),current_level_);
+	}
+}
+
+void CPH3_adaptative::activated_volume_subdivision(CMAP::Volume v){
+	if(!volume_is_subdivided(v.dart)){
+		return;
+	}
+	Dart d = volume_oldest_dart(v.dart);
+	CPH3 m2(CPH3(*this));
+	m2.current_level_ = volume_level(v.dart);
+	std::vector<Vertex> vect_vertices;
+	foreach_incident_vertex(m2, CPH3_adaptative::CMAP::Volume(d), [&](CPH3_adaptative::CMAP::Vertex w) -> bool {
+		vect_vertices.push_back(w);
+		return true;
+	});
+	
+	m2.current_level_++;
+	for(Vertex w:vect_vertices){
+		foreach_dart_of_orbit(m2,Volume(w.dart),[&](Dart d)->bool{
+			set_visibility_level(d,current_level_);
+			set_representative_visibility_level(d,current_level_);
+			Dart dd = phi3(m2,d);
+			set_visibility_level(dd,current_level_);
+			set_representative_visibility_level(dd,current_level_);
+			return true;
+		});
 	}
 }
 

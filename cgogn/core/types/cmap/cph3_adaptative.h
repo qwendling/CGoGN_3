@@ -111,7 +111,7 @@ struct CPH3_adaptative : public CPH3
 	
 	void activated_edge_subdivision(CMAP::Edge e);
 	void activated_face_subdivision(CMAP::Face f);
-	//void activated_volume_subdivision(CMAP::Volume f);
+	void activated_volume_subdivision(CMAP::Volume v);
 };
 
 }

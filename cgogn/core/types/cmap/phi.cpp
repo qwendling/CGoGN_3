@@ -144,7 +144,7 @@ Dart phi_1(const CPH3_adaptative& m, Dart d){
 	cgogn_message_assert(m.dart_is_visible(d),
 						 "Access to a dart not visible at this level") ;
 	
-	const CPH3::CMAP& map = static_cast<const CPH3::CMAP&>(m);
+	/*const CPH3::CMAP& map = static_cast<const CPH3::CMAP&>(m);
 	
 	if(m.maximum_level_ == m.current_level_)
 		return phi_1(map,d);
@@ -167,15 +167,15 @@ Dart phi_1(const CPH3_adaptative& m, Dart d){
 				it = phi_1(map, phi2bis(m, it));
 		}
 	} while (!finished);
-	return it;
-	/*Dart it = phi1(m,d);
+	return it;*/
+	Dart it = phi1(m,d);
 	Dart it2 = phi1(m,it);
 	while(it2 != d){
 		it = it2;
 		it2 = phi1(m,it2);
 	}
 
-	return it ;*/
+	return it ;
 }
 
 Dart phi2(const CPH3_adaptative& m, Dart d){

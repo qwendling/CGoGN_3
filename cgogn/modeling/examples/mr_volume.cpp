@@ -36,6 +36,7 @@
 #include <cgogn/ui/modules/volume_selection/volume_selection.h>
 #include <GLFW/glfw3.h>
 #include <cgogn/core/functions/traversals/edge.h>
+#include <cgogn/core/functions/traversals/volume.h>
 
 using MRMesh = cgogn::CPH3_adaptative;
 using Mesh = MRMesh::CMAP;
@@ -45,6 +46,7 @@ using Attribute = typename cgogn::mesh_traits<Mesh>::Attribute<T>;
 using Vertex = typename cgogn::mesh_traits<Mesh>::Vertex;
 using Edge = typename cgogn::mesh_traits<Mesh>::Edge;
 using Face = typename cgogn::mesh_traits<Mesh>::Face;
+using Volume = typename cgogn::mesh_traits<Mesh>::Volume;
 
 using Vec3 = cgogn::geometry::Vec3;
 
@@ -130,7 +132,6 @@ int main(int argc, char** argv)
 				if(selected_vertices != nullptr){
 					selected_vertices->foreach_cell([&](Vertex v){
 						cgogn::foreach_incident_face(*m,v,[&](Face f)->bool{
-							std::cout << "F" << std::endl;
 							selected_mesh->activated_face_subdivision(f);
 							return true;
 						});
@@ -141,6 +142,26 @@ int main(int argc, char** argv)
 					selected_edges->foreach_cell([&](Edge e){
 						cgogn::foreach_incident_face(*m,e,[&](Face f)->bool{
 							selected_mesh->activated_face_subdivision(f);
+							return true;
+						});
+					});
+					vmrm.changed_connectivity(*selected_mesh,position.get());
+				}
+				break;
+			case GLFW_KEY_V:
+				/*if(selected_vertices != nullptr){
+					selected_vertices->foreach_cell([&](Vertex v){
+						cgogn::foreach_incident_volume(*m,v,[&](Volume w)->bool{
+							selected_mesh->activated_volume_subdivision(w);
+							return true;
+						});
+					});
+					vmrm.changed_connectivity(*selected_mesh,position.get());
+				}*/
+				if(selected_edges != nullptr){
+					selected_edges->foreach_cell([&](Edge e){
+						cgogn::foreach_incident_volume(*m,e,[&](Volume v)->bool{
+							selected_mesh->activated_volume_subdivision(v);
 							return true;
 						});
 					});
@@ -168,6 +189,19 @@ int main(int argc, char** argv)
 				});
 				for(Face f:list_cut_faces)
 					selected_mesh->activated_face_subdivision(f);
+				vmrm.changed_connectivity(*selected_mesh,position.get());
+			}
+				break;
+			case GLFW_KEY_Z:
+			{
+				std::cout << "hum " << std::endl;
+				std::vector<Volume> list_cut_volumes;
+				cgogn::foreach_cell(*selected_mesh,[&list_cut_volumes](Volume v)->bool{
+					list_cut_volumes.push_back(v);
+					return true;
+				});
+				for(Volume v:list_cut_volumes)
+					selected_mesh->activated_volume_subdivision(v);
 				vmrm.changed_connectivity(*selected_mesh,position.get());
 			}
 				break;
