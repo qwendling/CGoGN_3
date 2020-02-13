@@ -108,14 +108,18 @@ int main(int argc, char** argv)
 	mrsr.set_vertex_position(*v2, *cph1, nullptr);
 	mrsr.set_vertex_position(*v2, *cph2, position);
 	
-	vs.f_keypress = [&](MRMesh* selected_mesh, std::int32_t k,
+	vs.f_keypress = [&](cgogn::ui::View* view,MRMesh* selected_mesh, std::int32_t k,
 			cgogn::ui::CellsSet<MRMesh, Vertex>* selected_vertices,cgogn::ui::CellsSet<MRMesh, Edge>*selected_edges){
 		switch(k){
 			case GLFW_KEY_E:
 				if(selected_vertices != nullptr){
 					selected_vertices->foreach_cell([&](Vertex v){
 						cgogn::foreach_incident_edge(*m,v,[&](Edge e)->bool{
-							selected_mesh->activated_edge_subdivision(e);
+							if(view->shift_pressed()){
+								selected_mesh->disable_edge_subdivision(e);
+							}else{
+								selected_mesh->activate_edge_subdivision(e);
+							}
 							return true;
 						});
 					});
@@ -123,7 +127,11 @@ int main(int argc, char** argv)
 				}
 				if(selected_edges != nullptr){
 					selected_edges->foreach_cell([&](Edge e){
-						selected_mesh->activated_edge_subdivision(e);
+						if(view->shift_pressed()){
+							selected_mesh->disable_edge_subdivision(e);
+						}else{
+							selected_mesh->activate_edge_subdivision(e);
+						}
 					});
 					vmrm.changed_connectivity(*selected_mesh,position.get());
 				}
@@ -132,7 +140,7 @@ int main(int argc, char** argv)
 				if(selected_vertices != nullptr){
 					selected_vertices->foreach_cell([&](Vertex v){
 						cgogn::foreach_incident_face(*m,v,[&](Face f)->bool{
-							selected_mesh->activated_face_subdivision(f);
+							selected_mesh->activate_face_subdivision(f);
 							return true;
 						});
 					});
@@ -141,7 +149,7 @@ int main(int argc, char** argv)
 				if(selected_edges != nullptr){
 					selected_edges->foreach_cell([&](Edge e){
 						cgogn::foreach_incident_face(*m,e,[&](Face f)->bool{
-							selected_mesh->activated_face_subdivision(f);
+							selected_mesh->activate_face_subdivision(f);
 							return true;
 						});
 					});
@@ -161,7 +169,7 @@ int main(int argc, char** argv)
 				if(selected_edges != nullptr){
 					selected_edges->foreach_cell([&](Edge e){
 						cgogn::foreach_incident_volume(*m,e,[&](Volume v)->bool{
-							selected_mesh->activated_volume_subdivision(v);
+							selected_mesh->activate_volume_subdivision(v);
 							return true;
 						});
 					});
@@ -176,7 +184,11 @@ int main(int argc, char** argv)
 					return true;
 				});
 				for(Edge e:list_cut_edges)
-					selected_mesh->activated_edge_subdivision(e);
+					if(view->shift_pressed()){
+						//selected_mesh->disable_edge_subdivision(e);
+					}else{
+						selected_mesh->activate_edge_subdivision(e);
+					}
 				vmrm.changed_connectivity(*selected_mesh,position.get());
 			}
 				break;
@@ -188,7 +200,7 @@ int main(int argc, char** argv)
 					return true;
 				});
 				for(Face f:list_cut_faces)
-					selected_mesh->activated_face_subdivision(f);
+					selected_mesh->activate_face_subdivision(f);
 				vmrm.changed_connectivity(*selected_mesh,position.get());
 			}
 				break;
@@ -201,7 +213,7 @@ int main(int argc, char** argv)
 					return true;
 				});
 				for(Volume v:list_cut_volumes)
-					selected_mesh->activated_volume_subdivision(v);
+					selected_mesh->activate_volume_subdivision(v);
 				vmrm.changed_connectivity(*selected_mesh,position.get());
 			}
 				break;

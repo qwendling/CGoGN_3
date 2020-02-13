@@ -109,9 +109,13 @@ struct CPH3_adaptative : public CPH3
 	 *            ADAPTATIVE RESOLUTION                *
 	 ***************************************************/
 	
-	void activated_edge_subdivision(CMAP::Edge e);
-	void activated_face_subdivision(CMAP::Face f);
-	void activated_volume_subdivision(CMAP::Volume v);
+	void activate_edge_subdivision(CMAP::Edge e);
+	void activate_face_subdivision(CMAP::Face f);
+	void activate_volume_subdivision(CMAP::Volume v);
+	
+	bool disable_edge_subdivision(CMAP::Edge e);
+	//void disable_face_subdivision(CMAP::Face f);
+	//void disable_volume_subdivision(CMAP::Volume v);
 };
 
 }

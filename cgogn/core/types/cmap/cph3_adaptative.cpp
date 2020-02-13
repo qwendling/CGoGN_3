@@ -350,7 +350,7 @@ bool CPH3_adaptative::volume_is_subdivided(Dart d) const
  *            ADAPTATIVE RESOLUTION                *
  ***************************************************/
 
-void CPH3_adaptative::activated_edge_subdivision(CMAP::Edge e){
+void CPH3_adaptative::activate_edge_subdivision(CMAP::Edge e){
 	if(!edge_is_subdivided(e.dart))
 		return;
 	CMAP::Edge e2 = CMAP::Edge(phi2(*this,e.dart));
@@ -366,7 +366,7 @@ void CPH3_adaptative::activated_edge_subdivision(CMAP::Edge e){
 	});
 }
 
-void CPH3_adaptative::activated_face_subdivision(CMAP::Face f){
+void CPH3_adaptative::activate_face_subdivision(CMAP::Face f){
 	if(!face_is_subdivided(f.dart)){
 		return;
 	}
@@ -383,7 +383,7 @@ void CPH3_adaptative::activated_face_subdivision(CMAP::Face f){
 	
 	for(auto e : vect_edges){
 		if(edge_level(e) < m2.current_level_)
-			activated_edge_subdivision(CMAP::Edge(e));
+			activate_edge_subdivision(CMAP::Edge(e));
 		foreach_dart_of_orbit(m2,CMAP::Edge(phi1(m2,e)),[&](Dart dd)->bool{
 			set_visibility_level(dd,current_level_);
 			return true;
@@ -397,7 +397,7 @@ void CPH3_adaptative::activated_face_subdivision(CMAP::Face f){
 	}
 }
 
-void CPH3_adaptative::activated_volume_subdivision(CMAP::Volume v){
+void CPH3_adaptative::activate_volume_subdivision(CMAP::Volume v){
 	if(!volume_is_subdivided(v.dart)){
 		return;
 	}
@@ -421,6 +421,30 @@ void CPH3_adaptative::activated_volume_subdivision(CMAP::Volume v){
 			return true;
 		});
 	}
+}
+
+bool CPH3_adaptative::disable_edge_subdivision(CMAP::Edge e){
+	uint32 eLevel = edge_level(e.dart);
+	if(eLevel <= current_level_)
+		return false;
+	Dart d = edge_oldest_dart(e.dart);
+	Dart it = d;
+	std::vector<Dart> list_dart;
+	do{
+		Dart it2 = phi1(*this,it);
+		if(get_representative(it) != get_representative(it2))
+			return false;
+		list_dart.push_back(it2);
+		it = phi2(*this,it);
+		list_dart.push_back(it);
+		it = phi3(*this,it);
+	}while(it!=d);
+	if(edge_level(phi1(*this,d)) != eLevel)
+		return false;
+	for(Dart dd : list_dart){
+		unset_visibility_level(dd,current_level_);
+	}
+	return true;
 }
 
 }

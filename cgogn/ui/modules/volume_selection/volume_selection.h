@@ -150,13 +150,13 @@ public:
 		ViewModule(app, "VolumeSelection (" + std::string{mesh_traits<MESH>::name} + ")"),
 		selected_mesh_(nullptr)
 	{
-		f_keypress = [](MESH*,int32,CellsSet<MESH, Vertex>*,CellsSet<MESH, Edge>*){};
+		f_keypress = [](View*,MESH*,int32,CellsSet<MESH, Vertex>*,CellsSet<MESH, Edge>*){};
 	}
 
 	~VolumeSelection()
 	{}
 	
-	std::function<void(MESH*, int32,CellsSet<MESH, Vertex>*,CellsSet<MESH, Edge>*)> f_keypress;
+	std::function<void(View*,MESH*, int32,CellsSet<MESH, Vertex>*,CellsSet<MESH, Edge>*)> f_keypress;
 private:
 
 	void init_mesh(MESH* m)
@@ -288,10 +288,10 @@ protected:
 		}
 	}
 	
-	void key_press_event(View*, int32 key_code){
+	void key_press_event(View* v, int32 key_code){
 		if(selected_mesh_){
 			Parameters& p = parameters_[selected_mesh_];
-			this->f_keypress(selected_mesh_,key_code,p.selected_vertices_set_,p.selected_edges_set_);
+			this->f_keypress(v,selected_mesh_,key_code,p.selected_vertices_set_,p.selected_edges_set_);
 		}
 		
 	}
