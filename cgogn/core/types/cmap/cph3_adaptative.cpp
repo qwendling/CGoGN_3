@@ -447,5 +447,37 @@ bool CPH3_adaptative::disable_edge_subdivision(CMAP::Edge e){
 	return true;
 }
 
+bool CPH3_adaptative::disable_face_subdivision(CMAP::Face f){
+	Dart y = face_youngest_dart(f.dart);
+	if(dart_level(y) <= current_level_)
+		return false;
+	CPH3 m2(CPH3(*this));
+	m2.current_level_ = dart_level(y);
+	Dart old = m2.face_oldest_dart(y);
+	if(face_id(phi2(*this,phi1(m2,old))) != face_id(old))
+		return false;
+	m2.current_level_--;
+	std::vector<Dart> list_dart;
+	Dart it = old;
+	do{
+		list_dart.push_back(it);
+		it = phi1(m2,it);
+		if(face_level(it) != dart_level(y))
+			return false;
+	}while(it != old);
+	m2.current_level_++;
+	for(Dart d : list_dart){
+		Dart dd = phi1(m2,d);
+		while(m2.edge_level(dd) != dart_level(y))
+			disable_edge_subdivision(CMAP::Edge(dd));
+		unset_representative_visibility_level(dd,current_level_);
+		unset_representative_visibility_level(phi3(m2,dd),current_level_);
+		dd = phi1(m2,dd);
+		unset_representative_visibility_level(dd,current_level_);
+		unset_representative_visibility_level(phi3(m2,dd),current_level_);
+	}
+	return true;
+}
+
 }
 

@@ -148,10 +148,19 @@ int main(int argc, char** argv)
 				}
 				if(selected_edges != nullptr){
 					selected_edges->foreach_cell([&](Edge e){
-						cgogn::foreach_incident_face(*m,e,[&](Face f)->bool{
-							selected_mesh->activate_face_subdivision(f);
+						std::vector<Face> face_list;
+						cgogn::foreach_incident_face(*selected_mesh,e,[&](Face f)->bool{
+							face_list.push_back(f);
 							return true;
 						});
+						for(auto f : face_list){
+							if(view->shift_pressed()){
+								if(selected_mesh->dart_is_visible(f.dart))
+									selected_mesh->disable_face_subdivision(f);
+							}else{
+								selected_mesh->activate_face_subdivision(f);
+							}
+						}
 					});
 					vmrm.changed_connectivity(*selected_mesh,position.get());
 				}
