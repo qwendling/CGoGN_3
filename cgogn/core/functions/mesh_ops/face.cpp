@@ -266,8 +266,6 @@ CMap3::Edge cut_face(CMap3& m, CMap3::Vertex v1, CMap3::Vertex v2, bool set_indi
 CPH3::CMAP::Edge cut_face(CPH3& m, CPH3::CMAP::Vertex v1, CPH3::CMAP::Vertex v2, bool set_indices)
 {
 	CPH3::CMAP& map = static_cast<CPH3::CMAP&>(m);
-
-	uint32 flevel = m.face_level(v1.dart);
 	Dart d = v1.dart;
 	Dart e = v2.dart;
 

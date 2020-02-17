@@ -116,7 +116,7 @@ int main(int argc, char** argv)
 					selected_vertices->foreach_cell([&](Vertex v){
 						cgogn::foreach_incident_edge(*m,v,[&](Edge e)->bool{
 							if(view->shift_pressed()){
-								selected_mesh->disable_edge_subdivision(e);
+								selected_mesh->disable_edge_subdivision(e,true);
 							}else{
 								selected_mesh->activate_edge_subdivision(e);
 							}
@@ -128,7 +128,7 @@ int main(int argc, char** argv)
 				if(selected_edges != nullptr){
 					selected_edges->foreach_cell([&](Edge e){
 						if(view->shift_pressed()){
-							selected_mesh->disable_edge_subdivision(e);
+							selected_mesh->disable_edge_subdivision(e,true);
 						}else{
 							selected_mesh->activate_edge_subdivision(e);
 						}
@@ -156,7 +156,7 @@ int main(int argc, char** argv)
 						for(auto f : face_list){
 							if(view->shift_pressed()){
 								if(selected_mesh->dart_is_visible(f.dart))
-									selected_mesh->disable_face_subdivision(f);
+									selected_mesh->disable_face_subdivision(f,true);
 							}else{
 								selected_mesh->activate_face_subdivision(f);
 							}

@@ -423,7 +423,7 @@ void CPH3_adaptative::activate_volume_subdivision(CMAP::Volume v){
 	}
 }
 
-bool CPH3_adaptative::disable_edge_subdivision(CMAP::Edge e){
+bool CPH3_adaptative::disable_edge_subdivision(CMAP::Edge e,bool disable_neighbor){
 	uint32 eLevel = edge_level(e.dart);
 	if(eLevel <= current_level_)
 		return false;
@@ -439,15 +439,20 @@ bool CPH3_adaptative::disable_edge_subdivision(CMAP::Edge e){
 		list_dart.push_back(it);
 		it = phi3(*this,it);
 	}while(it!=d);
-	if(edge_level(phi1(*this,d)) != eLevel)
-		return false;
+	Dart tmp = phi1(*this,d);
+	if(edge_level(tmp) != eLevel){
+		if(disable_neighbor)
+			disable_edge_subdivision(CMAP::Edge(tmp),true);
+		else
+			return false;
+	}
 	for(Dart dd : list_dart){
 		unset_visibility_level(dd,current_level_);
 	}
 	return true;
 }
 
-bool CPH3_adaptative::disable_face_subdivision(CMAP::Face f){
+bool CPH3_adaptative::disable_face_subdivision(CMAP::Face f,bool disable_edge){
 	Dart y = face_youngest_dart(f.dart);
 	if(dart_level(y) <= current_level_)
 		return false;
@@ -455,6 +460,9 @@ bool CPH3_adaptative::disable_face_subdivision(CMAP::Face f){
 	m2.current_level_ = dart_level(y);
 	Dart old = m2.face_oldest_dart(y);
 	if(face_id(phi2(*this,phi1(m2,old))) != face_id(old))
+		return false;
+	Dart tmp = phi<13>(m2,old);
+	if(face_id(phi2(*this,tmp)) != face_id(old))
 		return false;
 	m2.current_level_--;
 	std::vector<Dart> list_dart;
@@ -475,8 +483,24 @@ bool CPH3_adaptative::disable_face_subdivision(CMAP::Face f){
 		dd = phi1(m2,dd);
 		unset_representative_visibility_level(dd,current_level_);
 		unset_representative_visibility_level(phi3(m2,dd),current_level_);
+		if(disable_edge)
+			disable_edge_subdivision(CMAP::Edge(d),true);
 	}
 	return true;
+}
+
+bool CPH3_adaptative::disable_volume_subdivision(CMAP::Volume v){
+	Dart y = volume_youngest_dart(v.dart);
+	if(dart_level(y) <= current_level_)
+		return false;
+	/*CPH3 m2(CPH3(*this));
+	m2.current_level_ = dart_level(y) - 1;
+	std::vector<Vertex> vect_vertices;
+	foreach_incident_vertex(m2, CPH3_adaptative::CMAP::Volume(d), [&](CPH3_adaptative::CMAP::Vertex w) -> bool {
+		vect_vertices.push_back(w);
+		return true;
+	});*/
+	
 }
 
 }
