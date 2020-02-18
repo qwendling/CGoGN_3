@@ -166,22 +166,31 @@ int main(int argc, char** argv)
 				}
 				break;
 			case GLFW_KEY_V:
-				/*if(selected_vertices != nullptr){
-					selected_vertices->foreach_cell([&](Vertex v){
+				if(selected_vertices != nullptr){
+					/*selected_vertices->foreach_cell([&](Vertex v){
 						cgogn::foreach_incident_volume(*m,v,[&](Volume w)->bool{
-							selected_mesh->activated_volume_subdivision(w);
+							selected_mesh->activate_volume_subdivision(w);
 							return true;
 						});
 					});
-					vmrm.changed_connectivity(*selected_mesh,position.get());
-				}*/
+					vmrm.changed_connectivity(*selected_mesh,position.get());*/
+				}
 				if(selected_edges != nullptr){
+					std::vector<Volume> volume_list;
 					selected_edges->foreach_cell([&](Edge e){
 						cgogn::foreach_incident_volume(*m,e,[&](Volume v)->bool{
-							selected_mesh->activate_volume_subdivision(v);
+							volume_list.push_back(v);
 							return true;
 						});
 					});
+					for(Volume v:volume_list){
+						if(view->shift_pressed()){
+							if(selected_mesh->dart_is_visible(v.dart))
+								selected_mesh->disable_volume_subdivision(v,true);
+						}else{
+							selected_mesh->activate_volume_subdivision(v);
+						}
+					}
 					vmrm.changed_connectivity(*selected_mesh,position.get());
 				}
 				break;
@@ -215,14 +224,16 @@ int main(int argc, char** argv)
 				break;
 			case GLFW_KEY_Z:
 			{
-				std::cout << "hum " << std::endl;
 				std::vector<Volume> list_cut_volumes;
 				cgogn::foreach_cell(*selected_mesh,[&list_cut_volumes](Volume v)->bool{
 					list_cut_volumes.push_back(v);
 					return true;
 				});
+				clock_t start = clock();
 				for(Volume v:list_cut_volumes)
 					selected_mesh->activate_volume_subdivision(v);
+				double time = (clock()-start)/(double)CLOCKS_PER_SEC;
+				std::cout << "time for " << list_cut_volumes.size() << " volume activation : " << time << "s" << std::endl;
 				vmrm.changed_connectivity(*selected_mesh,position.get());
 			}
 				break;

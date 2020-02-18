@@ -413,11 +413,12 @@ void CPH3_adaptative::activate_volume_subdivision(CMAP::Volume v){
 	m2.current_level_++;
 	for(Vertex w:vect_vertices){
 		foreach_dart_of_orbit(m2,Volume(w.dart),[&](Dart d)->bool{
-			set_visibility_level(d,current_level_);
+			foreach_dart_of_orbit(m2,Edge(d),[&](Dart dd)->bool{
+				set_visibility_level(dd,current_level_);
+				return true;
+			});
 			set_representative_visibility_level(d,current_level_);
-			Dart dd = phi3(m2,d);
-			set_visibility_level(dd,current_level_);
-			set_representative_visibility_level(dd,current_level_);
+			set_representative_visibility_level(phi3(m2,d),current_level_);
 			return true;
 		});
 	}
@@ -480,27 +481,63 @@ bool CPH3_adaptative::disable_face_subdivision(CMAP::Face f,bool disable_edge){
 			disable_edge_subdivision(CMAP::Edge(dd));
 		unset_representative_visibility_level(dd,current_level_);
 		unset_representative_visibility_level(phi3(m2,dd),current_level_);
+		unset_visibility_level(dd,current_level_);
+		unset_visibility_level(phi3(m2,dd),current_level_);
 		dd = phi1(m2,dd);
 		unset_representative_visibility_level(dd,current_level_);
 		unset_representative_visibility_level(phi3(m2,dd),current_level_);
+		unset_visibility_level(dd,current_level_);
+		unset_visibility_level(phi3(m2,dd),current_level_);
 		if(disable_edge)
 			disable_edge_subdivision(CMAP::Edge(d),true);
 	}
 	return true;
 }
 
-bool CPH3_adaptative::disable_volume_subdivision(CMAP::Volume v){
+bool CPH3_adaptative::disable_volume_subdivision(CMAP::Volume v,bool disable_face){
 	Dart y = volume_youngest_dart(v.dart);
 	if(dart_level(y) <= current_level_)
 		return false;
-	/*CPH3 m2(CPH3(*this));
+	CPH3 m2(CPH3(*this));
 	m2.current_level_ = dart_level(y) - 1;
 	std::vector<Vertex> vect_vertices;
-	foreach_incident_vertex(m2, CPH3_adaptative::CMAP::Volume(d), [&](CPH3_adaptative::CMAP::Vertex w) -> bool {
+	foreach_incident_vertex(m2, CMAP::Volume(volume_oldest_dart(v.dart)), [&](CMAP::Vertex w) -> bool {
 		vect_vertices.push_back(w);
 		return true;
-	});*/
-	
+	});
+	for(auto w:vect_vertices){
+		if(volume_level(w.dart) != dart_level(y))
+			return false;
+	}
+	m2.current_level_++;
+	bool test = false;
+	foreach_incident_face(m2,CMAP::Vertex(phi<12111>(m2,vect_vertices[0].dart)),[&](Face f)->bool{
+		bool tmp = disable_face_subdivision(f,true);
+		test = test||tmp;
+		return true;
+	});
+	foreach_dart_of_orbit(m2,CMAP::Vertex(phi<12111>(m2,vect_vertices[0].dart)),[&](Dart d)->bool{
+			Dart d2 = phi2(m2,d);
+			Dart d1 = phi1(m2,d);
+			Dart d11 = phi1(m2,d1); 
+			unset_representative_visibility_level(d,current_level_);
+			unset_representative_visibility_level(d2,current_level_);
+			unset_representative_visibility_level(d1,current_level_);
+			unset_representative_visibility_level(d11,current_level_);
+			unset_visibility_level(d,current_level_);
+			unset_visibility_level(d2,current_level_);
+			unset_visibility_level(d1,current_level_);
+			unset_visibility_level(d11,current_level_);
+			return true;
+		});
+	if(disable_face){
+		m2.current_level_--;
+		foreach_incident_face(m2, CPH3_adaptative::CMAP::Volume(volume_oldest_dart(v.dart)), [&](CMAP::Face f) -> bool {
+			disable_face_subdivision(f,true);
+			return true;
+		});
+	}
+	return true;
 }
 
 }
