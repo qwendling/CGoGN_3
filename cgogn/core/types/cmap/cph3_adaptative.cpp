@@ -397,9 +397,9 @@ void CPH3_adaptative::activate_face_subdivision(CMAP::Face f){
 	}
 }
 
-void CPH3_adaptative::activate_volume_subdivision(CMAP::Volume v){
+bool CPH3_adaptative::activate_volume_subdivision(CMAP::Volume v){
 	if(!volume_is_subdivided(v.dart)){
-		return;
+		return false;
 	}
 	Dart d = volume_oldest_dart(v.dart);
 	CPH3 m2(CPH3(*this));
@@ -422,6 +422,7 @@ void CPH3_adaptative::activate_volume_subdivision(CMAP::Volume v){
 			return true;
 		});
 	}
+	return true;
 }
 
 bool CPH3_adaptative::disable_edge_subdivision(CMAP::Edge e,bool disable_neighbor){

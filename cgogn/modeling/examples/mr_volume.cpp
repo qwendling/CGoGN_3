@@ -97,6 +97,8 @@ int main(int argc, char** argv)
 
 	MRMesh* cph1 = vmrm.create_cph3(*m, mp.mesh_name(m));
 	MRMesh* cph2 = vmrm.create_cph3(*m, mp.mesh_name(m));
+	
+	vs.selected_mesh_ = cph2;
 
 	cgogn::index_cells<Mesh::Volume>(*m);
 	cgogn::index_cells<Mesh::Edge>(*m);
@@ -107,6 +109,10 @@ int main(int argc, char** argv)
 	mrsr.set_vertex_position(*v1, *cph2, nullptr);
 	mrsr.set_vertex_position(*v2, *cph1, nullptr);
 	mrsr.set_vertex_position(*v2, *cph2, position);
+	
+	vmrm.subdivide(*cph2,position.get());
+	vmrm.subdivide(*cph2,position.get());
+	std::srand(std::time(nullptr));
 	
 	vs.f_keypress = [&](cgogn::ui::View* view,MRMesh* selected_mesh, std::int32_t k,
 			cgogn::ui::CellsSet<MRMesh, Vertex>* selected_vertices,cgogn::ui::CellsSet<MRMesh, Edge>*selected_edges){
@@ -186,7 +192,7 @@ int main(int argc, char** argv)
 					for(Volume v:volume_list){
 						if(view->shift_pressed()){
 							if(selected_mesh->dart_is_visible(v.dart))
-								selected_mesh->disable_volume_subdivision(v,true);
+								selected_mesh->disable_volume_subdivision(v);
 						}else{
 							selected_mesh->activate_volume_subdivision(v);
 						}
@@ -258,6 +264,30 @@ int main(int argc, char** argv)
 					});
 					std::cout << "######################################" << std::endl;
 				}
+				break;
+			case GLFW_KEY_R:
+			{
+				Volume volume_to_cut;
+				cgogn::foreach_cell(*selected_mesh,[&](Volume v)->bool{
+					volume_to_cut = v;
+					if((rand()/(double)RAND_MAX)*100 < 10){
+						if(view->shift_pressed()){
+							if(selected_mesh->volume_level(v.dart))
+								return false;
+						}else{
+							if(selected_mesh->volume_is_subdivided(v.dart))
+								return false;
+						}
+					}
+					return true;
+				});
+				if(view->shift_pressed()){
+					selected_mesh->disable_volume_subdivision(volume_to_cut);
+				}else{
+					selected_mesh->activate_volume_subdivision(volume_to_cut);
+				}
+				vmrm.changed_connectivity(*selected_mesh,position.get());
+			}
 				break;
 			
 		}
