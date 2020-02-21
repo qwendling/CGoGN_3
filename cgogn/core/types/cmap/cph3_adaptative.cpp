@@ -76,15 +76,11 @@ bool CPH3_adaptative::dart_is_visible(Dart d)const
 
 void CPH3_adaptative::set_visibility_level(Dart d,uint32 l)
 {
-	if(d.index == 511)
-		std::cout << "hello" << std::endl;
 	(*dart_visibility_level_)[d.index].insert(l);
 }
 
 void CPH3_adaptative::unset_visibility_level(Dart d,uint32 l)
 {
-	if(d.index == 511)
-		std::cout << "hello2" << std::endl;
 	(*dart_visibility_level_)[d.index].erase(l);
 }
 
@@ -481,7 +477,7 @@ bool CPH3_adaptative::disable_face_subdivision(CMAP::Face f,bool disable_edge,bo
 	do{
 		list_dart.push_back(it);
 		it = phi1(m2,it);
-		if(face_level(it) != dart_level(y)){
+		while(face_level(it) != dart_level(y)){
 			if(disable_subface){
 				disable_face_subdivision(CMAP::Face(it),disable_edge,true);
 			}else{
@@ -548,8 +544,7 @@ bool CPH3_adaptative::disable_volume_subdivision(CMAP::Volume v,bool disable_fac
 	if(disable_face){
 		m2.current_level_--;
 		foreach_incident_face(m2, CPH3_adaptative::CMAP::Volume(volume_oldest_dart(v.dart)), [&](CMAP::Face f) -> bool {
-			while(face_level(f.dart) != m2.current_level_)
-				disable_face_subdivision(f,true,true);
+			while(face_level(f.dart) != m2.current_level_ && disable_face_subdivision(f,true,true));
 			return true;
 		});
 	}

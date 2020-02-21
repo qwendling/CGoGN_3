@@ -178,21 +178,18 @@ int main(int argc, char** argv)
 						if(selected_mesh->dart_level(d) > 0 && selected_mesh->get_dart_visibility_level(d) < selected_mesh->dart_level(d))
 							nb_visible++;
 					}
-					std::cout << "nb rep visible : " << nb_rep << std::endl;
-					std::cout << "nb visible : " << nb_visible << std::endl;
-					std::cout << "______________________________________" << std::endl;
 					vmrm.changed_connectivity(*selected_mesh,position.get());
 				}
 				break;
 			case GLFW_KEY_V:
 				if(selected_vertices != nullptr){
-					/*selected_vertices->foreach_cell([&](Vertex v){
+					selected_vertices->foreach_cell([&](Vertex v){
 						cgogn::foreach_incident_volume(*m,v,[&](Volume w)->bool{
 							selected_mesh->activate_volume_subdivision(w);
 							return true;
 						});
 					});
-					vmrm.changed_connectivity(*selected_mesh,position.get());*/
+					vmrm.changed_connectivity(*selected_mesh,position.get());
 				}
 				if(selected_edges != nullptr){
 					std::vector<Volume> volume_list;
@@ -296,7 +293,7 @@ int main(int argc, char** argv)
 						return true;
 					});
 					if(view->shift_pressed()){
-						selected_mesh->disable_volume_subdivision(volume_to_cut);
+						selected_mesh->disable_volume_subdivision(volume_to_cut,true);
 					}else{
 						selected_mesh->activate_volume_subdivision(volume_to_cut);
 					}
@@ -305,21 +302,6 @@ int main(int argc, char** argv)
 				vmrm.changed_connectivity(*selected_mesh,position.get());
 			}
 				break;
-		case GLFW_KEY_T:
-		{
-			if(selected_edges != nullptr){
-				//selected_edges->select(Edge(cgogn::Dart(11)));
-				//selected_edges->select(Edge(cgogn::Dart(185)));
-				//selected_edges->select(Edge(cgogn::Dart(180)));
-				//selected_edges->select(Edge(cgogn::Dart(69)));
-				//selected_edges->select(Edge(cgogn::Dart(44)));
-				//selected_edges->select(Edge(cgogn::Dart(186)));
-				selected_edges->select(Edge(cgogn::Dart(178)));
-				//selected_edges->select(Edge(cgogn::Dart(94)));
-				vs.mesh_provider_->emit_cells_set_changed(selected_mesh, selected_edges);
-			}
-			break;
-		}
 		}
 		
 	};
