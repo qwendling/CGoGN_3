@@ -99,6 +99,8 @@ int main(int argc, char** argv)
 	MRMesh* cph2 = vmrm.create_cph3(*m, mp.mesh_name(m));
 	
 	vs.selected_mesh_ = cph2;
+	auto md = mrmp.mesh_data(cph2);
+	md->template add_cells_set<Edge>();
 
 	cgogn::index_cells<Mesh::Volume>(*m);
 	cgogn::index_cells<Mesh::Edge>(*m);
@@ -162,12 +164,23 @@ int main(int argc, char** argv)
 						for(auto f : face_list){
 							if(view->shift_pressed()){
 								if(selected_mesh->dart_is_visible(f.dart))
-									selected_mesh->disable_face_subdivision(f,true);
+									selected_mesh->disable_face_subdivision(f,true,true);
 							}else{
 								selected_mesh->activate_face_subdivision(f);
 							}
 						}
 					});
+					int nb_rep=0,nb_visible=0;
+					for (cgogn::Dart d = m->begin(), end = m->end(); d != end; d = m->next(d))
+					{
+						if(selected_mesh->dart_level(selected_mesh->get_representative(d)) > 0 && selected_mesh->representative_is_visible(d))
+							nb_rep++;
+						if(selected_mesh->dart_level(d) > 0 && selected_mesh->get_dart_visibility_level(d) < selected_mesh->dart_level(d))
+							nb_visible++;
+					}
+					std::cout << "nb rep visible : " << nb_rep << std::endl;
+					std::cout << "nb visible : " << nb_visible << std::endl;
+					std::cout << "______________________________________" << std::endl;
 					vmrm.changed_connectivity(*selected_mesh,position.get());
 				}
 				break;
@@ -192,7 +205,7 @@ int main(int argc, char** argv)
 					for(Volume v:volume_list){
 						if(view->shift_pressed()){
 							if(selected_mesh->dart_is_visible(v.dart))
-								selected_mesh->disable_volume_subdivision(v);
+								selected_mesh->disable_volume_subdivision(v,true);
 						}else{
 							selected_mesh->activate_volume_subdivision(v);
 						}
@@ -267,29 +280,46 @@ int main(int argc, char** argv)
 				break;
 			case GLFW_KEY_R:
 			{
-				Volume volume_to_cut;
-				cgogn::foreach_cell(*selected_mesh,[&](Volume v)->bool{
-					volume_to_cut = v;
-					if((rand()/(double)RAND_MAX)*100 < 10){
-						if(view->shift_pressed()){
-							if(selected_mesh->volume_level(v.dart))
-								return false;
-						}else{
-							if(selected_mesh->volume_is_subdivided(v.dart))
-								return false;
+				for(int i =0;i<100;i++){
+					Volume volume_to_cut;
+					cgogn::foreach_cell(*selected_mesh,[&](Volume v)->bool{
+						volume_to_cut = v;
+						if((rand()/(double)RAND_MAX)*100 < 10){
+							if(view->shift_pressed()){
+								if(selected_mesh->volume_level(v.dart))
+									return false;
+							}else{
+								if(selected_mesh->volume_is_subdivided(v.dart))
+									return false;
+							}
 						}
+						return true;
+					});
+					if(view->shift_pressed()){
+						selected_mesh->disable_volume_subdivision(volume_to_cut);
+					}else{
+						selected_mesh->activate_volume_subdivision(volume_to_cut);
 					}
-					return true;
-				});
-				if(view->shift_pressed()){
-					selected_mesh->disable_volume_subdivision(volume_to_cut);
-				}else{
-					selected_mesh->activate_volume_subdivision(volume_to_cut);
 				}
+				
 				vmrm.changed_connectivity(*selected_mesh,position.get());
 			}
 				break;
-			
+		case GLFW_KEY_T:
+		{
+			if(selected_edges != nullptr){
+				//selected_edges->select(Edge(cgogn::Dart(11)));
+				//selected_edges->select(Edge(cgogn::Dart(185)));
+				//selected_edges->select(Edge(cgogn::Dart(180)));
+				//selected_edges->select(Edge(cgogn::Dart(69)));
+				//selected_edges->select(Edge(cgogn::Dart(44)));
+				//selected_edges->select(Edge(cgogn::Dart(186)));
+				selected_edges->select(Edge(cgogn::Dart(178)));
+				//selected_edges->select(Edge(cgogn::Dart(94)));
+				vs.mesh_provider_->emit_cells_set_changed(selected_mesh, selected_edges);
+			}
+			break;
+		}
 		}
 		
 	};

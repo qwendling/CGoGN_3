@@ -114,7 +114,7 @@ struct CPH3_adaptative : public CPH3
 	bool activate_volume_subdivision(CMAP::Volume v);
 	
 	bool disable_edge_subdivision(CMAP::Edge e, bool disable_neighbor = false);
-	bool disable_face_subdivision(CMAP::Face f,bool disable_edge = false);
+	bool disable_face_subdivision(CMAP::Face f,bool disable_edge = false, bool disable_subface = false);
 	bool disable_volume_subdivision(CMAP::Volume v, bool disable_face = false);
 };
 

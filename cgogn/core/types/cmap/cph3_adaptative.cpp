@@ -76,11 +76,15 @@ bool CPH3_adaptative::dart_is_visible(Dart d)const
 
 void CPH3_adaptative::set_visibility_level(Dart d,uint32 l)
 {
+	if(d.index == 511)
+		std::cout << "hello" << std::endl;
 	(*dart_visibility_level_)[d.index].insert(l);
 }
 
 void CPH3_adaptative::unset_visibility_level(Dart d,uint32 l)
 {
+	if(d.index == 511)
+		std::cout << "hello2" << std::endl;
 	(*dart_visibility_level_)[d.index].erase(l);
 }
 
@@ -431,15 +435,11 @@ bool CPH3_adaptative::disable_edge_subdivision(CMAP::Edge e,bool disable_neighbo
 		return false;
 	Dart d = edge_oldest_dart(e.dart);
 	Dart it = d;
-	std::vector<Dart> list_dart;
 	do{
 		Dart it2 = phi1(*this,it);
 		if(get_representative(it) != get_representative(it2))
 			return false;
-		list_dart.push_back(it2);
-		it = phi2(*this,it);
-		list_dart.push_back(it);
-		it = phi3(*this,it);
+		it = phi<23>(*this,it);
 	}while(it!=d);
 	Dart tmp = phi1(*this,d);
 	if(edge_level(tmp) != eLevel){
@@ -448,13 +448,22 @@ bool CPH3_adaptative::disable_edge_subdivision(CMAP::Edge e,bool disable_neighbo
 		else
 			return false;
 	}
-	for(Dart dd : list_dart){
-		unset_visibility_level(dd,current_level_);
-	}
+	CPH3 m2(CPH3(*this));
+	m2.current_level_ = eLevel;
+	foreach_dart_of_orbit(m2,CMAP::Edge(d),[&](Dart dd)->bool{
+		if(dart_level(dd) == eLevel)
+			unset_visibility_level(dd,current_level_);
+		return true;
+	});
+	foreach_dart_of_orbit(m2,CMAP::Edge(tmp),[&](Dart dd)->bool{
+		if(dart_level(dd) == eLevel)
+			unset_visibility_level(dd,current_level_);
+		return true;
+	});
 	return true;
 }
 
-bool CPH3_adaptative::disable_face_subdivision(CMAP::Face f,bool disable_edge){
+bool CPH3_adaptative::disable_face_subdivision(CMAP::Face f,bool disable_edge,bool disable_subface){
 	Dart y = face_youngest_dart(f.dart);
 	if(dart_level(y) <= current_level_)
 		return false;
@@ -472,14 +481,19 @@ bool CPH3_adaptative::disable_face_subdivision(CMAP::Face f,bool disable_edge){
 	do{
 		list_dart.push_back(it);
 		it = phi1(m2,it);
-		if(face_level(it) != dart_level(y))
-			return false;
+		if(face_level(it) != dart_level(y)){
+			if(disable_subface){
+				disable_face_subdivision(CMAP::Face(it),disable_edge,true);
+			}else{
+				return false;
+			}
+		}
 	}while(it != old);
 	m2.current_level_++;
 	for(Dart d : list_dart){
 		Dart dd = phi1(m2,d);
 		while(m2.edge_level(dd) != dart_level(y))
-			disable_edge_subdivision(CMAP::Edge(dd));
+			disable_edge_subdivision(CMAP::Edge(dd),true);
 		unset_representative_visibility_level(dd,current_level_);
 		unset_representative_visibility_level(phi3(m2,dd),current_level_);
 		unset_visibility_level(dd,current_level_);
@@ -534,7 +548,8 @@ bool CPH3_adaptative::disable_volume_subdivision(CMAP::Volume v,bool disable_fac
 	if(disable_face){
 		m2.current_level_--;
 		foreach_incident_face(m2, CPH3_adaptative::CMAP::Volume(volume_oldest_dart(v.dart)), [&](CMAP::Face f) -> bool {
-			disable_face_subdivision(f,true);
+			while(face_level(f.dart) != m2.current_level_)
+				disable_face_subdivision(f,true,true);
 			return true;
 		});
 	}
