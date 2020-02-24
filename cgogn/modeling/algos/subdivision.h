@@ -26,7 +26,6 @@
 
 #include <cgogn/core/types/mesh_traits.h>
 #include <cgogn/core/types/mesh_views/cell_cache.h>
-#include <cgogn/core/types/cmap/cph_infos.h>
 
 #include <cgogn/geometry/types/vector_traits.h>
 #include <cgogn/geometry/algos/angle.h>

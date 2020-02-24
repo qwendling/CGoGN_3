@@ -31,7 +31,6 @@
 
 #include <cgogn/core/types/cmap/cmap_ops.h>
 #include <cgogn/core/types/cmap/orbit_traversal.h>
-#include <cgogn/core/types/cmap/cph_infos.h>
 
 namespace cgogn
 {
