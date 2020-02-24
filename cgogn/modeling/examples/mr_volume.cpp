@@ -32,6 +32,7 @@
 #include <cgogn/modeling/algos/subdivision.h>
 #include <cgogn/ui/modules/mesh_provider/mesh_provider.h>
 #include <cgogn/ui/modules/surface_render/surface_render.h>
+#include <cgogn/ui/modules/volume_render/volume_render.h>
 #include <cgogn/ui/modules/volume_mr_modeling/volume_mr_modeling.h>
 #include <cgogn/ui/modules/volume_selection/volume_selection.h>
 #include <GLFW/glfw3.h>
@@ -69,7 +70,7 @@ int main(int argc, char** argv)
 
 	cgogn::ui::MeshProvider<Mesh> mp(app);
 	cgogn::ui::MeshProvider<MRMesh> mrmp(app);
-	cgogn::ui::SurfaceRender<MRMesh> mrsr(app);
+	cgogn::ui::Volume_Render<MRMesh> mrsr(app);
 	cgogn::ui::VolumeSelection<MRMesh> vs(app);
 
 	cgogn::ui::VolumeMRModeling vmrm(app);
@@ -94,6 +95,8 @@ int main(int argc, char** argv)
 	}
 
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*m, "position");
+	std::shared_ptr<Attribute<Vec3>> volume_center = cgogn::add_attribute<Vec3, Volume>(*m, "center");
+	cgogn::geometry::compute_centroid<Vec3,Volume>(*m,position.get(),volume_center.get());
 
 	MRMesh* cph1 = vmrm.create_cph3(*m, mp.mesh_name(m));
 	MRMesh* cph2 = vmrm.create_cph3(*m, mp.mesh_name(m));
@@ -108,12 +111,12 @@ int main(int argc, char** argv)
 
 
 	mrsr.set_vertex_position(*v1, *cph1, position);
-	mrsr.set_vertex_position(*v1, *cph2, nullptr);
-	mrsr.set_vertex_position(*v2, *cph1, nullptr);
+	mrsr.set_vertex_position(*v1, *cph2, position);
+	mrsr.set_vertex_position(*v2, *cph1, position);
 	mrsr.set_vertex_position(*v2, *cph2, position);
 	
-	vmrm.subdivide(*cph2,position.get());
-	vmrm.subdivide(*cph2,position.get());
+	/*vmrm.subdivide(*cph2,position.get());
+	vmrm.subdivide(*cph2,position.get());*/
 	std::srand(std::time(nullptr));
 	
 	vs.f_keypress = [&](cgogn::ui::View* view,MRMesh* selected_mesh, std::int32_t k,

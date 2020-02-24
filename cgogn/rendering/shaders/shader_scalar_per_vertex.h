@@ -33,14 +33,6 @@ namespace cgogn
 namespace rendering
 {
 
-enum ColorMap
-{
-	BWR = 0,
-	CWR,
-	BCGYR,
-	BGR
-};
-
 DECLARE_SHADER_CLASS(ScalarPerVertex,CGOGN_STR(ScalarPerVertex))
 
 class CGOGN_RENDERING_EXPORT ShaderParamScalarPerVertex : public ShaderParam

@@ -82,12 +82,12 @@ class VolumeSelection : public ViewModule
 		{
 			param_point_sprite_ = rendering::ShaderPointSprite::generate_param();
 			param_point_sprite_->color_ = rendering::GLColor(1, 0, 0, 0.65);
-			param_point_sprite_->set_vbos(&selected_vertices_vbo_);
+			param_point_sprite_->set_vbos({&selected_vertices_vbo_});
 
 			param_edge_ = rendering::ShaderBoldLine::generate_param();
 			param_edge_->color_ = rendering::GLColor(1, 0, 0, 0.65);
 			param_edge_->width_= 2.0f;
-			param_edge_->set_vbos(&selected_edges_vbo_);
+			param_edge_->set_vbos({&selected_edges_vbo_});
 		}
 
 		CGOGN_NOT_COPYABLE_NOR_MOVABLE(Parameters);

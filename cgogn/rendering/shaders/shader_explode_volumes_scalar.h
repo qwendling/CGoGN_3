@@ -33,15 +33,6 @@ namespace cgogn
 namespace rendering
 {
 
-enum ColorMap : int32
-{
-	BWR = 0,
-	CWR,
-	BCGYR,
-	BGR
-};
-
-
 DECLARE_SHADER_CLASS(ExplodeVolumesScalar,CGOGN_STR(ExplodeVolumesScalar))
 
 class CGOGN_RENDERING_EXPORT ShaderParamExplodeVolumesScalar : public ShaderParam
