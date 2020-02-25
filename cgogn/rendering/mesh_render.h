@@ -436,8 +436,8 @@ public:
 
 			}
 		};
-
-
+		
+		
 
 		auto start_timer = std::chrono::high_resolution_clock::now();
 
@@ -537,7 +537,7 @@ public:
 		auto end_timer = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double> elapsed_seconds = end_timer-start_timer;
 		std::cout << "init primitive "<<prim<< " in "<< elapsed_seconds.count() << std::endl;
-
+		
 	}
 
 	void draw(DrawingType prim, GLint binding_point=10);

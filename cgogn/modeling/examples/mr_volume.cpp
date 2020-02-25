@@ -95,8 +95,6 @@ int main(int argc, char** argv)
 	}
 
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*m, "position");
-	std::shared_ptr<Attribute<Vec3>> volume_center = cgogn::add_attribute<Vec3, Volume>(*m, "center");
-	cgogn::geometry::compute_centroid<Vec3,Volume>(*m,position.get(),volume_center.get());
 
 	MRMesh* cph1 = vmrm.create_cph3(*m, mp.mesh_name(m));
 	MRMesh* cph2 = vmrm.create_cph3(*m, mp.mesh_name(m));
@@ -111,12 +109,12 @@ int main(int argc, char** argv)
 
 
 	mrsr.set_vertex_position(*v1, *cph1, position);
-	mrsr.set_vertex_position(*v1, *cph2, position);
-	mrsr.set_vertex_position(*v2, *cph1, position);
+	//mrsr.set_vertex_position(*v1, *cph2, position);
+	//mrsr.set_vertex_position(*v2, *cph1, position);
 	mrsr.set_vertex_position(*v2, *cph2, position);
 	
-	/*vmrm.subdivide(*cph2,position.get());
-	vmrm.subdivide(*cph2,position.get());*/
+	vmrm.subdivide(*cph2,position.get());
+	vmrm.subdivide(*cph2,position.get());
 	std::srand(std::time(nullptr));
 	
 	vs.f_keypress = [&](cgogn::ui::View* view,MRMesh* selected_mesh, std::int32_t k,

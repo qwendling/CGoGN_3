@@ -83,7 +83,7 @@ public:
 		uint32 cur = m.current_level_;
 		m.current_level_ = m.maximum_level_;
 		
-		modeling::butterflySubdivisionVolumeAdaptative(m,0.34f,vertex_position);
+		modeling::butterflySubdivisionVolumeAdaptative(m,0.34f,{vertex_position});
 		
 		m.current_level_ = cur;
 		

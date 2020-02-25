@@ -569,24 +569,23 @@ auto surfaceEdgePointRule(const MESH& m,const std::vector<Dart> &p_point, const 
 }
 
 
-template<typename MESH>
-auto subdivideEdge(MESH& m,Dart d, Vec3& p,typename mesh_traits<MESH>::template Attribute<Vec3>* attribute)
+template<typename MESH,typename FUNC>
+auto subdivideEdge(MESH& m,Dart d,const FUNC& after_cut)
 -> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&>>
 {
-	cut_edge(m,typename MESH::Edge(d));
-	value<Vec3>(m, attribute,typename MESH::Vertex(phi1(m,d))) = p;
+	after_cut(cut_edge(m,typename MESH::Edge(d)));
 }
 
 // /!\ The edges of the face are already cut
-template<typename MESH>
-auto subdivideFace(MESH& m,Dart d, Vec3& p,typename mesh_traits<MESH>::template Attribute<Vec3>* attribute)
+template<typename MESH,typename FUNC>
+auto subdivideFace(MESH& m,Dart d,const FUNC& after_cut)
 -> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&>,Dart>
 {
 	using Vertex = typename MESH::Vertex;
 	Dart e = phi1(m,d);
 	Dart f = phi<1111>(m,e);
 	cut_face(m,Vertex(e),Vertex(f));
-	subdivideEdge(m,phi_1(m,e),p,attribute);
+	subdivideEdge(m,phi_1(m,e),after_cut);
 	
 	Dart result = phi_1(m,e);
 	
@@ -597,8 +596,8 @@ auto subdivideFace(MESH& m,Dart d, Vec3& p,typename mesh_traits<MESH>::template 
 }
 
 // /!\ The faces of the volume are already cut
-template<typename MESH>
-auto subdivideVolume(MESH& m,Dart d, Vec3& p,typename mesh_traits<MESH>::template Attribute<Vec3>* attribute)
+template<typename MESH, typename FUNC>
+auto subdivideVolume(MESH& m,Dart d,const FUNC& after_cut)
 -> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&>>
 {
 	using Vertex = typename MESH::Vertex;
@@ -622,7 +621,7 @@ auto subdivideVolume(MESH& m,Dart d, Vec3& p,typename mesh_traits<MESH>::templat
 	};
 	
 	typename MESH::Face F = cutVolume(first_cut_dir);
-	subdivideFace(m,F.dart, p,attribute);
+	subdivideFace(m,F.dart, after_cut);
 	
 	F = cutVolume(left_cut_dir);
 	cut_face(m,Vertex(F.dart), Vertex(phi<111>(m,F.dart)));
@@ -634,69 +633,63 @@ auto subdivideVolume(MESH& m,Dart d, Vec3& p,typename mesh_traits<MESH>::templat
 }
 
 
-template<typename MESH>
-auto subdivideListEdges(MESH& m,std::vector<Dart>& edges,std::queue<Vec3>& edge_points,typename mesh_traits<MESH>::template Attribute<Vec3>* attribute)
--> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&>>
+template<typename MESH,typename FUNC>
+auto subdivideListEdges(MESH& m,std::vector<Dart>& edges,const FUNC& after_cut)
+-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&> && !(std::is_convertible_v<MESH&, CPH3&>)>
 {
 	for (Dart d : edges) {
-		subdivideEdge(m,d, edge_points.front(),attribute);
-		edge_points.pop();
+		subdivideEdge(m,d,after_cut);
 	}
 }
 
-template<typename MR_MESH>															 
-auto subdivideListEdges(MR_MESH& m,std::vector<Dart>& edges,std::queue<Vec3>& edge_points,typename mesh_traits<CPH3>::template Attribute<Vec3>* attribute)
+template<typename MR_MESH,typename FUNC>
+auto subdivideListEdges(MR_MESH& m,std::vector<Dart>& edges,const FUNC& after_cut)
 -> std::enable_if_t<std::is_convertible_v<MR_MESH&, CPH3&>>
 {
 	MR_MESH m2(m);
 	for (Dart d : edges) {
 		m2.current_level_ = m.edge_level(d)+1;
-		subdivideEdge(m2,d, edge_points.front(),attribute);
-		edge_points.pop();
+		subdivideEdge(m2,d, after_cut);
 	}
 }
 
-template<typename MESH>
-auto subdivideListFaces(MESH& m,std::vector<Dart>& faces,std::queue<Vec3>& face_points,typename mesh_traits<MESH>::template Attribute<Vec3>* attribute)
--> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&>>
+template<typename MESH,typename FUNC>
+auto subdivideListFaces(MESH& m,std::vector<Dart>& faces,const FUNC& after_cut)
+-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&> && !(std::is_convertible_v<MESH&, CPH3&>)>
 {
 	for (Dart d : faces) {
-		subdivideFace(m,d, face_points.front(),attribute);
-		face_points.pop();
+		subdivideFace(m,d, after_cut);
 	}
 }
 
-template<typename MR_MESH>
-auto subdivideListFaces(MR_MESH& m,std::vector<Dart>& faces,std::queue<Vec3>& face_points,typename mesh_traits<CPH3>::template Attribute<Vec3>* attribute)
+template<typename MR_MESH,typename FUNC>
+auto subdivideListFaces(MR_MESH& m,std::vector<Dart>& faces,const FUNC& after_cut)
 -> std::enable_if_t<std::is_convertible_v<MR_MESH&, CPH3&>>
 {
 	MR_MESH m2(m);
 	for (Dart d : faces) {
 		m2.current_level_ = m.face_level(d)+1;
-		subdivideFace(m2,d, face_points.front(),attribute);
-		face_points.pop();
+		subdivideFace(m2,d, after_cut);
 	}
 }
 
-template<typename MESH>
-auto subdivideListVolumes(MESH& m,std::vector<Dart>& volumes,std::queue<Vec3>& volume_points,typename mesh_traits<MESH>::template Attribute<Vec3>* attribute)
--> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&>>
+template<typename MESH,typename FUNC>
+auto subdivideListVolumes(MESH& m,std::vector<Dart>& volumes,const FUNC& after_cut)
+-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&> && !(std::is_convertible_v<MESH&, CPH3&>)>
 {
 	for (Dart d : volumes) {
-		subdivideVolume(m,d, volume_points.front(),attribute);
-		volume_points.pop();
+		subdivideVolume(m,d, after_cut);
 	}
 }
 
-template<typename MR_MESH>													 
-auto subdivideListVolumes(MR_MESH& m,std::vector<Dart>& volumes,std::queue<Vec3>& volume_points,typename mesh_traits<CPH3>::template Attribute<Vec3>* attribute)
+template<typename MR_MESH,typename FUNC>													 
+auto subdivideListVolumes(MR_MESH& m,std::vector<Dart>& volumes,const FUNC& after_cut)
 -> std::enable_if_t<std::is_convertible_v<MR_MESH&, CPH3&>>
 {
 	MR_MESH m2(m);
 	for (Dart d : volumes) {
 		m2.current_level_ = m.volume_level(d)+1;													 
-		subdivideVolume(m2,d, volume_points.front(),attribute);
-		volume_points.pop();
+		subdivideVolume(m2,d, after_cut);
 	}
 }
 
@@ -741,13 +734,14 @@ auto isValidForSubdivision(MESH& m,Dart d)
 
 
 template<typename MESH>
-auto butterflySubdivisionVolumeAdaptative(MESH& m,double angle_threshold,typename mesh_traits<MESH>::template Attribute<Vec3>* attribute)
+auto butterflySubdivisionVolumeAdaptative(MESH& m,double angle_threshold,std::vector<typename mesh_traits<MESH>::template Attribute<Vec3>*> attributes)
 -> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&>>
 {
 	using Volume = typename MESH::Volume;
 	using Face = typename MESH::Face;
 	using Face2 = typename MESH::Face2;
 	using Edge = typename MESH::Edge;
+	using Vertex = typename MESH::Vertex;
 	
 	CellMarker<MESH,Edge> cm_surface(m);
 	CellMarker<MESH,Volume> cm_cell(m);
@@ -758,7 +752,8 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m,double angle_threshold,typenam
 			while (!is_boundary(m,phi3(m,d2))) {
 				d2 = phi<32>(m,d2);
 			}
-			auto edge_angle = geometry::angle(m, Face2(d), Face2(d2), attribute);
+			//First attribute is the one watch for adaptive subdivision 
+			auto edge_angle = geometry::angle(m, Face2(d), Face2(d2), attributes.front());
 			if (std::abs(edge_angle) > angle_threshold) {
 				if (!cm_cell.is_marked(Volume(d)) && isValidForSubdivision(m,d))
 					cm_cell.mark(Volume(d));
@@ -772,7 +767,7 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m,double angle_threshold,typenam
 	CellMarker<MESH,Edge>  cm_edge(m);
 	CellMarker<MESH,Face>  cm_face(m);
 	CellMarker<MESH,Volume>  cm_volume(m);
-	std::queue<Vec3> volume_points, face_points, edge_points;
+	std::queue<std::queue<Vec3>> volume_points, face_points, edge_points;
 	std::vector<Dart> edges, faces, volumes;
 	std::vector<Dart> p_point, q_point, r_point, s_point, t_point;
 
@@ -791,10 +786,11 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m,double angle_threshold,typenam
 						q_point.clear();
 						r_point.clear();
 						surfaceEdgePointMask(m,t, p_point, q_point, r_point);
-						
-						Vec3 vec = surfaceEdgePointRule<Vec3>(m,p_point, q_point, r_point,attribute);
+						std::queue<Vec3> list_points;
+						for(auto a : attributes)
+							list_points.push(surfaceEdgePointRule<Vec3>(m,p_point, q_point, r_point,a));
 
-						edge_points.push(vec);
+						edge_points.push(list_points);
 						edges.push_back(t);
 						cm_edge.mark(Edge(t));
 					}
@@ -806,9 +802,11 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m,double angle_threshold,typenam
 						s_point.clear();
 						edgePointMask(m,t, p_point, q_point, r_point, s_point);
 						
-						Vec3 vec = edgePointRule<Vec3>(m,p_point, q_point, r_point,s_point,attribute);
-
-						edge_points.push(vec);
+						std::queue<Vec3> list_points;
+						for(auto a : attributes)
+							list_points.push(edgePointRule<Vec3>(m,p_point, q_point, r_point,s_point,a));
+						
+						edge_points.push(list_points);
 
 						edges.push_back(t);
 						cm_edge.mark(Edge(t));
@@ -822,9 +820,11 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m,double angle_threshold,typenam
 						q_point.clear();
 						surfaceFacePointMask(m,t, p_point, q_point);
 						
-						Vec3 vec = surfaceFacePointRule<Vec3>(m,p_point, q_point,attribute);
-
-						face_points.push(vec);
+						std::queue<Vec3> list_points;
+						for(auto a : attributes)
+							list_points.push(surfaceFacePointRule<Vec3>(m,p_point, q_point,a));
+						
+						face_points.push(list_points);
 					}
 					// volume case
 					else {
@@ -835,9 +835,11 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m,double angle_threshold,typenam
 						t_point.clear();
 						facePointMask(m,t, p_point, q_point, r_point, s_point, t_point);
 
-						Vec3 vec = facePointRule<Vec3>(m,p_point, q_point, r_point,s_point,t_point,attribute);
+						std::queue<Vec3> list_points;
+						for(auto a : attributes)
+							list_points.push(facePointRule<Vec3>(m,p_point, q_point, r_point,s_point,t_point,a));
 						
-						face_points.push(vec);
+						face_points.push(list_points);
 					}
 					faces.push_back(t);
 					cm_face.mark(Face(t));
@@ -848,9 +850,11 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m,double angle_threshold,typenam
 					q_point.clear();
 					volumePointMask(m,t, p_point, q_point);
 					
-					Vec3 vec = volumePointRule<Vec3>(m,p_point, q_point,attribute);
+					std::queue<Vec3> list_points;
+					for(auto a : attributes)
+						list_points.push(volumePointRule<Vec3>(m,p_point, q_point,a));
 
-					volume_points.push(vec);
+					volume_points.push(list_points);
 					volumes.push_back(t);
 					cm_volume.mark(Volume(t));
 				}
@@ -860,9 +864,27 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m,double angle_threshold,typenam
 		}
 	}
 
-	subdivideListEdges(m,edges,edge_points,attribute);
-	subdivideListFaces(m,faces,face_points,attribute);
-	subdivideListVolumes(m,volumes,volume_points,attribute);
+	subdivideListEdges<MESH>(m,edges,[&](Vertex v){
+		for(auto a : attributes){
+			value<Vec3>(m, a,v) = edge_points.front().front();
+			edge_points.front().pop();
+		}
+		edge_points.pop();
+	});
+	subdivideListFaces(m,faces,[&](Vertex v){
+		for(auto a : attributes){
+			value<Vec3>(m, a,v) = face_points.front().front();
+			face_points.front().pop();
+		}
+		face_points.pop();
+	});
+	subdivideListVolumes(m,volumes,[&](Vertex v){
+		for(auto a : attributes){
+			value<Vec3>(m, a,v) = volume_points.front().front();
+			volume_points.front().pop();
+		}
+		volume_points.pop();
+	});
 }
 
 } // namespace modeling

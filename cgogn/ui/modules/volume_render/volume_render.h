@@ -170,6 +170,29 @@ private:
 					{
 						p.update_topo(*m);
 						p.vertex_base_size_ = geometry::mean_edge_length(*m, p.vertex_position_.get()) / 7.0;
+						MeshData<MESH>* md = mesh_provider_->mesh_data(m);
+						rendering::MeshRender* render = md->get_render();
+						render->set_primitive_dirty(rendering::VOLUMES_VERTICES);
+						render->set_primitive_dirty(rendering::POINTS);
+						render->set_primitive_dirty(rendering::LINES);
+						render->set_primitive_dirty(rendering::TRIANGLES);
+					
+						render->set_primitive_dirty(rendering::VOLUMES_FACES);
+						render->set_primitive_dirty(rendering::VOLUMES_EDGES);
+						render->set_primitive_dirty(rendering::VOLUMES_VERTICES);
+					
+						render->set_primitive_dirty(rendering::INDEX_EDGES);
+						render->set_primitive_dirty(rendering::INDEX_FACES);
+						render->set_primitive_dirty(rendering::INDEX_VOLUMES);
+						
+						p.vbo_center_->bind();
+						p.vbo_center_->allocate(20*nb_cells<Volume>(*m),3);
+						p.vbo_center_->release();
+						
+//						if (!render->is_primitive_uptodate(rendering::VOLUMES_VERTICES))
+//							render->init_primitives(*m,rendering::VOLUMES_VERTICES,p.vertex_position_.get());
+						compute_center_engine_->compute(md->vbo(p.vertex_position_.get()),render,p.vbo_center_);
+						
 					}
 					v->request_update();
 				}));
@@ -181,6 +204,13 @@ private:
 						{
 							p.update_topo(*m);
 							p.vertex_base_size_ = geometry::mean_edge_length(*m, p.vertex_position_.get()) / 7.0;
+//							cgogn::geometry::compute_centroid<Vec3,Volume>(*m,p.vertex_position_.get(),p.volume_center_.get());
+							MeshData<MESH>* md = mesh_provider_->mesh_data(m);
+							rendering::MeshRender* render = md->get_render();
+//							render->init_primitives(*m,rendering::VOLUMES_VERTICES,p.vertex_position_.get());
+							md->update_vbo(p.vertex_position_.get(), true);
+							compute_center_engine_->compute(md->vbo(p.vertex_position_.get()),render,p.vbo_center_);
+							
 						}
 						v->request_update();
 					}));
@@ -318,7 +348,16 @@ protected:
 		{
 			if(!p.vertex_position_)
 				continue;
+			
 			MeshData<MESH>* md = mesh_provider_->mesh_data(m);
+//			p.vbo_center_->bind();
+//			p.vbo_center_->allocate(20*nb_cells<Volume>(*m),3);
+//			p.vbo_center_->release();
+//			compute_center_engine_->compute(md->vbo(p.vertex_position_.get()),md->get_render(),p.vbo_center_);
+//			cgogn::geometry::compute_centroid<Vec3,Volume>(*m,p.vertex_position_.get(),p.volume_center_.get());
+//			p.vbo_center_ = md->update_vbo(p.volume_center_.get());
+			
+			
 
 			const rendering::GLMat4& proj_matrix = view->projection_matrix();
 			const rendering::GLMat4& view_matrix = view->modelview_matrix();

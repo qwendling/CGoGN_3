@@ -185,7 +185,7 @@ inline std::ostream& operator<<(std::ostream& out, VBO& vbo)
 	vbo.bind();
 	float* f = vbo.lock_pointer();
 
-	for (int i=0; i<5; ++i)
+	for (int i=0; i<20; ++i)
 	{
 		for (int j=0; j<vbo.vector_dimension(); ++j)
 		{
