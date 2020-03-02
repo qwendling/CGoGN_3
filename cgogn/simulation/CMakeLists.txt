@@ -19,6 +19,7 @@ target_sources(${PROJECT_NAME}
 	"${CMAKE_CURRENT_LIST_DIR}/algos/shape_matching/shape_matching.h"
         "${CMAKE_CURRENT_LIST_DIR}/algos/shape_matching/shape_matching.cpp"
 	"${CMAKE_CURRENT_LIST_DIR}/algos/Simulation_constraint.h"
+	"${CMAKE_CURRENT_LIST_DIR}/algos/Simulation_solver.h"
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

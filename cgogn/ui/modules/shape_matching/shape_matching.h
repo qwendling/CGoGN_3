@@ -24,6 +24,7 @@
 #ifndef CGOGN_MODULE_SHAPE_MATCHING_H_
 #define CGOGN_MODULE_SHAPE_MATCHING_H_
 
+#include <cgogn/ui/app.h>
 #include <cgogn/ui/module.h>
 #include <cgogn/ui/modules/mesh_provider/mesh_provider.h>
 #include <cgogn/ui/view.h>
@@ -39,6 +40,7 @@
 #include <cgogn/rendering/shaders/shader_flat.h>
 #include <cgogn/rendering/shaders/shader_point_sprite.h>
 #include <cgogn/rendering/vbo_update.h>
+#include <cgogn/simulation/algos/Simulation_solver.h>
 #include <cgogn/simulation/algos/shape_matching/shape_matching.h>
 
 #include <boost/synapse/connect.hpp>
@@ -144,7 +146,7 @@ class ShapeMatching : public Module
 public:
 	ShapeMatching(const App& app)
 		: Module(app, "ShapeMatching (" + std::string{mesh_traits<MESH>::name} + ")"), selected_mesh_(nullptr),
-		  sm_solver_(0.5f), running_(false)
+		  sm_solver_(0.05f), running_(false)
 	{
 		f_keypress = [](View*, MESH*, int32, CellsSet<MESH, Vertex>*, CellsSet<MESH, Edge>*) {};
 	}
@@ -199,6 +201,7 @@ public:
 		Parameters& p = parameters_[&m];
 
 		p.vertex_forces_ = vertex_forces;
+		simu_solver.forces_ext_ = vertex_forces;
 	}
 	void set_vertex_masse(const MESH& m, const std::shared_ptr<Attribute<double>>& vertex_masse)
 	{
@@ -234,17 +237,25 @@ protected:
 			while (this->running_)
 			{
 				Parameters& p = parameters_[selected_mesh_];
-				sm_solver_.solve_constraint(*selected_mesh_, p.vertex_position_.get(), p.vertex_forces_.get(), 0.05f);
+				simu_solver.compute_time_step(*selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(), 0.05);
 				need_update_ = true;
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
 			}
 		});
 
-		app_.start_timer(50, [this]() -> bool { return !running_; });
+		// app_.start_timer(5000, [this]() -> bool { return !running_; });
 	}
 
 	void stop()
 	{
 		running_ = false;
+	}
+
+	void step()
+	{
+		Parameters& p = parameters_[selected_mesh_];
+		simu_solver.compute_time_step(*selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(), 0.005);
+		need_update_ = true;
 	}
 
 	void interface() override
@@ -257,7 +268,10 @@ protected:
 		{
 			mesh_provider_->foreach_mesh([this](MESH* m, const std::string& name) {
 				if (ImGui::Selectable(name.c_str(), m == selected_mesh_))
+				{
 					selected_mesh_ = m;
+					simu_solver.init_solver(*selected_mesh_, &sm_solver_);
+				}
 			});
 			ImGui::ListBoxFooter();
 		}
@@ -397,6 +411,10 @@ protected:
 					{
 						start();
 					}
+					if (ImGui::Button("step"))
+					{
+						step();
+					}
 				}
 				else
 				{
@@ -404,11 +422,11 @@ protected:
 					{
 						stop();
 					}
-					if (need_update_)
-					{
-						mesh_provider_->emit_attribute_changed(selected_mesh_, p.vertex_position_.get());
-						need_update_ = false;
-					}
+				}
+				if (need_update_)
+				{
+					mesh_provider_->emit_attribute_changed(selected_mesh_, p.vertex_position_.get());
+					need_update_ = false;
 				}
 			}
 		}
@@ -423,6 +441,7 @@ public:
 	std::unordered_map<const MESH*, std::vector<std::shared_ptr<boost::synapse::connection>>> mesh_connections_;
 	MeshProvider<MESH>* mesh_provider_;
 	simulation::shape_matching_constraint_solver<MESH> sm_solver_;
+	simulation::Simulation_solver<MESH> simu_solver;
 	bool running_;
 	bool need_update_;
 };
