@@ -16,6 +16,9 @@ target_sources(${PROJECT_NAME}
 	PRIVATE
         "${CMAKE_CURRENT_LIST_DIR}/algos/shallow_water/riemann_solver.h"
         "${CMAKE_CURRENT_LIST_DIR}/algos/shallow_water/riemann_solver.cpp"
+	"${CMAKE_CURRENT_LIST_DIR}/algos/shape_matching/shape_matching.h"
+        "${CMAKE_CURRENT_LIST_DIR}/algos/shape_matching/shape_matching.cpp"
+	"${CMAKE_CURRENT_LIST_DIR}/algos/Simulation_constraint.h"
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

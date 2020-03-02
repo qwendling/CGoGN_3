@@ -21,8 +21,8 @@
  *                                                                              *
  *******************************************************************************/
 
-#ifndef CGOGN_MODULE_SURFACE_SELECTION_H_
-#define CGOGN_MODULE_SURFACE_SELECTION_H_
+#ifndef CGOGN_MODULE_SHAPE_MATCHING_H_
+#define CGOGN_MODULE_SHAPE_MATCHING_H_
 
 #include <cgogn/ui/module.h>
 #include <cgogn/ui/modules/mesh_provider/mesh_provider.h>
@@ -39,9 +39,9 @@
 #include <cgogn/rendering/shaders/shader_flat.h>
 #include <cgogn/rendering/shaders/shader_point_sprite.h>
 #include <cgogn/rendering/vbo_update.h>
+#include <cgogn/simulation/algos/shape_matching/shape_matching.h>
 
 #include <boost/synapse/connect.hpp>
-
 #include <imgui/imgui.h>
 
 #include <unordered_map>
@@ -53,9 +53,8 @@ namespace ui
 {
 
 template <typename MESH>
-class VolumeSelection : public ViewModule
+class ShapeMatching : public Module
 {
-	static_assert(mesh_traits<MESH>::dimension >= 2, "VolumeSelection can only be used with meshes of dimension >= 2");
 
 	template <typename T>
 	using Attribute = typename mesh_traits<MESH>::template Attribute<T>;
@@ -75,7 +74,8 @@ class VolumeSelection : public ViewModule
 	struct Parameters
 	{
 		Parameters()
-			: vertex_position_(nullptr), vertex_scale_factor_(1.0), sphere_scale_factor_(10.0),
+			: vertex_position_(nullptr), init_vertex_position_(nullptr), vertex_forces_(nullptr),
+			  vertex_masse_(nullptr), vertex_scale_factor_(1.0), sphere_scale_factor_(10.0),
 			  selected_vertices_set_(nullptr), selected_edges_set_(nullptr), selecting_cell_(VertexSelect)
 		{
 			param_point_sprite_ = rendering::ShaderPointSprite::generate_param();
@@ -120,6 +120,9 @@ class VolumeSelection : public ViewModule
 
 		MESH* mesh_;
 		std::shared_ptr<Attribute<Vec3>> vertex_position_;
+		std::shared_ptr<Attribute<Vec3>> init_vertex_position_;
+		std::shared_ptr<Attribute<Vec3>> vertex_forces_;
+		std::shared_ptr<Attribute<double>> vertex_masse_;
 
 		std::unique_ptr<rendering::ShaderPointSprite::Param> param_point_sprite_;
 		std::unique_ptr<rendering::ShaderBoldLine::Param> param_edge_;
@@ -139,13 +142,14 @@ class VolumeSelection : public ViewModule
 	};
 
 public:
-	VolumeSelection(const App& app)
-		: ViewModule(app, "VolumeSelection (" + std::string{mesh_traits<MESH>::name} + ")"), selected_mesh_(nullptr)
+	ShapeMatching(const App& app)
+		: Module(app, "ShapeMatching (" + std::string{mesh_traits<MESH>::name} + ")"), selected_mesh_(nullptr),
+		  sm_solver_(0.5f), running_(false)
 	{
 		f_keypress = [](View*, MESH*, int32, CellsSet<MESH, Vertex>*, CellsSet<MESH, Edge>*) {};
 	}
 
-	~VolumeSelection()
+	~ShapeMatching()
 	{
 	}
 
@@ -166,27 +170,6 @@ private:
 						p.update_selected_vertices_vbo();
 						p.update_selected_edges_vbo();
 					}
-
-					for (View* v : linked_views_)
-						v->request_update();
-				}));
-		mesh_connections_[m].push_back(
-			boost::synapse::connect<typename MeshProvider<MESH>::template cells_set_changed<Vertex>>(
-				m, [this, m](CellsSet<MESH, Vertex>* set) {
-					Parameters& p = parameters_[m];
-					if (p.vertex_position_)
-						p.update_selected_vertices_vbo();
-					for (View* v : linked_views_)
-						v->request_update();
-				}));
-		mesh_connections_[m].push_back(
-			boost::synapse::connect<typename MeshProvider<MESH>::template cells_set_changed<Edge>>(
-				m, [this, m](CellsSet<MESH, Edge>* set) {
-					Parameters& p = parameters_[m];
-					if (p.vertex_position_)
-						p.update_selected_edges_vbo();
-					for (View* v : linked_views_)
-						v->request_update();
 				}));
 	}
 
@@ -202,9 +185,26 @@ public:
 			p.update_selected_vertices_vbo();
 			p.update_selected_edges_vbo();
 		}
+	}
 
-		for (View* v : linked_views_)
-			v->request_update();
+	void set_init_vertex_position(const MESH& m, const std::shared_ptr<Attribute<Vec3>>& init_vertex_position)
+	{
+		Parameters& p = parameters_[&m];
+
+		p.init_vertex_position_ = init_vertex_position;
+	}
+
+	void set_vertex_force(const MESH& m, const std::shared_ptr<Attribute<Vec3>>& vertex_forces)
+	{
+		Parameters& p = parameters_[&m];
+
+		p.vertex_forces_ = vertex_forces;
+	}
+	void set_vertex_masse(const MESH& m, const std::shared_ptr<Attribute<double>>& vertex_masse)
+	{
+		Parameters& p = parameters_[&m];
+
+		p.vertex_masse_ = vertex_masse;
 	}
 
 protected:
@@ -214,66 +214,7 @@ protected:
 			app_.module("MeshProvider (" + std::string{mesh_traits<MESH>::name} + ")"));
 		mesh_provider_->foreach_mesh([this](MESH* m, const std::string&) { init_mesh(m); });
 		connections_.push_back(boost::synapse::connect<typename MeshProvider<MESH>::mesh_added>(
-			mesh_provider_, this, &VolumeSelection<MESH>::init_mesh));
-	}
-
-	void mouse_press_event(View* view, int32 button, int32 x, int32 y) override
-	{
-		if (selected_mesh_ && view->shift_pressed())
-		{
-			Parameters& p = parameters_[selected_mesh_];
-
-			if (p.vertex_position_)
-			{
-				rendering::GLVec3d near = view->unproject(x, y, 0.0);
-				rendering::GLVec3d far = view->unproject(x, y, 1.0);
-				Vec3 A{near.x(), near.y(), near.z()};
-				Vec3 B{far.x(), far.y(), far.z()};
-				switch (p.selecting_cell_)
-				{
-				case VertexSelect:
-					if (p.selected_vertices_set_)
-					{
-						std::vector<Vertex> picked;
-						cgogn::geometry::picking(*selected_mesh_, p.vertex_position_.get(), A, B, picked);
-						if (!picked.empty())
-						{
-							switch (button)
-							{
-							case 0:
-								p.selected_vertices_set_->select(picked[0]);
-								break;
-							case 1:
-								p.selected_vertices_set_->unselect(picked[0]);
-								break;
-							}
-							mesh_provider_->emit_cells_set_changed(selected_mesh_, p.selected_vertices_set_);
-						}
-					}
-					break;
-				case EdgeSelect:
-					if (p.selected_edges_set_)
-					{
-						std::vector<Edge> picked;
-						cgogn::geometry::picking(*selected_mesh_, p.vertex_position_.get(), A, B, picked);
-						if (!picked.empty())
-						{
-							switch (button)
-							{
-							case 0:
-								p.selected_edges_set_->select(picked[0]);
-								break;
-							case 1:
-								p.selected_edges_set_->unselect(picked[0]);
-								break;
-							}
-							mesh_provider_->emit_cells_set_changed(selected_mesh_, p.selected_edges_set_);
-						}
-					}
-					break;
-				}
-			}
-		}
+			mesh_provider_, this, &ShapeMatching<MESH>::init_mesh));
 	}
 
 	void key_press_event(View* v, int32 key_code)
@@ -285,36 +226,29 @@ protected:
 		}
 	}
 
-	void draw(View* view) override
+	void start()
 	{
-		for (auto& [m, p] : parameters_)
-		{
-			MeshData<MESH>* md = mesh_provider_->mesh_data(m);
+		running_ = true;
 
-			const rendering::GLMat4& proj_matrix = view->projection_matrix();
-			const rendering::GLMat4& view_matrix = view->modelview_matrix();
+		launch_thread([this]() {
+			while (this->running_)
+			{
+				Parameters& p = parameters_[selected_mesh_];
+				sm_solver_.solve_constraint(*selected_mesh_, p.vertex_position_.get(), p.vertex_forces_.get(), 0.05f);
+				need_update_ = true;
+			}
+		});
 
-			if (p.selecting_cell_ == VertexSelect && p.selected_vertices_set_ && p.selected_vertices_set_->size() > 0 &&
-				p.param_point_sprite_->vao_initialized())
-			{
-				p.param_point_sprite_->size_ = p.vertex_base_size_ * p.vertex_scale_factor_;
-				p.param_point_sprite_->bind(proj_matrix, view_matrix);
-				glDrawArrays(GL_POINTS, 0, p.selected_vertices_set_->size());
-				p.param_point_sprite_->release();
-			}
-			else if (p.selecting_cell_ == EdgeSelect && p.selected_edges_set_ && p.selected_edges_set_->size() > 0 &&
-					 p.param_edge_->vao_initialized())
-			{
-				p.param_edge_->bind(proj_matrix, view_matrix);
-				glDrawArrays(GL_LINES, 0, p.selected_edges_set_->size() * 2);
-				p.param_edge_->release();
-			}
-		}
+		app_.start_timer(50, [this]() -> bool { return !running_; });
+	}
+
+	void stop()
+	{
+		running_ = false;
 	}
 
 	void interface() override
 	{
-		bool need_update = false;
 
 		ImGui::Begin(name_.c_str(), nullptr, ImGuiWindowFlags_NoSavedSettings);
 		ImGui::SetWindowSize({0, 0});
@@ -351,88 +285,135 @@ protected:
 				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
 				if (ImGui::Button("X##position"))
 					set_vertex_position(*selected_mesh_, nullptr);
-
+			}
+			if (ImGui::BeginCombo("Forces", p.vertex_forces_ ? p.vertex_forces_->name().c_str() : "-- select --"))
+			{
+				foreach_attribute<Vec3, Vertex>(*selected_mesh_,
+												[&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
+													bool is_selected = attribute == p.vertex_forces_;
+													if (ImGui::Selectable(attribute->name().c_str(), is_selected))
+														set_vertex_force(*selected_mesh_, attribute);
+													if (is_selected)
+														ImGui::SetItemDefaultFocus();
+												});
+				ImGui::EndCombo();
+			}
+			if (p.vertex_forces_)
+			{
+				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
+				if (ImGui::Button("X##force"))
+					set_vertex_force(*selected_mesh_, nullptr);
+			}
+			if (ImGui::BeginCombo("Init vertex position",
+								  p.init_vertex_position_ ? p.init_vertex_position_->name().c_str() : "-- select --"))
+			{
+				foreach_attribute<Vec3, Vertex>(
+					*selected_mesh_, [&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
+						bool is_selected = attribute == p.init_vertex_position_;
+						if (ImGui::Selectable(attribute->name().c_str(), is_selected))
+						{
+							set_init_vertex_position(*selected_mesh_, attribute);
+							if (p.vertex_masse_)
+								sm_solver_.init_solver(*selected_mesh_, p.init_vertex_position_, p.vertex_masse_);
+						}
+						if (is_selected)
+							ImGui::SetItemDefaultFocus();
+					});
+				ImGui::EndCombo();
+			}
+			if (p.init_vertex_position_)
+			{
+				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
+				if (ImGui::Button("X##init"))
+					set_init_vertex_position(*selected_mesh_, nullptr);
+			}
+			if (ImGui::BeginCombo("vertex masse", p.vertex_masse_ ? p.vertex_masse_->name().c_str() : "-- select --"))
+			{
+				foreach_attribute<double, Vertex>(
+					*selected_mesh_, [&](const std::shared_ptr<Attribute<double>>& attribute) {
+						bool is_selected = attribute == p.vertex_masse_;
+						if (ImGui::Selectable(attribute->name().c_str(), is_selected))
+						{
+							set_vertex_masse(*selected_mesh_, attribute);
+							if (p.init_vertex_position_)
+								sm_solver_.init_solver(*selected_mesh_, p.init_vertex_position_, p.vertex_masse_);
+						}
+						if (is_selected)
+							ImGui::SetItemDefaultFocus();
+					});
+				ImGui::EndCombo();
+			}
+			if (p.vertex_masse_)
+			{
+				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
+				if (ImGui::Button("X##masse"))
+					set_vertex_masse(*selected_mesh_, nullptr);
+			}
+			if (p.init_vertex_position_ && p.vertex_position_ && p.vertex_masse_)
+			{
+				if (ImGui::Button("init initial pos"))
+				{
+					foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
+						value<Vec3>(*selected_mesh_, p.init_vertex_position_.get(), v) =
+							value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v);
+						return true;
+					});
+					sm_solver_.update_topo(*selected_mesh_);
+				}
+			}
+			if (p.vertex_masse_)
+			{
+				if (ImGui::Button("init masse"))
+				{
+					foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
+						value<double>(*selected_mesh_, p.vertex_masse_.get(), v) = 1.0f;
+						return true;
+					});
+					sm_solver_.update_topo(*selected_mesh_);
+				}
+			}
+			if (ImGui::Button("new attribute Vec3"))
+			{
+				static uint32 nb_new_attribute_Vec3 = 0;
+				add_attribute<Vec3, Vertex>(*selected_mesh_,
+											"SM_attributte_vec3_" + std::to_string(nb_new_attribute_Vec3++));
+			}
+			if (ImGui::Button("new attribute double"))
+			{
+				static uint32 nb_new_attribute_double = 0;
+				add_attribute<double, Vertex>(*selected_mesh_,
+											  "SM_attributte_double_" + std::to_string(nb_new_attribute_double++));
+			}
+			if (p.vertex_position_ && p.init_vertex_position_ && p.vertex_forces_ && p.vertex_masse_)
+			{
 				ImGui::Separator();
-
-				ImGui::RadioButton("Vertex", (int*)(&p.selecting_cell_), VertexSelect);
-				ImGui::SameLine();
-				ImGui::RadioButton("Edge", (int*)(&p.selecting_cell_), EdgeSelect);
 
 				MeshData<MESH>* md = mesh_provider_->mesh_data(selected_mesh_);
 				Parameters& p = parameters_[selected_mesh_];
 
-				if (p.selecting_cell_ == VertexSelect)
+				if (!running_)
 				{
-					if (ImGui::BeginCombo("Sets", p.selected_vertices_set_ ? p.selected_vertices_set_->name().c_str()
-																		   : "-- select --"))
+					if (ImGui::Button("play"))
 					{
-						md->template foreach_cells_set<Vertex>([&](CellsSet<MESH, Vertex>& cs) {
-							bool is_selected = &cs == p.selected_vertices_set_;
-							if (ImGui::Selectable(cs.name().c_str(), is_selected))
-							{
-								p.selected_vertices_set_ = &cs;
-								p.update_selected_vertices_vbo();
-								for (View* v : linked_views_)
-									v->request_update();
-							}
-							if (is_selected)
-								ImGui::SetItemDefaultFocus();
-						});
-						ImGui::EndCombo();
+						start();
 					}
-					if (p.selected_vertices_set_)
-					{
-						ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
-						if (ImGui::Button("X##selected_vertices_set"))
-							p.selected_vertices_set_ = nullptr;
-					}
-					if (ImGui::Button("Create##vertices_set"))
-						md->template add_cells_set<Vertex>();
-					ImGui::TextUnformatted("Drawing parameters");
-					need_update |= ImGui::ColorEdit3("color##vertices", p.param_point_sprite_->color_.data(),
-													 ImGuiColorEditFlags_NoInputs);
-					need_update |= ImGui::SliderFloat("size##vertices", &(p.vertex_scale_factor_), 0.1, 2.0);
 				}
-				else if (p.selecting_cell_ == EdgeSelect)
+				else
 				{
-					if (ImGui::BeginCombo("Sets", p.selected_edges_set_ ? p.selected_edges_set_->name().c_str()
-																		: "-- select --"))
+					if (ImGui::Button("stop"))
 					{
-						md->template foreach_cells_set<Edge>([&](CellsSet<MESH, Edge>& cs) {
-							bool is_selected = &cs == p.selected_edges_set_;
-							if (ImGui::Selectable(cs.name().c_str(), is_selected))
-							{
-								p.selected_edges_set_ = &cs;
-								p.update_selected_edges_vbo();
-								for (View* v : linked_views_)
-									v->request_update();
-							}
-							if (is_selected)
-								ImGui::SetItemDefaultFocus();
-						});
-						ImGui::EndCombo();
+						stop();
 					}
-					if (p.selected_edges_set_)
+					if (need_update_)
 					{
-						ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
-						if (ImGui::Button("X##selected_edges_set"))
-							p.selected_edges_set_ = nullptr;
+						mesh_provider_->emit_attribute_changed(selected_mesh_, p.vertex_position_.get());
+						need_update_ = false;
 					}
-					if (ImGui::Button("Create##edges_set"))
-						md->template add_cells_set<Edge>();
-					ImGui::TextUnformatted("Drawing parameters");
-					need_update |=
-						ImGui::ColorEdit3("color##edges", p.param_edge_->color_.data(), ImGuiColorEditFlags_NoInputs);
-					need_update |= ImGui::SliderFloat("width##edges", &(p.param_edge_->width_), 1.0f, 10.0f);
 				}
 			}
 		}
 
 		ImGui::End();
-
-		if (need_update)
-			for (View* v : linked_views_)
-				v->request_update();
 	}
 
 public:
@@ -441,10 +422,13 @@ public:
 	std::vector<std::shared_ptr<boost::synapse::connection>> connections_;
 	std::unordered_map<const MESH*, std::vector<std::shared_ptr<boost::synapse::connection>>> mesh_connections_;
 	MeshProvider<MESH>* mesh_provider_;
+	simulation::shape_matching_constraint_solver<MESH> sm_solver_;
+	bool running_;
+	bool need_update_;
 };
 
 } // namespace ui
 
 } // namespace cgogn
 
-#endif // CGOGN_MODULE_SURFACE_SELECTION_H_
+#endif // CGOGN_MODULE_SHAPE_MATCHING_H_

@@ -33,6 +33,8 @@
 #include <cgogn/modeling/algos/decimation/decimation.h>
 #include <cgogn/modeling/algos/subdivision.h>
 
+#include <imgui/imgui.h>
+
 namespace cgogn
 {
 
@@ -42,7 +44,7 @@ namespace ui
 class VolumeMRModeling : public Module
 {
 	using CPH = CPH3_adaptative;
-	
+
 	template <typename T>
 	using Attribute = typename mesh_traits<CPH>::template Attribute<T>;
 
@@ -51,8 +53,6 @@ class VolumeMRModeling : public Module
 
 	using Vec3 = geometry::Vec3;
 	using Scalar = geometry::Scalar;
-	
-	
 
 public:
 	VolumeMRModeling(const App& app)
@@ -82,15 +82,16 @@ public:
 	{
 		uint32 cur = m.current_level_;
 		m.current_level_ = m.maximum_level_;
-		
-		modeling::butterflySubdivisionVolumeAdaptative(m,0.34f,{vertex_position});
-		
+
+		modeling::butterflySubdivisionVolumeAdaptative(m, 0.34f, {vertex_position});
+
 		m.current_level_ = cur;
-		
-		changed_connectivity(m,vertex_position);
+
+		changed_connectivity(m, vertex_position);
 	}
-	
-	void changed_connectivity(CPH& m,Attribute<Vec3>* vertex_position){
+
+	void changed_connectivity(CPH& m, Attribute<Vec3>* vertex_position)
+	{
 		cph3_provider_->emit_connectivity_changed(&m);
 		cph3_provider_->emit_attribute_changed(&m, vertex_position);
 
@@ -149,11 +150,11 @@ protected:
 
 			uint32 min = 0;
 			if (ImGui::SliderScalar("Level", ImGuiDataType_U32, &selected_cph3_->current_level_, &min,
-									&selected_cph3_->maximum_level_)){
+									&selected_cph3_->maximum_level_))
+			{
 				cph3_provider_->emit_connectivity_changed(selected_cph3_);
 				cph3_provider_->emit_attribute_changed(selected_cph3_, selected_vertex_position_.get());
 			}
-				
 
 			std::string selected_vertex_position_name_ =
 				selected_vertex_position_ ? selected_vertex_position_->name() : "-- select --";

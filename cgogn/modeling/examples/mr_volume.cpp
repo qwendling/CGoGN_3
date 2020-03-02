@@ -29,15 +29,15 @@
 
 #include <cgogn/core/functions/attributes.h>
 
-#include <cgogn/modeling/algos/subdivision.h>
-#include <cgogn/ui/modules/mesh_provider/mesh_provider.h>
-#include <cgogn/ui/modules/surface_render/surface_render.h>
-#include <cgogn/ui/modules/volume_render/volume_render.h>
-#include <cgogn/ui/modules/volume_mr_modeling/volume_mr_modeling.h>
-#include <cgogn/ui/modules/volume_selection/volume_selection.h>
 #include <GLFW/glfw3.h>
 #include <cgogn/core/functions/traversals/edge.h>
 #include <cgogn/core/functions/traversals/volume.h>
+#include <cgogn/modeling/algos/subdivision.h>
+#include <cgogn/ui/modules/mesh_provider/mesh_provider.h>
+#include <cgogn/ui/modules/surface_render/surface_render.h>
+#include <cgogn/ui/modules/volume_mr_modeling/volume_mr_modeling.h>
+#include <cgogn/ui/modules/volume_render/volume_render.h>
+#include <cgogn/ui/modules/volume_selection/volume_selection.h>
 
 using MRMesh = cgogn::CPH3_adaptative;
 using Mesh = MRMesh::CMAP;
@@ -98,7 +98,7 @@ int main(int argc, char** argv)
 
 	MRMesh* cph1 = vmrm.create_cph3(*m, mp.mesh_name(m));
 	MRMesh* cph2 = vmrm.create_cph3(*m, mp.mesh_name(m));
-	
+
 	vs.selected_mesh_ = cph2;
 	auto md = mrmp.mesh_data(cph2);
 	md->template add_cells_set<Edge>();
@@ -107,204 +107,235 @@ int main(int argc, char** argv)
 	cgogn::index_cells<Mesh::Edge>(*m);
 	cgogn::index_cells<Mesh::Face>(*m);
 
-
 	mrsr.set_vertex_position(*v1, *cph1, position);
-	//mrsr.set_vertex_position(*v1, *cph2, position);
-	//mrsr.set_vertex_position(*v2, *cph1, position);
+	// mrsr.set_vertex_position(*v1, *cph2, position);
+	// mrsr.set_vertex_position(*v2, *cph1, position);
 	mrsr.set_vertex_position(*v2, *cph2, position);
-	
-	vmrm.subdivide(*cph2,position.get());
-	vmrm.subdivide(*cph2,position.get());
+
+	vmrm.subdivide(*cph2, position.get());
+	vmrm.subdivide(*cph2, position.get());
 	std::srand(std::time(nullptr));
-	
-	vs.f_keypress = [&](cgogn::ui::View* view,MRMesh* selected_mesh, std::int32_t k,
-			cgogn::ui::CellsSet<MRMesh, Vertex>* selected_vertices,cgogn::ui::CellsSet<MRMesh, Edge>*selected_edges){
-		switch(k){
-			case GLFW_KEY_E:
-				if(selected_vertices != nullptr){
-					selected_vertices->foreach_cell([&](Vertex v){
-						cgogn::foreach_incident_edge(*m,v,[&](Edge e)->bool{
-							if(view->shift_pressed()){
-								selected_mesh->disable_edge_subdivision(e,true);
-							}else{
-								selected_mesh->activate_edge_subdivision(e);
-							}
-							return true;
-						});
-					});
-					vmrm.changed_connectivity(*selected_mesh,position.get());
-				}
-				if(selected_edges != nullptr){
-					selected_edges->foreach_cell([&](Edge e){
-						if(view->shift_pressed()){
-							selected_mesh->disable_edge_subdivision(e,true);
-						}else{
+
+	vs.f_keypress = [&](cgogn::ui::View* view, MRMesh* selected_mesh, std::int32_t k,
+						cgogn::ui::CellsSet<MRMesh, Vertex>* selected_vertices,
+						cgogn::ui::CellsSet<MRMesh, Edge>* selected_edges) {
+		switch (k)
+		{
+		case GLFW_KEY_E:
+			if (selected_vertices != nullptr)
+			{
+				selected_vertices->foreach_cell([&](Vertex v) {
+					cgogn::foreach_incident_edge(*m, v, [&](Edge e) -> bool {
+						if (view->shift_pressed())
+						{
+							selected_mesh->disable_edge_subdivision(e, true);
+						}
+						else
+						{
 							selected_mesh->activate_edge_subdivision(e);
-						}
-					});
-					vmrm.changed_connectivity(*selected_mesh,position.get());
-				}
-				break;
-			case GLFW_KEY_F:
-				if(selected_vertices != nullptr){
-					selected_vertices->foreach_cell([&](Vertex v){
-						cgogn::foreach_incident_face(*m,v,[&](Face f)->bool{
-							selected_mesh->activate_face_subdivision(f);
-							return true;
-						});
-					});
-					vmrm.changed_connectivity(*selected_mesh,position.get());
-				}
-				if(selected_edges != nullptr){
-					selected_edges->foreach_cell([&](Edge e){
-						std::vector<Face> face_list;
-						cgogn::foreach_incident_face(*selected_mesh,e,[&](Face f)->bool{
-							face_list.push_back(f);
-							return true;
-						});
-						for(auto f : face_list){
-							if(view->shift_pressed()){
-								if(selected_mesh->dart_is_visible(f.dart))
-									selected_mesh->disable_face_subdivision(f,true,true);
-							}else{
-								selected_mesh->activate_face_subdivision(f);
-							}
-						}
-					});
-					int nb_rep=0,nb_visible=0;
-					for (cgogn::Dart d = m->begin(), end = m->end(); d != end; d = m->next(d))
-					{
-						if(selected_mesh->dart_level(selected_mesh->get_representative(d)) > 0 && selected_mesh->representative_is_visible(d))
-							nb_rep++;
-						if(selected_mesh->dart_level(d) > 0 && selected_mesh->get_dart_visibility_level(d) < selected_mesh->dart_level(d))
-							nb_visible++;
-					}
-					vmrm.changed_connectivity(*selected_mesh,position.get());
-				}
-				break;
-			case GLFW_KEY_V:
-				if(selected_vertices != nullptr){
-					selected_vertices->foreach_cell([&](Vertex v){
-						cgogn::foreach_incident_volume(*m,v,[&](Volume w)->bool{
-							selected_mesh->activate_volume_subdivision(w);
-							return true;
-						});
-					});
-					vmrm.changed_connectivity(*selected_mesh,position.get());
-				}
-				if(selected_edges != nullptr){
-					std::vector<Volume> volume_list;
-					selected_edges->foreach_cell([&](Edge e){
-						cgogn::foreach_incident_volume(*m,e,[&](Volume v)->bool{
-							volume_list.push_back(v);
-							return true;
-						});
-					});
-					for(Volume v:volume_list){
-						if(view->shift_pressed()){
-							if(selected_mesh->dart_is_visible(v.dart))
-								selected_mesh->disable_volume_subdivision(v,true);
-						}else{
-							selected_mesh->activate_volume_subdivision(v);
-						}
-					}
-					vmrm.changed_connectivity(*selected_mesh,position.get());
-				}
-				break;
-			case GLFW_KEY_A:
-			{
-				std::vector<Edge> list_cut_edges;
-				cgogn::foreach_cell(*selected_mesh,[&](Edge e)->bool{
-					list_cut_edges.push_back(e);
-					return true;
-				});
-				for(Edge e:list_cut_edges)
-					if(view->shift_pressed()){
-						//selected_mesh->disable_edge_subdivision(e);
-					}else{
-						selected_mesh->activate_edge_subdivision(e);
-					}
-				vmrm.changed_connectivity(*selected_mesh,position.get());
-			}
-				break;
-			case GLFW_KEY_Q:
-			{
-				std::vector<Face> list_cut_faces;
-				cgogn::foreach_cell(*selected_mesh,[&list_cut_faces](Face f)->bool{
-					list_cut_faces.push_back(f);
-					return true;
-				});
-				for(Face f:list_cut_faces)
-					selected_mesh->activate_face_subdivision(f);
-				vmrm.changed_connectivity(*selected_mesh,position.get());
-			}
-				break;
-			case GLFW_KEY_Z:
-			{
-				std::vector<Volume> list_cut_volumes;
-				cgogn::foreach_cell(*selected_mesh,[&list_cut_volumes](Volume v)->bool{
-					list_cut_volumes.push_back(v);
-					return true;
-				});
-				clock_t start = clock();
-				for(Volume v:list_cut_volumes)
-					selected_mesh->activate_volume_subdivision(v);
-				double time = (clock()-start)/(double)CLOCKS_PER_SEC;
-				std::cout << "time for " << list_cut_volumes.size() << " volume activation : " << time << "s" << std::endl;
-				vmrm.changed_connectivity(*selected_mesh,position.get());
-			}
-				break;
-			case GLFW_KEY_L:
-				if(selected_vertices != nullptr){
-					selected_vertices->foreach_cell([&](Vertex v){
-						cgogn::foreach_incident_face(*selected_mesh,v,[&](Face f)->bool{
-							std::cout << "face level : " << selected_mesh->face_level(f.dart) << std::endl;
-							return true;
-						});
-					});
-				}
-				if(selected_edges != nullptr){
-					selected_edges->foreach_cell([&](Edge e){
-						cgogn::foreach_incident_face(*selected_mesh,e,[&](Face f)->bool{
-							std::cout << "face level : " << selected_mesh->face_level(f.dart) << std::endl;
-							std::cout << "face oldest : " << selected_mesh->face_youngest_dart(f.dart).index << std::endl;
-							return true;
-						});
-						std::cout << "edge level : " << selected_mesh->edge_level(e.dart) << std::endl;
-						std::cout << "_____________________________________" << std::endl;
-					});
-					std::cout << "######################################" << std::endl;
-				}
-				break;
-			case GLFW_KEY_R:
-			{
-				for(int i =0;i<100;i++){
-					Volume volume_to_cut;
-					cgogn::foreach_cell(*selected_mesh,[&](Volume v)->bool{
-						volume_to_cut = v;
-						if((rand()/(double)RAND_MAX)*100 < 10){
-							if(view->shift_pressed()){
-								if(selected_mesh->volume_level(v.dart))
-									return false;
-							}else{
-								if(selected_mesh->volume_is_subdivided(v.dart))
-									return false;
-							}
 						}
 						return true;
 					});
-					if(view->shift_pressed()){
-						selected_mesh->disable_volume_subdivision(volume_to_cut,true);
-					}else{
-						selected_mesh->activate_volume_subdivision(volume_to_cut);
+				});
+				vmrm.changed_connectivity(*selected_mesh, position.get());
+			}
+			if (selected_edges != nullptr)
+			{
+				selected_edges->foreach_cell([&](Edge e) {
+					if (view->shift_pressed())
+					{
+						selected_mesh->disable_edge_subdivision(e, true);
+					}
+					else
+					{
+						selected_mesh->activate_edge_subdivision(e);
+					}
+				});
+				vmrm.changed_connectivity(*selected_mesh, position.get());
+			}
+			break;
+		case GLFW_KEY_F:
+			if (selected_vertices != nullptr)
+			{
+				selected_vertices->foreach_cell([&](Vertex v) {
+					cgogn::foreach_incident_face(*m, v, [&](Face f) -> bool {
+						selected_mesh->activate_face_subdivision(f);
+						return true;
+					});
+				});
+				vmrm.changed_connectivity(*selected_mesh, position.get());
+			}
+			if (selected_edges != nullptr)
+			{
+				selected_edges->foreach_cell([&](Edge e) {
+					std::vector<Face> face_list;
+					cgogn::foreach_incident_face(*selected_mesh, e, [&](Face f) -> bool {
+						face_list.push_back(f);
+						return true;
+					});
+					for (auto f : face_list)
+					{
+						if (view->shift_pressed())
+						{
+							if (selected_mesh->dart_is_visible(f.dart))
+								selected_mesh->disable_face_subdivision(f, true, true);
+						}
+						else
+						{
+							selected_mesh->activate_face_subdivision(f);
+						}
+					}
+				});
+				int nb_rep = 0, nb_visible = 0;
+				for (cgogn::Dart d = m->begin(), end = m->end(); d != end; d = m->next(d))
+				{
+					if (selected_mesh->dart_level(selected_mesh->get_representative(d)) > 0 &&
+						selected_mesh->representative_is_visible(d))
+						nb_rep++;
+					if (selected_mesh->dart_level(d) > 0 &&
+						selected_mesh->get_dart_visibility_level(d) < selected_mesh->dart_level(d))
+						nb_visible++;
+				}
+				vmrm.changed_connectivity(*selected_mesh, position.get());
+			}
+			break;
+		case GLFW_KEY_V:
+			if (selected_vertices != nullptr)
+			{
+				selected_vertices->foreach_cell([&](Vertex v) {
+					cgogn::foreach_incident_volume(*m, v, [&](Volume w) -> bool {
+						selected_mesh->activate_volume_subdivision(w);
+						return true;
+					});
+				});
+				vmrm.changed_connectivity(*selected_mesh, position.get());
+			}
+			if (selected_edges != nullptr)
+			{
+				std::vector<Volume> volume_list;
+				selected_edges->foreach_cell([&](Edge e) {
+					cgogn::foreach_incident_volume(*m, e, [&](Volume v) -> bool {
+						volume_list.push_back(v);
+						return true;
+					});
+				});
+				for (Volume v : volume_list)
+				{
+					if (view->shift_pressed())
+					{
+						if (selected_mesh->dart_is_visible(v.dart))
+							selected_mesh->disable_volume_subdivision(v, true);
+					}
+					else
+					{
+						selected_mesh->activate_volume_subdivision(v);
 					}
 				}
-				
-				vmrm.changed_connectivity(*selected_mesh,position.get());
+				vmrm.changed_connectivity(*selected_mesh, position.get());
 			}
-				break;
+			break;
+		case GLFW_KEY_A: {
+			std::vector<Edge> list_cut_edges;
+			cgogn::foreach_cell(*selected_mesh, [&](Edge e) -> bool {
+				list_cut_edges.push_back(e);
+				return true;
+			});
+			for (Edge e : list_cut_edges)
+				if (view->shift_pressed())
+				{
+					// selected_mesh->disable_edge_subdivision(e);
+				}
+				else
+				{
+					selected_mesh->activate_edge_subdivision(e);
+				}
+			vmrm.changed_connectivity(*selected_mesh, position.get());
 		}
-		
+		break;
+		case GLFW_KEY_Q: {
+			std::vector<Face> list_cut_faces;
+			cgogn::foreach_cell(*selected_mesh, [&list_cut_faces](Face f) -> bool {
+				list_cut_faces.push_back(f);
+				return true;
+			});
+			for (Face f : list_cut_faces)
+				selected_mesh->activate_face_subdivision(f);
+			vmrm.changed_connectivity(*selected_mesh, position.get());
+		}
+		break;
+		case GLFW_KEY_Z: {
+			std::vector<Volume> list_cut_volumes;
+			cgogn::foreach_cell(*selected_mesh, [&list_cut_volumes](Volume v) -> bool {
+				list_cut_volumes.push_back(v);
+				return true;
+			});
+			clock_t start = clock();
+			for (Volume v : list_cut_volumes)
+				selected_mesh->activate_volume_subdivision(v);
+			double time = (clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << "time for " << list_cut_volumes.size() << " volume activation : " << time << "s" << std::endl;
+			vmrm.changed_connectivity(*selected_mesh, position.get());
+		}
+		break;
+		case GLFW_KEY_L:
+			if (selected_vertices != nullptr)
+			{
+				selected_vertices->foreach_cell([&](Vertex v) {
+					cgogn::foreach_incident_face(*selected_mesh, v, [&](Face f) -> bool {
+						std::cout << "face level : " << selected_mesh->face_level(f.dart) << std::endl;
+						return true;
+					});
+				});
+			}
+			if (selected_edges != nullptr)
+			{
+				selected_edges->foreach_cell([&](Edge e) {
+					cgogn::foreach_incident_face(*selected_mesh, e, [&](Face f) -> bool {
+						std::cout << "face level : " << selected_mesh->face_level(f.dart) << std::endl;
+						std::cout << "face oldest : " << selected_mesh->face_youngest_dart(f.dart).index << std::endl;
+						return true;
+					});
+					std::cout << "edge level : " << selected_mesh->edge_level(e.dart) << std::endl;
+					std::cout << "_____________________________________" << std::endl;
+				});
+				std::cout << "######################################" << std::endl;
+			}
+			break;
+		case GLFW_KEY_R: {
+			for (int i = 0; i < 100; i++)
+			{
+				Volume volume_to_cut;
+				cgogn::foreach_cell(*selected_mesh, [&](Volume v) -> bool {
+					volume_to_cut = v;
+					if ((rand() / (double)RAND_MAX) * 100 < 10)
+					{
+						if (view->shift_pressed())
+						{
+							if (selected_mesh->volume_level(v.dart))
+								return false;
+						}
+						else
+						{
+							if (selected_mesh->volume_is_subdivided(v.dart))
+								return false;
+						}
+					}
+					return true;
+				});
+				if (view->shift_pressed())
+				{
+					selected_mesh->disable_volume_subdivision(volume_to_cut, true);
+				}
+				else
+				{
+					selected_mesh->activate_volume_subdivision(volume_to_cut);
+				}
+			}
+
+			vmrm.changed_connectivity(*selected_mesh, position.get());
+		}
+		break;
+		}
 	};
 
 	return app.launch();
