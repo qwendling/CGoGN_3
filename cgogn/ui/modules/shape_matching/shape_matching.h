@@ -146,7 +146,7 @@ class ShapeMatching : public Module
 public:
 	ShapeMatching(const App& app)
 		: Module(app, "ShapeMatching (" + std::string{mesh_traits<MESH>::name} + ")"), selected_mesh_(nullptr),
-		  sm_solver_(0.05f), running_(false)
+		  sm_solver_(0.5f), running_(false)
 	{
 		f_keypress = [](View*, MESH*, int32, CellsSet<MESH, Vertex>*, CellsSet<MESH, Edge>*) {};
 	}
@@ -237,9 +237,9 @@ protected:
 			while (this->running_)
 			{
 				Parameters& p = parameters_[selected_mesh_];
-				simu_solver.compute_time_step(*selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(), 0.05);
+				simu_solver.compute_time_step(*selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(), 0.005);
 				need_update_ = true;
-				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+				std::this_thread::sleep_for(std::chrono::milliseconds(5));
 			}
 		});
 
@@ -428,6 +428,8 @@ protected:
 					mesh_provider_->emit_attribute_changed(selected_mesh_, p.vertex_position_.get());
 					need_update_ = false;
 				}
+				double min = 0, max = 1;
+				ImGui::SliderScalar("Level", ImGuiDataType_Double, &sm_solver_.stiffness_, &min, &max);
 			}
 		}
 

@@ -162,7 +162,7 @@ private:
 					Parameters& p = parameters_[m];
 					if (p.vertex_position_.get() == attribute)
 					{
-						p.vertex_base_size_ = geometry::mean_edge_length(*m, p.vertex_position_.get()) / 6.0;
+						// p.vertex_base_size_ = geometry::mean_edge_length(*m, p.vertex_position_.get()) / 6.0;
 						p.update_selected_vertices_vbo();
 						p.update_selected_edges_vbo();
 					}
