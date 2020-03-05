@@ -545,8 +545,8 @@ auto edgePointRule(const MESH& m, const std::vector<Dart>& p_point, const std::v
 	-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&>, Vec3>
 {
 	static const float _W_ = 1.f / 16;
-	int N = q_point.size() / 2;
-	float w1 = 1.f / 2;
+	int32 N = uint32(q_point.size()) / 2;
+	float32 w1 = 1.f / 2;
 	if (N == 0)
 	{
 		return w1 * sum<MESH>(m, p_point, attribute);

@@ -113,7 +113,7 @@ void View::mouse_move_event(int32 x, int32 y)
 void View::mouse_wheel_event(float64 dx, float64 dy)
 {
 	for (ViewModule* m : linked_view_modules_)
-		m->mouse_wheel_event(this, dx, dy);
+		m->mouse_wheel_event(this, int32(dx), int32(dy));
 
 	GLViewer::mouse_wheel_event(dx, dy);
 }
@@ -144,16 +144,22 @@ void View::draw()
 
 	if (need_redraw_)
 	{
-		fbo_->bind();
-		glEnable(GL_DEPTH_TEST);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		GLenum idbuf = GL_COLOR_ATTACHMENT0;
-		glDrawBuffers(1, &idbuf);
-		for (ViewModule* m : linked_view_modules_)
-			m->draw(this);
-		fbo_->release();
-		glDisable(GL_DEPTH_TEST);
-		need_redraw_ = false;
+		if (fbo_->width() * fbo_->height() > 0)
+		{
+
+			fbo_->bind();
+			glEnable(GL_DEPTH_TEST);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			GLenum idbuf = GL_COLOR_ATTACHMENT0;
+			glDrawBuffers(1, &idbuf);
+			for (ViewModule* m : linked_view_modules_)
+			{
+				m->draw(this);
+			}
+			fbo_->release();
+			glDisable(GL_DEPTH_TEST);
+			need_redraw_ = false;
+		}
 	}
 
 	param_fst_->draw();

@@ -21,9 +21,7 @@
  *                                                                              *
  *******************************************************************************/
 
-#include <iostream>
-
-#include <cgogn/rendering/shaders/shader_simple_color.h>
+#include <cgogn/rendering/shaders/shader_no_illum_scalar_per_vertex.h>
 
 namespace cgogn
 {
@@ -31,31 +29,55 @@ namespace cgogn
 namespace rendering
 {
 
-ShaderSimpleColor* ShaderSimpleColor::instance_ = nullptr;
+static const char* vertex_shader_source =
+	R"(#version 150
+in vec3 vertex_pos;
+in float vertex_scalar;
+uniform mat4 projection_matrix;
+uniform mat4 model_view_matrix;
+out vec3 pos;
+out vec3 color;
 
-ShaderSimpleColor::ShaderSimpleColor()
+//_insert_colormap_funcion_here
+
+void main()
 {
-	const char* vertex_shader_source_ =
-		"#version 150\n"
-		"in vec3 vertex_pos;\n"
-		"uniform mat4 projection_matrix;\n"
-		"uniform mat4 model_view_matrix;\n"
-		"void main()\n"
-		"{\n"
-		"   gl_Position = projection_matrix * model_view_matrix * vec4(vertex_pos,1.0);\n"
-		"}\n";
+    vec4 pos4 = model_view_matrix * vec4(vertex_pos,1.0);
+    pos = pos4.xyz;
+	color = scalar2color(vertex_scalar);
+	gl_Position = projection_matrix * pos4;
+};
+)";
 
-	const char* fragment_shader_source_ = "#version 150\n"
-										  "out vec4 fragColor;\n"
-										  "uniform vec4 color;\n"
-										  "void main()\n"
-										  "{\n"
-										  "   fragColor = color;\n"
-										  "}\n";
+static const char* fragment_shader_source = R"(#version 150
+out vec3 fragColor;
+uniform bool double_side;
+in vec3 pos;
+in vec3 color;
+void main()
+{
+	if (double_side || gl_FrontFacing)
+		fragColor = color;
+	else
+		discard;
+};
+)";
 
-	load2_bind(vertex_shader_source_, fragment_shader_source_, "vertex_pos");
+ShaderNoIllumScalarPerVertex* ShaderNoIllumScalarPerVertex::instance_ = nullptr;
 
-	add_uniforms("color");
+ShaderNoIllumScalarPerVertex::ShaderNoIllumScalarPerVertex()
+{
+	std::string v_src(vertex_shader_source);
+	v_src.insert(v_src.find("//_insert_colormap_funcion_here"), shader_funcion::ColorMap::source);
+	load2_bind(v_src, fragment_shader_source, "vertex_pos", "vertex_scalar");
+
+	add_uniforms("double_side", shader_funcion::ColorMap::name[0], shader_funcion::ColorMap::name[1],
+				 shader_funcion::ColorMap::name[2], shader_funcion::ColorMap::name[3]);
+}
+
+void ShaderParamNoIllumScalarPerVertex::set_uniforms()
+{
+	shader_->set_uniforms_values(double_side_, cm_.color_map_, cm_.expansion_, cm_.min_value_, cm_.max_value_);
 }
 
 } // namespace rendering

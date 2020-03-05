@@ -33,7 +33,15 @@ namespace cgogn
 namespace rendering
 {
 
-DECLARE_SHADER_CLASS(ScalarPerVertex,CGOGN_STR(ScalarPerVertex))
+// enum ColorMap
+//{
+//	BWR = 0,
+//	CWR,
+//	BCGYR,
+//	BGR
+//};
+
+DECLARE_SHADER_CLASS(ScalarPerVertex, false, CGOGN_STR(ScalarPerVertex))
 
 class CGOGN_RENDERING_EXPORT ShaderParamScalarPerVertex : public ShaderParam
 {
@@ -63,11 +71,9 @@ public:
 	inline ~ShaderParamScalarPerVertex() override
 	{
 	}
-
-
 };
 
-DECLARE_SHADER_CLASS(ScalarPerVertexGouraud,CGOGN_STR(ScalarPerVertexGouraud))
+DECLARE_SHADER_CLASS(ScalarPerVertexGouraud, false, CGOGN_STR(ScalarPerVertexGouraud))
 
 class CGOGN_RENDERING_EXPORT ShaderParamScalarPerVertexGouraud : public ShaderParam
 {
@@ -97,8 +103,6 @@ public:
 	inline ~ShaderParamScalarPerVertexGouraud() override
 	{
 	}
-
-
 };
 
 } // namespace rendering

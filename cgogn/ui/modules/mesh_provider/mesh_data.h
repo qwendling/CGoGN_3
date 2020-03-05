@@ -79,7 +79,8 @@ struct MeshData
 		render_.draw(primitive);
 	}
 
-	void init_primitives(rendering::DrawingType primitive, const typename std::shared_ptr<Attribute<Vec3>> position = nullptr)
+	void zinit_pinit_primitivesrimitives(rendering::DrawingType primitive,
+										 const typename std::shared_ptr<Attribute<Vec3>> position = nullptr)
 	{
 		render_.init_primitives(*mesh_, primitive, position.get());
 	}
@@ -147,8 +148,8 @@ public:
 	template <typename T>
 	rendering::VBO* update_vbo(Attribute<T>* attribute, bool create_if_needed = false)
 	{
-		if ( attribute == nullptr)
-			return  nullptr;
+		if (attribute == nullptr)
+			return nullptr;
 
 		rendering::VBO* v = vbo(attribute);
 		if (!v && create_if_needed)
@@ -160,7 +161,6 @@ public:
 			rendering::update_vbo<T>(attribute, v);
 		return v;
 	}
-
 
 	template <typename CELL, typename FUNC>
 	void foreach_cells_set(const FUNC& f)
@@ -193,6 +193,8 @@ private:
 	{
 		// std::initializer_list<int> (comma operator returns 0 for each call)
 		auto a = {(internal_rebuild_cells_sets_of_type<T>(), 0)...};
+		unused_parameters(a);
+		// TOOO CHECK
 	}
 
 public:
@@ -226,6 +228,9 @@ private:
 	rendering::MeshRender render_;
 	std::unordered_map<AttributeGen*, std::unique_ptr<rendering::VBO>> vbos_;
 	CellsSets cells_sets_;
+
+public:
+	int32 outlined_;
 };
 
 } // namespace ui

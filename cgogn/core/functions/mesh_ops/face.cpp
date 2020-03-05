@@ -265,6 +265,7 @@ CMap3::Edge cut_face(CMap3& m, CMap3::Vertex v1, CMap3::Vertex v2, bool set_indi
 CPH3::CMAP::Edge cut_face(CPH3& m, CPH3::CMAP::Vertex v1, CPH3::CMAP::Vertex v2, bool set_indices)
 {
 	CPH3::CMAP& map = static_cast<CPH3::CMAP&>(m);
+
 	Dart d = v1.dart;
 	Dart e = v2.dart;
 
@@ -330,7 +331,8 @@ CPH3::CMAP::Edge cut_face(CPH3& m, CPH3::CMAP::Vertex v1, CPH3::CMAP::Vertex v2,
 // CPH3_adaptative //
 /////////////////////
 
-CPH3_adaptative::CMAP::Edge cut_face(CPH3_adaptative& m, CPH3_adaptative::CMAP::Vertex v1, CPH3_adaptative::CMAP::Vertex v2, bool set_indices)
+CPH3_adaptative::CMAP::Edge cut_face(CPH3_adaptative& m, CPH3_adaptative::CMAP::Vertex v1,
+									 CPH3_adaptative::CMAP::Vertex v2, bool set_indices)
 {
 	CPH3& cph = static_cast<CPH3&>(m);
 	CPH3::CMAP& map = static_cast<CPH3::CMAP&>(m);
@@ -338,7 +340,7 @@ CPH3_adaptative::CMAP::Edge cut_face(CPH3_adaptative& m, CPH3_adaptative::CMAP::
 	CPH3_adaptative::CMAP::Edge result = cut_face(cph, v1, v2, set_indices);
 
 	foreach_dart_of_orbit(map, result, [&](Dart d) -> bool {
-		m.set_representative(d,d);
+		m.set_representative(d, d);
 		return true;
 	});
 
