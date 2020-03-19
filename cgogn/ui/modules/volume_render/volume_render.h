@@ -158,7 +158,7 @@ class Volume_Render : public ViewModule
 			{
 				const MESH& m = *(md->mesh_);
 				centers_dirty_ = false;
-				if (vbo_cache_[Centers] == nullptr)
+				if (1 || vbo_cache_[Centers] == nullptr)
 				{
 					vbo_volume_center_ = std::make_unique<rendering::VBO>();
 					auto* centers = vbo_volume_center_.get();

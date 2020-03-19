@@ -29,7 +29,8 @@ namespace cgogn
 namespace ui
 {
 
-GLViewer::GLViewer(Inputs* inputs) : viewport_width_(0), viewport_height_(0), inputs_(inputs), need_redraw_(true)
+GLViewer::GLViewer(Inputs* inputs)
+	: lock_rotation_(false), viewport_width_(0), viewport_height_(0), inputs_(inputs), need_redraw_(true)
 {
 	current_frame_ = &camera_;
 }
@@ -88,7 +89,7 @@ void GLViewer::mouse_release_event(int32 button, int32, int32)
 
 void GLViewer::mouse_dbl_click_event(int32 buttons, int32 x, int32 y)
 {
-	if ((inputs_->shift_pressed_)&& (buttons & 1))
+	if ((inputs_->shift_pressed_) && (buttons & 1))
 	{
 		rendering::GLVec3d P;
 		if (pixel_scene_position(x, y, P))
@@ -104,7 +105,7 @@ void GLViewer::mouse_move_event(int32 x, int32 y)
 	float64 dx = float64(x - inputs_->previous_mouse_x_);
 	float64 dy = float64(y - inputs_->previous_mouse_y_);
 
-	if ((inputs_->mouse_buttons_ & 1) && ((std::abs(dx) + std::abs(dy)) > 0.0))
+	if (!lock_rotation_ && (inputs_->mouse_buttons_ & 1) && ((std::abs(dx) + std::abs(dy)) > 0.0))
 	{
 		rendering::GLVec3d axis(dy, dx, 0.0);
 		spinning_speed_ = axis.norm();

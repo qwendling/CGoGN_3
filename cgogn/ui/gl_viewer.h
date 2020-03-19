@@ -156,6 +156,7 @@ public:
 	{
 		inputs_->spin_sensitivity_ = s * 0.025;
 	}
+	bool lock_rotation_;
 
 protected:
 	virtual void resize_event(int32 viewport_width, int32 viewport_height);

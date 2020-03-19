@@ -275,6 +275,38 @@ rendering::GLVec3d View::unproject(int32 x, int32 y, float64 z) const
 	return res.head(3);
 }
 
+rendering::GLVec3d View::pixel_scene_(int32 x, int32 y, const rendering::GLVec3d& P) const
+{
+	GLint xs, ys;
+	float64 xogl;
+	float64 yogl;
+	float64 zogl;
+
+	xs = GLint(double(x - x_offset_) / double(width_) * viewport_width_);
+	ys = GLint(double(height_ - (y - y_offset_)) / double(height_) * viewport_height_);
+
+	rendering::GLVec4d P_vec4;
+	P_vec4(0) = P(0);
+	P_vec4(1) = P(1);
+	P_vec4(2) = P(2);
+	P_vec4(3) = 1.0f;
+
+	rendering::GLVec4d PP = camera().projection_matrix_d() * camera().modelview_matrix_d() * P_vec4;
+	zogl = PP.z() / PP.w();
+
+	xogl = (float64(xs) / viewport_width_) * 2.0 - 1.0;
+	yogl = (float64(ys) / viewport_height_) * 2.0 - 1.0;
+
+	rendering::GLVec4d Q(xogl, yogl, zogl, 1.0);
+	rendering::GLMat4d im = (camera().projection_matrix_d() * camera().modelview_matrix_d()).inverse();
+	rendering::GLVec4d P4 = im * Q;
+	rendering::GLVec3d result;
+	result.x() = P4.x() / P4.w();
+	result.y() = P4.y() / P4.w();
+	result.z() = P4.z() / P4.w();
+
+	return result;
+}
 } // namespace ui
 
 } // namespace cgogn

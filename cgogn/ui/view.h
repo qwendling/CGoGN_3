@@ -87,6 +87,7 @@ public:
 
 	virtual bool pixel_scene_position(int32 x, int32 y, rendering::GLVec3d& P) const override;
 	rendering::GLVec3d unproject(int32 x, int32 y, float64 z) const;
+	rendering::GLVec3d pixel_scene_(int32 x, int32 y, const rendering::GLVec3d& P) const;
 	bool scene_bb_locked_;
 
 protected:

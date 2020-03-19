@@ -57,7 +57,7 @@ public:
 		});
 	}
 
-	void update_topo(const MAP& m)
+	void update_topo(const MAP& m, const std::vector<Vertex>&)
 	{
 		init_cm_ = Vec3(0, 0, 0);
 		double masse_totale = 0;
@@ -73,7 +73,7 @@ public:
 		});
 	}
 
-	double oneNorm(const Mat3d& A)
+	double oneNorm(const Mat3d& A) const
 	{
 		const double sum1 = fabs(A(0, 0)) + fabs(A(1, 0)) + fabs(A(2, 0));
 		const double sum2 = fabs(A(0, 1)) + fabs(A(1, 1)) + fabs(A(2, 1));
@@ -86,7 +86,7 @@ public:
 		return maxSum;
 	}
 
-	double infNorm(const Mat3d& A)
+	double infNorm(const Mat3d& A) const
 	{
 		const double sum1 = fabs(A(0, 0)) + fabs(A(0, 1)) + fabs(A(0, 2));
 		const double sum2 = fabs(A(1, 0)) + fabs(A(1, 1)) + fabs(A(1, 2));
@@ -99,7 +99,7 @@ public:
 		return maxSum;
 	}
 
-	void polarDecompositionStable(const Mat3d& M, double tolerance, Mat3d& R)
+	void polarDecompositionStable(const Mat3d& M, double tolerance, Mat3d& R) const
 	{
 		Mat3d Mt = M.transpose();
 		double Mone = oneNorm(M);

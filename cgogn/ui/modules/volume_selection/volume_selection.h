@@ -24,6 +24,8 @@
 #ifndef CGOGN_MODULE_SURFACE_SELECTION_H_
 #define CGOGN_MODULE_SURFACE_SELECTION_H_
 
+#include <GLFW/glfw3.h>
+#include <cgogn/ui/app.h>
 #include <cgogn/ui/module.h>
 #include <cgogn/ui/modules/mesh_provider/mesh_provider.h>
 #include <cgogn/ui/view.h>
@@ -76,11 +78,16 @@ class VolumeSelection : public ViewModule
 	{
 		Parameters()
 			: vertex_position_(nullptr), vertex_scale_factor_(1.0), sphere_scale_factor_(10.0),
-			  selected_vertices_set_(nullptr), selected_edges_set_(nullptr), selecting_cell_(VertexSelect)
+			  have_move_vertex_(false), selected_vertices_set_(nullptr), selected_edges_set_(nullptr),
+			  selecting_cell_(VertexSelect), pos_move_vertex_(0, 0, 0)
 		{
 			param_point_sprite_ = rendering::ShaderPointSprite::generate_param();
 			param_point_sprite_->color_ = rendering::GLColor(1, 0, 0, 0.65);
 			param_point_sprite_->set_vbos({&selected_vertices_vbo_});
+
+			param_move_vertex_ = rendering::ShaderPointSprite::generate_param();
+			param_move_vertex_->color_ = rendering::GLColor(1, 1, 0, 0.65);
+			param_move_vertex_->set_vbos({&move_vertex_vbo_});
 
 			param_edge_ = rendering::ShaderBoldLine::generate_param();
 			param_edge_->color_ = rendering::GLColor(1, 0, 0, 0.65);
@@ -118,10 +125,20 @@ class VolumeSelection : public ViewModule
 			}
 		}
 
+		void update_move_vertex_vbo()
+		{
+			if (have_move_vertex_)
+			{
+				std::vector<Vec3> move_vertex_position = {pos_move_vertex_};
+				rendering::update_vbo(move_vertex_position, &move_vertex_vbo_);
+			}
+		}
+
 		MESH* mesh_;
 		std::shared_ptr<Attribute<Vec3>> vertex_position_;
 
 		std::unique_ptr<rendering::ShaderPointSprite::Param> param_point_sprite_;
+		std::unique_ptr<rendering::ShaderPointSprite::Param> param_move_vertex_;
 		std::unique_ptr<rendering::ShaderBoldLine::Param> param_edge_;
 		std::unique_ptr<rendering::ShaderFlat::Param> param_flat_;
 
@@ -130,12 +147,15 @@ class VolumeSelection : public ViewModule
 		float32 sphere_scale_factor_;
 
 		rendering::VBO selected_vertices_vbo_;
+		rendering::VBO move_vertex_vbo_;
 		rendering::VBO selected_edges_vbo_;
 
 		CellsSet<MESH, Vertex>* selected_vertices_set_;
 		CellsSet<MESH, Edge>* selected_edges_set_;
 
 		SelectingCell selecting_cell_;
+		bool have_move_vertex_;
+		Vec3 pos_move_vertex_;
 	};
 
 public:
@@ -172,7 +192,7 @@ private:
 				}));
 		mesh_connections_[m].push_back(
 			boost::synapse::connect<typename MeshProvider<MESH>::template cells_set_changed<Vertex>>(
-				m, [this, m](CellsSet<MESH, Vertex>* set) {
+				m, [this, m](CellsSet<MESH, Vertex>*) {
 					Parameters& p = parameters_[m];
 					if (p.vertex_position_)
 						p.update_selected_vertices_vbo();
@@ -181,7 +201,7 @@ private:
 				}));
 		mesh_connections_[m].push_back(
 			boost::synapse::connect<typename MeshProvider<MESH>::template cells_set_changed<Edge>>(
-				m, [this, m](CellsSet<MESH, Edge>* set) {
+				m, [this, m](CellsSet<MESH, Edge>*) {
 					Parameters& p = parameters_[m];
 					if (p.vertex_position_)
 						p.update_selected_edges_vbo();
@@ -219,10 +239,19 @@ protected:
 
 	void mouse_press_event(View* view, int32 button, int32 x, int32 y) override
 	{
+		Parameters& p = parameters_[selected_mesh_];
+		if (button == 1 && p.selected_vertices_set_ && p.selected_vertices_set_->size() > 0)
+		{
+			p.have_move_vertex_ = !p.have_move_vertex_;
+			p.selected_vertices_set_->foreach_cell([&](Vertex v) -> bool {
+
+			});
+			p.pos_move_vertex_ = view->pixel_scene_(x, y, Vec3(0, 0, 0));
+			p.update_move_vertex_vbo();
+			view->request_update();
+		}
 		if (selected_mesh_ && view->shift_pressed())
 		{
-			Parameters& p = parameters_[selected_mesh_];
-
 			if (p.vertex_position_)
 			{
 				rendering::GLVec3d near = view->unproject(x, y, 0.0);
@@ -294,6 +323,14 @@ protected:
 			const rendering::GLMat4& proj_matrix = view->projection_matrix();
 			const rendering::GLMat4& view_matrix = view->modelview_matrix();
 
+			if (p.have_move_vertex_ && p.param_move_vertex_->vao_initialized())
+			{
+				p.param_move_vertex_->size_ = p.vertex_base_size_ * p.vertex_scale_factor_;
+				p.param_move_vertex_->bind(proj_matrix, view_matrix);
+				glDrawArrays(GL_POINTS, 0, 1);
+				p.param_move_vertex_->release();
+			}
+
 			if (p.selecting_cell_ == VertexSelect && p.selected_vertices_set_ && p.selected_vertices_set_->size() > 0 &&
 				p.param_point_sprite_->vao_initialized())
 			{
@@ -315,9 +352,6 @@ protected:
 	void interface() override
 	{
 		bool need_update = false;
-
-		ImGui::Begin(name_.c_str(), nullptr, ImGuiWindowFlags_NoSavedSettings);
-		ImGui::SetWindowSize({0, 0});
 
 		if (ImGui::ListBoxHeader("Mesh"))
 		{

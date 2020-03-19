@@ -78,4 +78,4 @@ public:
 } // namespace simulation
 } // namespace cgogn
 
-#endif // CGOGN_SIMULATION_SIMULATION_CONSTRAINT_H
+#endif // CGOGN_SIMULATION_SIMULATION_SOLVER_H
