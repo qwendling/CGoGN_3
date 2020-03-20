@@ -90,14 +90,15 @@ class ShapeMatching : public ViewModule
 	public:
 		void update_move_vertex_vbo()
 		{
-			std::vector<Vec3> vertices_position;
 			if (have_selected_vertex_)
 			{
+				std::vector<Vec3> vertices_position;
 				vertices_position.push_back(move_vertex_);
 				vertices_position.push_back(value<Vec3>(*mesh_, vertex_position_.get(), selected_vertex_));
+
+				rendering::update_vbo(vertices_position, &move_vertex_vbo_);
+				rendering::update_vbo(vertices_position, &edges_vbo_);
 			}
-			rendering::update_vbo(vertices_position, &move_vertex_vbo_);
-			rendering::update_vbo(vertices_position, &edges_vbo_);
 		}
 
 		MESH* mesh_;
@@ -256,7 +257,7 @@ protected:
 			view->request_update();
 		}
 	}
-
+#define TIME_STEP 0.005f
 	void start()
 	{
 		running_ = true;
@@ -265,7 +266,18 @@ protected:
 			while (this->running_)
 			{
 				Parameters& p = parameters_[selected_mesh_];
+				if (p.have_selected_vertex_)
+				{
+					Vec3 pos = value<Vec3>(*selected_mesh_, p.vertex_position_.get(), p.selected_vertex_);
+					double m = value<double>(*selected_mesh_, p.vertex_masse_.get(), p.selected_vertex_);
+					value<Vec3>(*selected_mesh_, p.vertex_forces_.get(), p.selected_vertex_) =
+						m * (p.move_vertex_ - pos) / TIME_STEP;
+					std::cout << value<Vec3>(*selected_mesh_, p.vertex_position_.get(), p.selected_vertex_)
+							  << std::endl;
+				}
+
 				simu_solver.compute_time_step(*selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(), 0.005);
+				p.update_move_vertex_vbo();
 				need_update_ = true;
 				std::this_thread::sleep_for(std::chrono::milliseconds(5));
 			}

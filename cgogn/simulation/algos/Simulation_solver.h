@@ -71,6 +71,7 @@ public:
 				time_step * value<Vec3>(m, forces_ext_.get(), v) / value<double>(m, masse, v);
 			value<Vec3>(m, vertex_position, v) =
 				value<Vec3>(m, vertex_position, v) + time_step * value<Vec3>(m, speed_, v);
+			value<Vec3>(m, forces_ext_.get(), v) = Vec3(0, 0, 0);
 			return true;
 		});
 	}

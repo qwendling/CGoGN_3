@@ -758,6 +758,25 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
 										  std::vector<typename mesh_traits<MESH>::template Attribute<Vec3>*> attributes)
 	-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&>>
 {
+	butterflySubdivisionVolumeAdaptative(m, angle_threshold, attributes, [&](typename MESH::Vertex) {});
+}
+
+template <typename MESH, typename FUNC>
+auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
+										  std::vector<typename mesh_traits<MESH>::template Attribute<Vec3>*> attributes,
+										  const FUNC& after_cut)
+	-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&>>
+{
+	butterflySubdivisionVolumeAdaptative(m, angle_threshold, attributes, after_cut, after_cut, after_cut);
+}
+
+template <typename MESH, typename FUNC>
+auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
+										  std::vector<typename mesh_traits<MESH>::template Attribute<Vec3>*> attributes,
+										  const FUNC& after_cut_edge, const FUNC& after_cut_face,
+										  const FUNC& after_cut_volume)
+	-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&>>
+{
 	using Volume = typename MESH::Volume;
 	using Face = typename MESH::Face;
 	using Face2 = typename MESH::Face2;
@@ -906,6 +925,7 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
 			edge_points.front().pop();
 		}
 		edge_points.pop();
+		after_cut_edge(v);
 	});
 	subdivideListFaces(m, faces, [&](Vertex v) {
 		for (auto a : attributes)
@@ -914,6 +934,7 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
 			face_points.front().pop();
 		}
 		face_points.pop();
+		after_cut_face(v);
 	});
 	subdivideListVolumes(m, volumes, [&](Vertex v) {
 		for (auto a : attributes)
@@ -922,6 +943,7 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
 			volume_points.front().pop();
 		}
 		volume_points.pop();
+		after_cut_volume(v);
 	});
 }
 

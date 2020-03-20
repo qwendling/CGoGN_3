@@ -194,9 +194,9 @@ public:
 		polarDecompositionStable(Apq, 1.0e-6, R);
 		parallel_foreach_cell(m, [&](Vertex v) -> bool {
 			value<Vec3>(m, goals_.get(), v) = R * value<Vec3>(m, q_.get(), v) + cm;
-			value<Vec3>(m, result_forces, v) = value<double>(m, masse_, v) * stiffness_ *
-											   (value<Vec3>(m, goals_.get(), v) - value<Vec3>(m, pos, v)) /
-											   (time_step * time_step);
+			value<Vec3>(m, result_forces, v) += value<double>(m, masse_, v) * stiffness_ *
+												(value<Vec3>(m, goals_.get(), v) - value<Vec3>(m, pos, v)) /
+												(time_step * time_step);
 			return true;
 		});
 	}

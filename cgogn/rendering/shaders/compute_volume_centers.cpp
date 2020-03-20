@@ -143,8 +143,6 @@ void ComputeCenterEngine::compute(VBO* pos, MeshRender* renderer, VBO* centers)
 	glDrawArrays(GL_POINTS, 0, centers->size());
 	tfb_->stop();
 	glEnable(GL_DEPTH_TEST);
-
-	std::cout << "centers computed" << std::endl;
 }
 
 } // namespace rendering
