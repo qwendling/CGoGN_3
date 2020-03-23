@@ -462,8 +462,6 @@ protected:
 			}
 		}
 
-		ImGui::End();
-
 		if (need_update)
 			for (View* v : linked_views_)
 				v->request_update();

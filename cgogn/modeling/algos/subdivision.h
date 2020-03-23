@@ -28,6 +28,7 @@
 #include <cgogn/core/types/mesh_views/cell_cache.h>
 
 #include <cgogn/geometry/algos/angle.h>
+#include <cgogn/geometry/algos/centroid.h>
 #include <cgogn/geometry/types/vector_traits.h>
 
 #include <cgogn/core/functions/attributes.h>
@@ -945,6 +946,56 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
 		volume_points.pop();
 		after_cut_volume(v);
 	});
+}
+
+template <typename MRMESH>
+auto butterflyMultiresolution(
+	MRMESH& m, double angle_threshold, std::vector<typename mesh_traits<MRMESH>::template Attribute<Vec3>*> attributes,
+	typename mesh_traits<MRMESH>::template Attribute<
+		std::pair<typename mesh_traits<MRMESH>::Vertex, typename mesh_traits<MRMESH>::Vertex>>* parents,
+	typename mesh_traits<MRMESH>::template Attribute<Vec3>* position_relative)
+{
+	using Vertex = typename mesh_traits<MRMESH>::Vertex;
+	std::vector<Vertex> new_vertices;
+
+	auto after_edges = [&](Vertex v) {
+		value<std::pair<Vertex, Vertex>>(m, parents, v) =
+			std::make_pair(Vertex(phi1(m, v.dart)), Vertex(phi_1(m, v.dart)));
+		new_vertices.push_back(v);
+	};
+	auto after_faces = [&](Vertex v) {
+		value<std::pair<Vertex, Vertex>>(m, parents, v) =
+			std::make_pair(Vertex(phi1(m, v.dart)), Vertex(phi_1(m, v.dart)));
+		new_vertices.push_back(v);
+	};
+	auto after_volumes = [&](Vertex v) {
+		value<std::pair<Vertex, Vertex>>(m, parents, v) =
+			std::make_pair(Vertex(phi1(m, v.dart)), Vertex(phi_1(m, v.dart)));
+		new_vertices.push_back(v);
+	};
+	butterflySubdivisionVolumeAdaptative(m, angle_threshold, attributes, after_edges, after_faces, after_volumes);
+
+	for (auto v : new_vertices)
+	{
+		auto pos = attributes[0];
+		std::pair<Vertex, Vertex> p = value<std::pair<Vertex, Vertex>>(m, parents, v);
+		Vec3 C1 = (value<Vec3>(m, pos, p.first) + value<Vec3>(m, pos, p.second)) / 2;
+		Vec3 C2 = geometry::centroid(m, typename mesh_traits<MRMESH>::Volume(v.dart), pos);
+		Vec3 A = value<Vec3>(m, pos, p.first);
+		Vec3 X = (A - C1).normalized();
+		Vec3 Y = (C2 - C1).normalized();
+		Vec3 Z = (X.cross(Y));
+		Z = Z.normalized();
+		Eigen::Matrix3d mb;
+		mb.col(0) = X;
+		mb.col(1) = Y;
+		mb.col(2) = Z;
+		Eigen::Matrix3d inv;
+		bool is_inversible;
+		mb.computeInverseWithCheck(inv, is_inversible);
+		assert(is_inversible);
+		value<Vec3>(m, position_relative, v) = inv * (value<Vec3>(m, pos, v) - C1);
+	}
 }
 
 } // namespace modeling

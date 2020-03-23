@@ -42,6 +42,7 @@
 #include <cgogn/rendering/shaders/shader_point_sprite.h>
 #include <cgogn/rendering/vbo_update.h>
 #include <cgogn/simulation/algos/Simulation_solver.h>
+#include <cgogn/simulation/algos/Simulation_solver_multiresolution.h>
 #include <cgogn/simulation/algos/shape_matching/shape_matching.h>
 
 #include <boost/synapse/connect.hpp>
@@ -276,8 +277,8 @@ protected:
 							  << std::endl;
 				}
 
-				simu_solver.compute_time_step(*selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(), 0.005);
-				p.update_move_vertex_vbo();
+				simu_solver.compute_time_step(*selected_mesh_, *selected_mesh_, p.vertex_position_.get(),
+											  p.vertex_masse_.get(), 0.005);
 				need_update_ = true;
 				std::this_thread::sleep_for(std::chrono::milliseconds(5));
 			}
@@ -294,7 +295,8 @@ protected:
 	void step()
 	{
 		Parameters& p = parameters_[selected_mesh_];
-		simu_solver.compute_time_step(*selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(), 0.005);
+		simu_solver.compute_time_step(*selected_mesh_, *selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(),
+									  0.005);
 		need_update_ = true;
 	}
 
@@ -506,6 +508,7 @@ protected:
 				}
 				if (need_update_)
 				{
+					p.update_move_vertex_vbo();
 					mesh_provider_->emit_attribute_changed(selected_mesh_, p.vertex_position_.get());
 					need_update_ = false;
 				}
@@ -513,8 +516,6 @@ protected:
 				ImGui::SliderScalar("Level", ImGuiDataType_Double, &sm_solver_.stiffness_, &min, &max);
 			}
 		}
-
-		ImGui::End();
 	}
 
 public:
@@ -524,7 +525,7 @@ public:
 	std::unordered_map<const MESH*, std::vector<std::shared_ptr<boost::synapse::connection>>> mesh_connections_;
 	MeshProvider<MESH>* mesh_provider_;
 	simulation::shape_matching_constraint_solver<MESH> sm_solver_;
-	simulation::Simulation_solver<MESH> simu_solver;
+	simulation::Simulation_solver_multiresolution<MESH> simu_solver;
 	bool running_;
 	bool need_update_;
 	bool can_move_vertex_;
