@@ -56,8 +56,10 @@ class VolumeMRModeling : public Module
 
 public:
 	VolumeMRModeling(const App& app)
-		: Module(app, "VolumeMRModeling (" + std::string{mesh_traits<CPH>::name} + ")"), selected_cph3_(nullptr),
-		  selected_cmap3_(nullptr), selected_vertex_position_(nullptr)
+		: Module(app, "VolumeMRModeling (" + std::string{mesh_traits<CPH>::name} + ")"),
+		  selected_vertex_relative_position_(nullptr), selected_vertex_parents_(nullptr), selected_cph3_(nullptr),
+		  selected_cmap3_(nullptr), selected_vertex_position_(nullptr), selected_vertex_attr2_(nullptr),
+		  selected_vertex_attr3_(nullptr)
 	{
 	}
 	~VolumeMRModeling()
@@ -78,12 +80,14 @@ public:
 		return cph;
 	}
 
-	void subdivide(CPH& m, Attribute<Vec3>* vertex_position)
+	void subdivide(CPH& m, Attribute<Vec3>* vertex_position, Attribute<Vec3>* vertex_attr2 = nullptr,
+				   Attribute<Vec3>* vertex_attr3 = nullptr)
 	{
 		uint32 cur = m.current_level_;
 		m.current_level_ = m.maximum_level_;
 
-		modeling::butterflySubdivisionVolumeAdaptative(m, 0.34f, {vertex_position});
+		modeling::butterflyMultiresolution(m, 0.34f, {vertex_position, vertex_attr2, vertex_attr3},
+										   selected_vertex_parents_.get(), selected_vertex_relative_position_.get());
 
 		m.current_level_ = cur;
 
@@ -158,6 +162,14 @@ protected:
 
 			std::string selected_vertex_position_name_ =
 				selected_vertex_position_ ? selected_vertex_position_->name() : "-- select --";
+			std::string selected_vertex_attr2_name_ =
+				selected_vertex_attr2_ ? selected_vertex_attr2_->name() : "-- select --";
+			std::string selected_vertex_attr3_name_ =
+				selected_vertex_attr3_ ? selected_vertex_attr3_->name() : "-- select --";
+			std::string selected_vertex_parents_name_ =
+				selected_vertex_parents_ ? selected_vertex_parents_->name() : "-- select --";
+			std::string selected_vertex_relative_name_ =
+				selected_vertex_relative_position_ ? selected_vertex_relative_position_->name() : "-- select --";
 			if (ImGui::BeginCombo("Position", selected_vertex_position_name_.c_str()))
 			{
 				foreach_attribute<Vec3, Vertex>(*selected_cph3_,
@@ -176,16 +188,95 @@ protected:
 				if (ImGui::Button("X##attribute"))
 					selected_vertex_position_.reset();
 			}
+			if (ImGui::BeginCombo("Attr2", selected_vertex_attr2_name_.c_str()))
+			{
+				foreach_attribute<Vec3, Vertex>(*selected_cph3_,
+												[this](const std::shared_ptr<Attribute<Vec3>>& attribute) {
+													bool is_selected = attribute == selected_vertex_attr2_;
+													if (ImGui::Selectable(attribute->name().c_str(), is_selected))
+														selected_vertex_attr2_ = attribute;
+													if (is_selected)
+														ImGui::SetItemDefaultFocus();
+												});
+				ImGui::EndCombo();
+			}
+			if (selected_vertex_attr2_)
+			{
+				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
+				if (ImGui::Button("X##attr2"))
+					selected_vertex_attr2_.reset();
+			}
+			if (ImGui::BeginCombo("Attr3", selected_vertex_attr3_name_.c_str()))
+			{
+				foreach_attribute<Vec3, Vertex>(*selected_cph3_,
+												[this](const std::shared_ptr<Attribute<Vec3>>& attribute) {
+													bool is_selected = attribute == selected_vertex_attr3_;
+													if (ImGui::Selectable(attribute->name().c_str(), is_selected))
+														selected_vertex_attr3_ = attribute;
+													if (is_selected)
+														ImGui::SetItemDefaultFocus();
+												});
+				ImGui::EndCombo();
+			}
+			if (selected_vertex_attr3_)
+			{
+				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
+				if (ImGui::Button("X##attr3"))
+					selected_vertex_attr3_.reset();
+			}
+
+			if (ImGui::BeginCombo("Parents", selected_vertex_parents_name_.c_str()))
+			{
+				foreach_attribute<std::pair<Vertex, Vertex>, Vertex>(
+					*selected_cph3_, [this](const std::shared_ptr<Attribute<std::pair<Vertex, Vertex>>>& attribute) {
+						bool is_selected = attribute == selected_vertex_parents_;
+						if (ImGui::Selectable(attribute->name().c_str(), is_selected))
+							selected_vertex_parents_ = attribute;
+						if (is_selected)
+							ImGui::SetItemDefaultFocus();
+					});
+				ImGui::EndCombo();
+			}
+			if (selected_vertex_parents_)
+			{
+				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
+				if (ImGui::Button("X##parents"))
+					selected_vertex_parents_.reset();
+			}
+
+			if (ImGui::BeginCombo("Relative position", selected_vertex_relative_name_.c_str()))
+			{
+				foreach_attribute<Vec3, Vertex>(*selected_cph3_,
+												[this](const std::shared_ptr<Attribute<Vec3>>& attribute) {
+													bool is_selected = attribute == selected_vertex_relative_position_;
+													if (ImGui::Selectable(attribute->name().c_str(), is_selected))
+														selected_vertex_relative_position_ = attribute;
+													if (is_selected)
+														ImGui::SetItemDefaultFocus();
+												});
+				ImGui::EndCombo();
+			}
+			if (selected_vertex_relative_position_)
+			{
+				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
+				if (ImGui::Button("X##relative"))
+					selected_vertex_relative_position_.reset();
+			}
 
 			if (selected_vertex_position_)
 			{
 				if (ImGui::Button("Subdivide"))
-					subdivide(*selected_cph3_, selected_vertex_position_.get());
+					subdivide(*selected_cph3_, selected_vertex_position_.get(), selected_vertex_attr2_.get(),
+							  selected_vertex_attr3_.get());
 			}
 		}
 
 		ImGui::End();
 	}
+
+public:
+	std::shared_ptr<Attribute<Vec3>> selected_vertex_relative_position_;
+	std::shared_ptr<Attribute<std::pair<Vertex, Vertex>>> selected_vertex_parents_;
 
 private:
 	CPH* selected_cph3_;
@@ -193,6 +284,8 @@ private:
 	std::string selected_cmap3_name_;
 
 	std::shared_ptr<Attribute<Vec3>> selected_vertex_position_;
+	std::shared_ptr<Attribute<Vec3>> selected_vertex_attr2_;
+	std::shared_ptr<Attribute<Vec3>> selected_vertex_attr3_;
 
 	MeshProvider<CPH>* cph3_provider_;
 	MeshProvider<CPH::CMAP>* cmap3_provider_;

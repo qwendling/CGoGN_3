@@ -787,6 +787,11 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
 	CellMarker<MESH, Edge> cm_surface(m);
 	CellMarker<MESH, Volume> cm_cell(m);
 
+	std::vector<typename mesh_traits<MESH>::template Attribute<Vec3>*> attrs;
+	for (auto a : attributes)
+		if (a)
+			attrs.push_back(a);
+
 	for (Dart d = m.begin(); d != m.end(); d = m.next(d))
 	{
 		if (is_boundary(m, phi3(m, d)) && !cm_surface.is_marked(Edge(d)))
@@ -797,7 +802,7 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
 				d2 = phi<32>(m, d2);
 			}
 			// First attribute is the one watch for adaptive subdivision
-			auto edge_angle = geometry::angle(m, Face2(d), Face2(d2), attributes.front());
+			auto edge_angle = geometry::angle(m, Face2(d), Face2(d2), attrs.front());
 			if (std::abs(edge_angle) > angle_threshold)
 			{
 				if (!cm_cell.is_marked(Volume(d)) && isValidForSubdivision(m, d))
@@ -837,7 +842,7 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
 						r_point.clear();
 						surfaceEdgePointMask(m, t, p_point, q_point, r_point);
 						std::queue<Vec3> list_points;
-						for (auto a : attributes)
+						for (auto a : attrs)
 							list_points.push(surfaceEdgePointRule<Vec3>(m, p_point, q_point, r_point, a));
 
 						edge_points.push(list_points);
@@ -854,7 +859,7 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
 						edgePointMask(m, t, p_point, q_point, r_point, s_point);
 
 						std::queue<Vec3> list_points;
-						for (auto a : attributes)
+						for (auto a : attrs)
 							list_points.push(edgePointRule<Vec3>(m, p_point, q_point, r_point, s_point, a));
 
 						edge_points.push(list_points);
@@ -874,7 +879,7 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
 						surfaceFacePointMask(m, t, p_point, q_point);
 
 						std::queue<Vec3> list_points;
-						for (auto a : attributes)
+						for (auto a : attrs)
 							list_points.push(surfaceFacePointRule<Vec3>(m, p_point, q_point, a));
 
 						face_points.push(list_points);
@@ -890,7 +895,7 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
 						facePointMask(m, t, p_point, q_point, r_point, s_point, t_point);
 
 						std::queue<Vec3> list_points;
-						for (auto a : attributes)
+						for (auto a : attrs)
 							list_points.push(facePointRule<Vec3>(m, p_point, q_point, r_point, s_point, t_point, a));
 
 						face_points.push(list_points);
@@ -906,7 +911,7 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
 					volumePointMask(m, t, p_point, q_point);
 
 					std::queue<Vec3> list_points;
-					for (auto a : attributes)
+					for (auto a : attrs)
 						list_points.push(volumePointRule<Vec3>(m, p_point, q_point, a));
 
 					volume_points.push(list_points);
@@ -920,7 +925,7 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
 	}
 
 	subdivideListEdges<MESH>(m, edges, [&](Vertex v) {
-		for (auto a : attributes)
+		for (auto a : attrs)
 		{
 			value<Vec3>(m, a, v) = edge_points.front().front();
 			edge_points.front().pop();
@@ -929,7 +934,7 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
 		after_cut_edge(v);
 	});
 	subdivideListFaces(m, faces, [&](Vertex v) {
-		for (auto a : attributes)
+		for (auto a : attrs)
 		{
 			value<Vec3>(m, a, v) = face_points.front().front();
 			face_points.front().pop();
@@ -938,7 +943,7 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
 		after_cut_face(v);
 	});
 	subdivideListVolumes(m, volumes, [&](Vertex v) {
-		for (auto a : attributes)
+		for (auto a : attrs)
 		{
 			value<Vec3>(m, a, v) = volume_points.front().front();
 			volume_points.front().pop();
@@ -952,35 +957,35 @@ template <typename MRMESH>
 auto butterflyMultiresolution(
 	MRMESH& m, double angle_threshold, std::vector<typename mesh_traits<MRMESH>::template Attribute<Vec3>*> attributes,
 	typename mesh_traits<MRMESH>::template Attribute<
-		std::pair<typename mesh_traits<MRMESH>::Vertex, typename mesh_traits<MRMESH>::Vertex>>* parents,
-	typename mesh_traits<MRMESH>::template Attribute<Vec3>* position_relative)
+		std::pair<typename mesh_traits<MRMESH>::Vertex, typename mesh_traits<MRMESH>::Vertex>>* parents = nullptr,
+	typename mesh_traits<MRMESH>::template Attribute<Vec3>* position_relative = nullptr)
 {
 	using Vertex = typename mesh_traits<MRMESH>::Vertex;
 	std::vector<Vertex> new_vertices;
 
-	auto after_edges = [&](Vertex v) {
-		value<std::pair<Vertex, Vertex>>(m, parents, v) =
-			std::make_pair(Vertex(phi1(m, v.dart)), Vertex(phi_1(m, v.dart)));
-		new_vertices.push_back(v);
-	};
-	auto after_faces = [&](Vertex v) {
-		value<std::pair<Vertex, Vertex>>(m, parents, v) =
-			std::make_pair(Vertex(phi1(m, v.dart)), Vertex(phi_1(m, v.dart)));
-		new_vertices.push_back(v);
-	};
-	auto after_volumes = [&](Vertex v) {
-		value<std::pair<Vertex, Vertex>>(m, parents, v) =
-			std::make_pair(Vertex(phi1(m, v.dart)), Vertex(phi_1(m, v.dart)));
-		new_vertices.push_back(v);
-	};
-	butterflySubdivisionVolumeAdaptative(m, angle_threshold, attributes, after_edges, after_faces, after_volumes);
+	if (!parents || !position_relative)
+	{
+		butterflySubdivisionVolumeAdaptative(m, angle_threshold, attributes);
+		return;
+	}
 
+	MRMESH m2(m);
+
+	m2.current_level_ = m.maximum_level_ + 1;
+
+	auto after_cut = [&](Vertex v) {
+		value<std::pair<Vertex, Vertex>>(m2, parents, v) =
+			std::make_pair(Vertex(phi1(m2, v.dart)), Vertex(phi_1(m2, v.dart)));
+		new_vertices.push_back(v);
+	};
+
+	butterflySubdivisionVolumeAdaptative(m, angle_threshold, attributes, after_cut);
 	for (auto v : new_vertices)
 	{
 		auto pos = attributes[0];
 		std::pair<Vertex, Vertex> p = value<std::pair<Vertex, Vertex>>(m, parents, v);
 		Vec3 C1 = (value<Vec3>(m, pos, p.first) + value<Vec3>(m, pos, p.second)) / 2;
-		Vec3 C2 = geometry::centroid(m, typename mesh_traits<MRMESH>::Volume(v.dart), pos);
+		Vec3 C2 = geometry::centroid<Vec3>(m2, typename mesh_traits<MRMESH>::Volume(v.dart), pos);
 		Vec3 A = value<Vec3>(m, pos, p.first);
 		Vec3 X = (A - C1).normalized();
 		Vec3 Y = (C2 - C1).normalized();
