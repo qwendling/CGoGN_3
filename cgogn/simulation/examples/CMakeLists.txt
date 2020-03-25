@@ -32,6 +32,17 @@ target_link_libraries(shape_matching
 	${CMAKE_DL_LIBS}
 )
 
+add_executable(animation_multiresolution animation_multiresolution.cpp)
+target_link_libraries(animation_multiresolution
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::simulation
+	${CMAKE_DL_LIBS}
+)
+
+
 
 if(APPLE)
 	find_library(CORE_FOUNDATION CoreFoundation)

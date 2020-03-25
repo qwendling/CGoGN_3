@@ -18,10 +18,9 @@ class Propagation_Constraint
 	using Vertex = typename mesh_traits<MR_MAP>::Vertex;
 
 public:
-	Propagation_Constraint() = delete;
 	virtual void propagate(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>* pos, Attribute<Vec3>* result_forces,
 						   Attribute<Vec3>* pos_relative, Attribute<std::pair<Vertex, Vertex>>* parent,
-						   const std::function<void(Vertex)>& integration);
+						   const std::function<void(Vertex)>& integration) = 0;
 };
 } // namespace simulation
 } // namespace cgogn

@@ -22,12 +22,16 @@ class Propagation_Spring : public Propagation_Constraint<MR_MAP>
 
 public:
 	double alpha_;
+
+	Propagation_Spring() : alpha_(0.5f)
+	{
+	}
 	Propagation_Spring(double alpha) : alpha_(alpha)
 	{
 	}
-	virtual void propagate(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>* pos, Attribute<Vec3>* result_forces,
-						   Attribute<Vec3>* pos_relative, Attribute<std::pair<Vertex, Vertex>>* parent,
-						   const std::function<void(Vertex)>& integration)
+	void propagate(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>* pos, Attribute<Vec3>* result_forces,
+				   Attribute<Vec3>* pos_relative, Attribute<std::pair<Vertex, Vertex>>* parent,
+				   const std::function<void(Vertex)>& integration) override
 	{
 		std::vector<std::vector<Vertex>> vect_vertex_per_resolution;
 		vect_vertex_per_resolution.resize(m_geom.maximum_level_);
@@ -44,7 +48,7 @@ public:
 			{
 				std::pair<Vertex, Vertex> p = value<std::pair<Vertex, Vertex>>(m_geom, parent, v);
 				Vec3 C1 = (value<Vec3>(m_geom, pos, p.first) + value<Vec3>(m_geom, pos, p.second)) / 2;
-				Vec3 C2 = geometry::centroid(cph_, CPH3::Volume(v.dart), pos);
+				Vec3 C2 = geometry::centroid<Vec3>(cph_, CPH3::Volume(v.dart), pos);
 				Vec3 A = value<Vec3>(m_geom, pos, p.first);
 				Vec3 V1 = (A - C1).normalized();
 				Vec3 V2 = (C2 - C1).normalized();
