@@ -38,6 +38,15 @@ public:
 		pc_ = pc;
 	}
 
+	void reset_forces(MR_MAP& m)
+	{
+		parallel_foreach_cell(m, [&](Vertex v) -> bool {
+			value<Vec3>(m, this->forces_ext_.get(), v) = Vec3(0, 0, 0);
+			value<Vec3>(m, this->speed_.get(), v) = Vec3(0, 0, 0);
+			return true;
+		});
+	}
+
 	void compute_time_step(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>* vertex_position, Attribute<double>* masse,
 						   double time_step)
 	{

@@ -33,10 +33,11 @@ public:
 				   Attribute<Vec3>* pos_relative, Attribute<std::pair<Vertex, Vertex>>* parent,
 				   const std::function<void(Vertex)>& integration) override
 	{
+
 		std::vector<std::vector<Vertex>> vect_vertex_per_resolution;
-		vect_vertex_per_resolution.resize(m_geom.maximum_level_);
+		vect_vertex_per_resolution.resize(m_geom.maximum_level_ + 1);
 		foreach_cell(m_geom, [&](Vertex v) -> bool {
-			if (m_meca.dart_is_visible(v.dart))
+			if (!m_meca.dart_is_visible(v.dart))
 				vect_vertex_per_resolution[m_geom.dart_level(v.dart)].push_back(v);
 			return true;
 		});
@@ -46,6 +47,8 @@ public:
 			cph_.current_level_ = i;
 			for (auto& v : vect_vertex_per_resolution[i])
 			{
+				if (is_boundary(cph_, v.dart))
+					v.dart = phi3(cph_, v.dart);
 				std::pair<Vertex, Vertex> p = value<std::pair<Vertex, Vertex>>(m_geom, parent, v);
 				Vec3 C1 = (value<Vec3>(m_geom, pos, p.first) + value<Vec3>(m_geom, pos, p.second)) / 2;
 				Vec3 C2 = geometry::centroid<Vec3>(cph_, CPH3::Volume(v.dart), pos);

@@ -129,7 +129,8 @@ class AnimationMultiresolution : public ViewModule
 public:
 	AnimationMultiresolution(const App& app)
 		: ViewModule(app, "Animation_multiresolution (" + std::string{mesh_traits<MR_MESH>::name} + ")"),
-		  selected_mesh_(nullptr), selected_view_(app.current_view()), sm_solver_(0.5f), running_(false), ps_(0.5f)
+		  selected_mesh_(nullptr), selected_view_(app.current_view()), sm_solver_(0.5f), running_(false), ps_(0.5f),
+		  map_(nullptr)
 	{
 		f_keypress = [](View*, MR_MESH*, int32, CellsSet<MR_MESH, Vertex>*, CellsSet<MR_MESH, Edge>*) {};
 	}
@@ -203,7 +204,7 @@ public:
 	{
 		Parameters& p = parameters_[&m];
 
-		p.vertex_vertex_relative_position_ = vertex_relative_position;
+		p.vertex_relative_position_ = vertex_relative_position;
 		simu_solver.relative_pos_ = vertex_relative_position;
 	}
 
@@ -283,11 +284,14 @@ protected:
 	void start()
 	{
 		running_ = true;
+		map_ = new MR_MESH(*selected_mesh_);
+		map_->current_level_ = selected_mesh_->maximum_level_;
 
-		launch_thread([this]() {
+		Parameters& p = parameters_[selected_mesh_];
+
+		launch_thread([this, &p]() {
 			while (this->running_)
 			{
-				Parameters& p = parameters_[selected_mesh_];
 				if (p.have_selected_vertex_)
 				{
 					Vec3 pos = value<Vec3>(*selected_mesh_, p.vertex_position_.get(), p.selected_vertex_);
@@ -298,8 +302,8 @@ protected:
 							  << std::endl;
 				}
 
-				simu_solver.compute_time_step(*selected_mesh_, *selected_mesh_, p.vertex_position_.get(),
-											  p.vertex_masse_.get(), 0.005);
+				simu_solver.compute_time_step(*selected_mesh_, *map_, p.vertex_position_.get(), p.vertex_masse_.get(),
+											  0.005);
 				need_update_ = true;
 				std::this_thread::sleep_for(std::chrono::milliseconds(5));
 			}
@@ -316,9 +320,31 @@ protected:
 	void step()
 	{
 		Parameters& p = parameters_[selected_mesh_];
-		simu_solver.compute_time_step(*selected_mesh_, *selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(),
-									  0.005);
+		if (p.have_selected_vertex_)
+		{
+			Vec3 pos = value<Vec3>(*selected_mesh_, p.vertex_position_.get(), p.selected_vertex_);
+			double m = value<double>(*selected_mesh_, p.vertex_masse_.get(), p.selected_vertex_);
+			value<Vec3>(*selected_mesh_, p.vertex_forces_.get(), p.selected_vertex_) =
+				m * (p.move_vertex_ - pos) / TIME_STEP;
+			std::cout << value<Vec3>(*selected_mesh_, p.vertex_position_.get(), p.selected_vertex_) << std::endl;
+		}
+
+		/*foreach_cell(*map_, [&](Vertex v) -> bool {
+			std::cout << "vertex pos : " << index_of(*map_, v) << std::endl;
+			std::cout << value<Vec3>(*map_, p.vertex_position_.get(), v) << std::endl;
+			std::cout << "######################" << std::endl;
+			return true;
+		});*/
+
+		simu_solver.compute_time_step(*selected_mesh_, *map_, p.vertex_position_.get(), p.vertex_masse_.get(), 0.005);
 		need_update_ = true;
+	}
+
+	void reset_forces()
+	{
+		map_ = new MR_MESH(*selected_mesh_);
+		map_->current_level_ = selected_mesh_->maximum_level_;
+		simu_solver.reset_forces(*map_);
 	}
 
 	void draw(View* view) override
@@ -374,7 +400,7 @@ protected:
 				if (ImGui::Selectable(name.c_str(), m == selected_mesh_))
 				{
 					selected_mesh_ = m;
-					simu_solver.init_solver(*selected_mesh_, &sm_solver_, ps_);
+					simu_solver.init_solver(*selected_mesh_, &sm_solver_, &ps_);
 				}
 			});
 			ImGui::ListBoxFooter();
@@ -467,6 +493,48 @@ protected:
 				if (ImGui::Button("X##masse"))
 					set_vertex_masse(*selected_mesh_, nullptr);
 			}
+
+			if (ImGui::BeginCombo("vertex relative position", p.vertex_relative_position_
+																  ? p.vertex_relative_position_->name().c_str()
+																  : "-- select --"))
+			{
+				foreach_attribute<Vec3, Vertex>(*selected_mesh_,
+												[&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
+													bool is_selected = attribute == p.vertex_relative_position_;
+													if (ImGui::Selectable(attribute->name().c_str(), is_selected))
+													{
+														set_vertex_relative_position(*selected_mesh_, attribute);
+													}
+													if (is_selected)
+														ImGui::SetItemDefaultFocus();
+												});
+				ImGui::EndCombo();
+			}
+			if (p.vertex_relative_position_)
+			{
+				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
+				if (ImGui::Button("X##relative"))
+					set_vertex_relative_position(*selected_mesh_, nullptr);
+			}
+			if (ImGui::BeginCombo("vertex parent",
+								  p.vertex_parents_ ? p.vertex_parents_->name().c_str() : "-- select --"))
+			{
+				foreach_attribute<std::pair<Vertex, Vertex>, Vertex>(
+					*selected_mesh_, [&](const std::shared_ptr<Attribute<std::pair<Vertex, Vertex>>>& attribute) {
+						bool is_selected = attribute == p.vertex_parents_;
+						if (ImGui::Selectable(attribute->name().c_str(), is_selected))
+							set_vertex_parents(*selected_mesh_, attribute);
+						if (is_selected)
+							ImGui::SetItemDefaultFocus();
+					});
+				ImGui::EndCombo();
+			}
+			if (p.vertex_parents_)
+			{
+				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
+				if (ImGui::Button("X##parents"))
+					set_vertex_parents(*selected_mesh_, nullptr);
+			}
 			if (p.init_vertex_position_ && p.vertex_position_ && p.vertex_masse_)
 			{
 				if (ImGui::Button("init initial pos"))
@@ -483,8 +551,10 @@ protected:
 			{
 				if (ImGui::Button("init masse"))
 				{
-					foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
-						value<double>(*selected_mesh_, p.vertex_masse_.get(), v) = 1.0f;
+					map_ = new MR_MESH(*selected_mesh_);
+					map_->current_level_ = selected_mesh_->maximum_level_;
+					foreach_cell(*map_, [&](Vertex v) -> bool {
+						value<double>(*map_, p.vertex_masse_.get(), v) = 1.0f;
 						return true;
 					});
 					sm_solver_.update_topo(*selected_mesh_, {});
@@ -501,6 +571,13 @@ protected:
 				static uint32 nb_new_attribute_double = 0;
 				add_attribute<double, Vertex>(*selected_mesh_,
 											  "SM_attributte_double_" + std::to_string(nb_new_attribute_double++));
+			}
+			if (p.vertex_forces_)
+			{
+				if (ImGui::Button("reset forces"))
+				{
+					reset_forces();
+				}
 			}
 			if (p.vertex_position_ && p.init_vertex_position_ && p.vertex_forces_ && p.vertex_masse_)
 			{
@@ -543,6 +620,7 @@ protected:
 
 public:
 	MR_MESH* selected_mesh_;
+	MR_MESH* map_;
 	std::unordered_map<const MR_MESH*, Parameters> parameters_;
 	std::vector<std::shared_ptr<boost::synapse::connection>> connections_;
 	std::unordered_map<const MR_MESH*, std::vector<std::shared_ptr<boost::synapse::connection>>> mesh_connections_;
