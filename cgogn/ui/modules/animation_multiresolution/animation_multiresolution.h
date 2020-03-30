@@ -43,6 +43,7 @@
 #include <cgogn/rendering/vbo_update.h>
 #include <cgogn/simulation/algos/Simulation_solver.h>
 #include <cgogn/simulation/algos/Simulation_solver_multiresolution.h>
+#include <cgogn/simulation/algos/multiresolution_propagation/propagation_forces.h>
 #include <cgogn/simulation/algos/multiresolution_propagation/propagation_spring.h>
 #include <cgogn/simulation/algos/shape_matching/shape_matching.h>
 
@@ -129,7 +130,7 @@ class AnimationMultiresolution : public ViewModule
 public:
 	AnimationMultiresolution(const App& app)
 		: ViewModule(app, "Animation_multiresolution (" + std::string{mesh_traits<MR_MESH>::name} + ")"),
-		  selected_mesh_(nullptr), selected_view_(app.current_view()), sm_solver_(0.5f), running_(false), ps_(0.5f),
+		  selected_mesh_(nullptr), selected_view_(app.current_view()), sm_solver_(0.5f), running_(false), ps_(),
 		  map_(nullptr)
 	{
 		f_keypress = [](View*, MR_MESH*, int32, CellsSet<MR_MESH, Vertex>*, CellsSet<MR_MESH, Edge>*) {};
@@ -627,7 +628,7 @@ public:
 	MeshProvider<MR_MESH>* mesh_provider_;
 	simulation::shape_matching_constraint_solver<MR_MESH> sm_solver_;
 	simulation::Simulation_solver_multiresolution<MR_MESH> simu_solver;
-	simulation::Propagation_Spring<MR_MESH> ps_;
+	simulation::Propagation_Forces<MR_MESH> ps_;
 	bool running_;
 	bool need_update_;
 	bool can_move_vertex_;

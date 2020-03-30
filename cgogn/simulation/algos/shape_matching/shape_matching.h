@@ -180,7 +180,7 @@ public:
 		Vec3 cm = Vec3(0, 0, 0);
 		double masse_total = 0;
 		foreach_cell(m, [&](Vertex v) -> bool {
-			cm += value<double>(m, masse_, v) * value<Vec3>(m, vertex_init_position_.get(), v);
+			cm += value<double>(m, masse_, v) * value<Vec3>(m, pos, v);
 			masse_total += value<double>(m, masse_, v);
 			return true;
 		});
