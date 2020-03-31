@@ -1,5 +1,5 @@
-#ifndef CGOGN_SIMULATION_MULTIRESOLTION_PROPAGATION_PROPAGATION_SPRING_H
-#define CGOGN_SIMULATION_MULTIRESOLTION_PROPAGATION_PROPAGATION_SPRING_H
+#ifndef CGOGN_SIMULATION_MULTIRESOLTION_PROPAGATION_PROPAGATION_PLASTIQUE_H
+#define CGOGN_SIMULATION_MULTIRESOLTION_PROPAGATION_PROPAGATION_PLASTIQUE_H
 
 #include <cgogn/core/functions/attributes.h>
 #include <cgogn/core/types/mesh_traits.h>
@@ -13,7 +13,7 @@ namespace cgogn
 namespace simulation
 {
 template <typename MR_MAP>
-class Propagation_Spring : public Propagation_Constraint<MR_MAP>
+class Propagation_Plastique : public Propagation_Constraint<MR_MAP>
 {
 	template <typename T>
 	using Attribute = typename mesh_traits<MR_MAP>::template Attribute<T>;
@@ -23,10 +23,10 @@ class Propagation_Spring : public Propagation_Constraint<MR_MAP>
 public:
 	double alpha_;
 
-	Propagation_Spring() : alpha_(0.5f)
+	Propagation_Plastique() : alpha_(0.5f)
 	{
 	}
-	Propagation_Spring(double alpha) : alpha_(alpha)
+	Propagation_Plastique(double alpha) : alpha_(alpha)
 	{
 	}
 	void propagate(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>* pos, Attribute<Vec3>* result_forces,
@@ -60,9 +60,9 @@ public:
 				Vec3 p_r = value<Vec3>(m_geom, pos_relative, v);
 				Vec3 dest = C1 + V1 * p_r[0] + V2 * p_r[1] + V3 * p_r[2];
 				Vec3 cur_pos = value<Vec3>(m_geom, pos, v);
-				value<Vec3>(m_geom, result_forces, v) += alpha_ * (dest - cur_pos);
+				value<Vec3>(m_geom, result_forces, v) += alpha_ * (dest - cur_pos) / (time_step * time_step);
 				integration(v);
-				// value<Vec3>(m_geom, pos, v) = dest;
+				value<Vec3>(m_geom, pos, v) = dest;
 			}
 		}
 	}
@@ -70,4 +70,4 @@ public:
 } // namespace simulation
 } // namespace cgogn
 
-#endif // CGOGN_SIMULATION_MULTIRESOLTION_PROPAGATION_PROPAGATION_SPRING_H
+#endif // CGOGN_SIMULATION_MULTIRESOLTION_PROPAGATION_PROPAGATION_PLASTIQUE_H

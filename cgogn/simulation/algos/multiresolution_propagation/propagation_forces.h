@@ -25,8 +25,8 @@ public:
 	{
 	}
 	void propagate(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>*, Attribute<Vec3>* result_forces, Attribute<Vec3>*,
-				   Attribute<std::pair<Vertex, Vertex>>* parent,
-				   const std::function<void(Vertex)>& integration) override
+				   Attribute<std::pair<Vertex, Vertex>>* parent, const std::function<void(Vertex)>& integration,
+				   double) override
 	{
 
 		std::vector<std::vector<Vertex>> vect_vertex_per_resolution;
@@ -43,17 +43,6 @@ public:
 			for (auto& v : vect_vertex_per_resolution[i])
 			{
 				std::pair<Vertex, Vertex> p = value<std::pair<Vertex, Vertex>>(m_geom, parent, v);
-				/*Vec3 C1 = (value<Vec3>(m_geom, pos, p.first) + value<Vec3>(m_geom, pos, p.second)) / 2;
-				Vec3 C2 = geometry::centroid<Vec3>(cph_, CPH3::Volume(v.dart), pos);
-				Vec3 A = value<Vec3>(m_geom, pos, p.first);
-				Vec3 V1 = (A - C1).normalized();
-				Vec3 V2 = (C2 - C1).normalized();
-				Vec3 V3 = (V1.cross(V2));
-				V3 = V3.normalized();
-				Vec3 p_r = value<Vec3>(m_geom, pos_relative, v);
-				Vec3 dest = C1 + V1 * p_r[0] + V2 * p_r[1] + V3 * p_r[2];
-				Vec3 cur_pos = value<Vec3>(m_geom, pos, v);*/
-
 				value<Vec3>(m_geom, result_forces, v) +=
 					(value<Vec3>(m_geom, result_forces, p.first) + value<Vec3>(m_geom, result_forces, p.second)) / 2;
 				integration(v);

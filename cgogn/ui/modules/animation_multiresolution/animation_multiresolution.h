@@ -130,7 +130,7 @@ class AnimationMultiresolution : public ViewModule
 public:
 	AnimationMultiresolution(const App& app)
 		: ViewModule(app, "Animation_multiresolution (" + std::string{mesh_traits<MR_MESH>::name} + ")"),
-		  selected_mesh_(nullptr), selected_view_(app.current_view()), sm_solver_(0.5f), running_(false), ps_(),
+		  selected_mesh_(nullptr), selected_view_(app.current_view()), sm_solver_(0.9f), running_(false), ps_(0.01f),
 		  map_(nullptr)
 	{
 		f_keypress = [](View*, MR_MESH*, int32, CellsSet<MR_MESH, Vertex>*, CellsSet<MR_MESH, Edge>*) {};
@@ -304,7 +304,7 @@ protected:
 				}
 
 				simu_solver.compute_time_step(*selected_mesh_, *map_, p.vertex_position_.get(), p.vertex_masse_.get(),
-											  0.005);
+											  TIME_STEP);
 				need_update_ = true;
 				std::this_thread::sleep_for(std::chrono::milliseconds(5));
 			}
@@ -628,7 +628,7 @@ public:
 	MeshProvider<MR_MESH>* mesh_provider_;
 	simulation::shape_matching_constraint_solver<MR_MESH> sm_solver_;
 	simulation::Simulation_solver_multiresolution<MR_MESH> simu_solver;
-	simulation::Propagation_Forces<MR_MESH> ps_;
+	simulation::Propagation_Spring<MR_MESH> ps_;
 	bool running_;
 	bool need_update_;
 	bool can_move_vertex_;

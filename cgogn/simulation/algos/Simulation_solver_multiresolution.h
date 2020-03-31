@@ -64,15 +64,16 @@ public:
 		});
 		if (!pc_)
 			return;
-		pc_->propagate(m_meca, m_geom, vertex_position, this->forces_ext_.get(), relative_pos_.get(), parents_.get(),
-					   [&](Vertex v) {
-						   value<Vec3>(m_geom, this->speed_.get(), v) =
-							   0.995 * value<Vec3>(m_geom, this->speed_.get(), v) +
-							   time_step * value<Vec3>(m_geom, this->forces_ext_.get(), v) /
-								   value<double>(m_geom, masse, v);
-						   value<Vec3>(m_geom, vertex_position, v) = value<Vec3>(m_geom, vertex_position, v) +
-																	 time_step * value<Vec3>(m_geom, this->speed_, v);
-					   });
+		pc_->propagate(
+			m_meca, m_geom, vertex_position, this->forces_ext_.get(), relative_pos_.get(), parents_.get(),
+			[&](Vertex v) {
+				value<Vec3>(m_geom, this->speed_.get(), v) =
+					0.995 * value<Vec3>(m_geom, this->speed_.get(), v) +
+					time_step * value<Vec3>(m_geom, this->forces_ext_.get(), v) / value<double>(m_geom, masse, v);
+				value<Vec3>(m_geom, vertex_position, v) =
+					value<Vec3>(m_geom, vertex_position, v) + time_step * value<Vec3>(m_geom, this->speed_, v);
+			},
+			time_step);
 		parallel_foreach_cell(m_geom, [&](Vertex v) -> bool {
 			value<Vec3>(m_geom, this->forces_ext_.get(), v) = Vec3(0, 0, 0);
 			return true;
