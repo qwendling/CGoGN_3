@@ -24,6 +24,7 @@
 #ifndef CGOGN_MODULE_VOLUME_RENDER_H_
 #define CGOGN_MODULE_VOLUME_RENDER_H_
 
+#include <GLFW/glfw3.h>
 #include <cgogn/ui/app.h>
 #include <cgogn/ui/module.h>
 #include <cgogn/ui/modules/mesh_provider/mesh_provider.h>
@@ -32,6 +33,7 @@
 #include <cgogn/geometry/types/vector_traits.h>
 
 #include <cgogn/geometry/algos/length.h>
+#include <cgogn/rendering/frame_manipulator.h>
 #include <cgogn/rendering/shaders/compute_volume_centers.h>
 #include <cgogn/rendering/shaders/shader_bold_line.h>
 #include <cgogn/rendering/shaders/shader_explode_volumes.h>
@@ -218,7 +220,8 @@ class Volume_Render : public ViewModule
 public:
 	Volume_Render(const App& app)
 		: ViewModule(app, "Volume_Render (" + std::string{mesh_traits<MESH>::name} + ")"),
-		  selected_view_(app.current_view()), selected_mesh_(nullptr), compute_center_engine_(nullptr)
+		  selected_view_(app.current_view()), selected_mesh_(nullptr), compute_center_engine_(nullptr),
+		  frame_manip_(nullptr), show_frame_manip_(false), manipullating_frame_(false)
 	{
 	}
 
@@ -386,6 +389,7 @@ protected:
 		connections_.push_back(boost::synapse::connect<typename MeshProvider<MESH>::mesh_added>(
 			mesh_provider_, this, &Volume_Render<MESH>::init_mesh));
 		compute_center_engine_ = std::make_unique<rendering::ComputeCenterEngine>();
+		frame_manip_ = std::make_unique<cgogn::rendering::FrameManipulator>();
 	}
 
 	void draw(View* view) override
@@ -495,6 +499,12 @@ protected:
 					p.update_topo(*m);
 				p.topo_renderer_->draw(proj_matrix, view_matrix);
 			}
+			if (show_frame_manip_)
+			{
+				frame_manip_->draw(true, true, proj_matrix, view_matrix);
+				//				*mousePressEvent : *frame_manip_->pick(event->x(), event->y(), P, Q); // P,Q computed
+				// ray 				*mouseReleaseEvent : *frame_manip_->release(); 				*mouseMouseEvent:
+			}
 		}
 	}
 
@@ -509,18 +519,14 @@ protected:
 		std::string str_fps = ss.str() + " fps";
 		ImGui::Text(str_fps.c_str());
 
-		if (ImGui::BeginCombo("View", selected_view_->name().c_str()))
-		{
-			for (View* v : linked_views_)
-			{
-				bool is_selected = v == selected_view_;
-				if (ImGui::Selectable(v->name().c_str(), is_selected))
-					selected_view_ = v;
-				if (is_selected)
-					ImGui::SetItemDefaultFocus();
-			}
-			ImGui::EndCombo();
-		}
+		imgui_view_selector(this, selected_view_, [&](View* v) { selected_view_ = v; });
+
+		need_update |= ImGui::Checkbox("Lock scene bb", &selected_view_->scene_bb_locked_);
+
+		imgui_mesh_selector(mesh_provider_, selected_mesh_, [&](MESH* m) {
+			selected_mesh_ = m;
+			mesh_provider_->mesh_data(m)->outlined_until_ = App::frame_time_ + 1.0;
+		});
 
 		need_update |= ImGui::Checkbox("Lock scene bb", &selected_view_->scene_bb_locked_);
 
@@ -587,6 +593,15 @@ protected:
 			need_update |= ImGui::Checkbox("Volumes##b", &p.render_volumes_b_);
 			if (p.render_volumes_b_)
 			{
+				if (ImGui::Checkbox("FrameManip", &show_frame_manip_))
+				{
+					auto [pmin, pmax] = mesh_provider_->meshes_bb();
+					Scalar sz = (pmax - pmin).norm() / 5;
+					Vec3 pos = 0.8 * pmin + 0.2 * pmax;
+					frame_manip_->set_size(sz);
+					frame_manip_->set_position(pos);
+				}
+
 				int32* ptrVS = reinterpret_cast<int32*>(&p.render_volumes_style);
 
 				ImGui::TextUnformatted("Attribute:");
@@ -688,15 +703,67 @@ protected:
 				v->request_update();
 	}
 
+	inline void key_press_event(View* view, int32 key_code) override
+	{
+		if (key_code == GLFW_KEY_F)
+		{
+			manipullating_frame_ = true;
+		}
+	}
+
+	inline void key_release_event(View* view, int32 key_code) override
+	{
+		if (key_code == GLFW_KEY_F)
+		{
+			manipullating_frame_ = false;
+			view->stop_event();
+		}
+	}
+	inline void mouse_press_event(View* view, int32 button, int32 x, int32 y) override
+	{
+		if (manipullating_frame_)
+		{
+			auto [P, Q] = view->pixel_ray(x, y);
+			frame_manip_->pick(x, y, P, Q); // P,Q computed ray
+			view->stop_event();
+			view->request_update();
+		}
+	}
+	inline void mouse_release_event(View* view, int32 button, int32 x, int32 y) override
+	{
+		unused_parameters(view, button, x, y);
+		if (manipullating_frame_)
+		{
+			frame_manip_->release();
+			view->stop_event();
+			view->request_update();
+		}
+	}
+
+	inline void mouse_move_event(View* view, int32 buttons, int32 x, int32 y) override
+	{
+		unused_parameters(view, buttons);
+		if (manipullating_frame_ && buttons & 3)
+		{
+			frame_manip_->drag(buttons & 2, x, y);
+			view->stop_event();
+			view->request_update();
+		}
+	}
+
 private:
 	View* selected_view_;
 	const MESH* selected_mesh_;
+	const MeshData<MESH>* selected_mesh_data_;
 	std::unordered_map<View*, std::unordered_map<const MESH*, Parameters>> parameters_;
 	std::vector<std::shared_ptr<boost::synapse::connection>> connections_;
 	std::unordered_map<const MESH*, std::vector<std::shared_ptr<boost::synapse::connection>>> mesh_connections_;
 	MeshProvider<MESH>* mesh_provider_;
 	std::unique_ptr<rendering::ComputeCenterEngine> compute_center_engine_;
-}; // namespace cgogn
+	std::unique_ptr<rendering::FrameManipulator> frame_manip_;
+	bool show_frame_manip_;
+	bool manipullating_frame_;
+};
 
 } // namespace ui
 

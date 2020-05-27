@@ -30,6 +30,7 @@
 #include <cgogn/core/functions/attributes.h>
 
 #include <GLFW/glfw3.h>
+#include <cgogn/core/functions/mesh_info.h>
 #include <cgogn/core/functions/traversals/edge.h>
 #include <cgogn/core/functions/traversals/volume.h>
 #include <cgogn/modeling/algos/subdivision.h>
@@ -200,6 +201,17 @@ int main(int argc, char** argv)
 				}
 				vmrm.changed_connectivity(*selected_mesh, position.get());
 			}
+			break;
+		case GLFW_KEY_S:
+			cgogn::foreach_cell(*selected_mesh, [&](Face f) -> bool {
+				if (is_incident_to_boundary(*selected_mesh, f))
+				{
+
+					selected_mesh->activate_face_subdivision(f);
+				}
+				return true;
+			});
+			vmrm.changed_connectivity(*selected_mesh, position.get());
 			break;
 		case GLFW_KEY_V:
 			if (selected_vertices != nullptr)

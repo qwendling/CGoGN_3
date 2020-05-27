@@ -44,6 +44,7 @@
 #include <cgogn/simulation/algos/Simulation_solver.h>
 #include <cgogn/simulation/algos/Simulation_solver_multiresolution.h>
 #include <cgogn/simulation/algos/multiresolution_propagation/propagation_forces.h>
+#include <cgogn/simulation/algos/multiresolution_propagation/propagation_plastique.h>
 #include <cgogn/simulation/algos/multiresolution_propagation/propagation_spring.h>
 #include <cgogn/simulation/algos/shape_matching/shape_matching.h>
 
@@ -130,8 +131,8 @@ class AnimationMultiresolution : public ViewModule
 public:
 	AnimationMultiresolution(const App& app)
 		: ViewModule(app, "Animation_multiresolution (" + std::string{mesh_traits<MR_MESH>::name} + ")"),
-		  selected_mesh_(nullptr), selected_view_(app.current_view()), sm_solver_(0.9f), running_(false), ps_(0.01f),
-		  map_(nullptr)
+		  mecanical_mesh_(nullptr), selected_view_(app.current_view()), sm_solver_(0.9f), running_(false), ps_(0.9f),
+		  geometric_mesh_(nullptr)
 	{
 		f_keypress = [](View*, MR_MESH*, int32, CellsSet<MR_MESH, Vertex>*, CellsSet<MR_MESH, Edge>*) {};
 	}
@@ -221,15 +222,15 @@ protected:
 
 	void mouse_press_event(View* view, int32 button, int32 x, int32 y) override
 	{
-		Parameters& p = parameters_[selected_mesh_];
+		Parameters& p = parameters_[mecanical_mesh_];
 		if (button == 1 && p.have_selected_vertex_)
 		{
 			p.move_vertex_ =
-				view->pixel_scene_(x, y, value<Vec3>(*selected_mesh_, p.vertex_position_.get(), p.selected_vertex_));
+				view->pixel_scene_(x, y, value<Vec3>(*mecanical_mesh_, p.vertex_position_.get(), p.selected_vertex_));
 			p.update_move_vertex_vbo();
 			view->request_update();
 		}
-		if (selected_mesh_ && view->shift_pressed())
+		if (mecanical_mesh_ && view->shift_pressed())
 		{
 			if (p.vertex_position_)
 			{
@@ -239,12 +240,12 @@ protected:
 				Vec3 A{near.x(), near.y(), near.z()};
 				Vec3 B{far.x(), far.y(), far.z()};
 				std::vector<Vertex> picked;
-				cgogn::geometry::picking(*selected_mesh_, p.vertex_position_.get(), A, B, picked);
+				cgogn::geometry::picking(*mecanical_mesh_, p.vertex_position_.get(), A, B, picked);
 				if (!picked.empty())
 				{
 					p.selected_vertex_ = picked[0];
 					p.have_selected_vertex_ = true;
-					p.move_vertex_ = value<Vec3>(*selected_mesh_, p.vertex_position_.get(), picked[0]);
+					p.move_vertex_ = value<Vec3>(*mecanical_mesh_, p.vertex_position_.get(), picked[0]);
 					p.update_move_vertex_vbo();
 					view->request_update();
 				}
@@ -272,11 +273,11 @@ protected:
 
 	void mouse_move_event(View* view, int32 x, int32 y)
 	{
-		Parameters& p = parameters_[selected_mesh_];
+		Parameters& p = parameters_[mecanical_mesh_];
 		if (p.have_selected_vertex_ && can_move_vertex_)
 		{
 			p.move_vertex_ =
-				view->pixel_scene_(x, y, value<Vec3>(*selected_mesh_, p.vertex_position_.get(), p.selected_vertex_));
+				view->pixel_scene_(x, y, value<Vec3>(*mecanical_mesh_, p.vertex_position_.get(), p.selected_vertex_));
 			p.update_move_vertex_vbo();
 			view->request_update();
 		}
@@ -285,26 +286,24 @@ protected:
 	void start()
 	{
 		running_ = true;
-		map_ = new MR_MESH(*selected_mesh_);
-		map_->current_level_ = selected_mesh_->maximum_level_;
 
-		Parameters& p = parameters_[selected_mesh_];
+		Parameters& p = parameters_[mecanical_mesh_];
 
 		launch_thread([this, &p]() {
 			while (this->running_)
 			{
 				if (p.have_selected_vertex_)
 				{
-					Vec3 pos = value<Vec3>(*selected_mesh_, p.vertex_position_.get(), p.selected_vertex_);
-					double m = value<double>(*selected_mesh_, p.vertex_masse_.get(), p.selected_vertex_);
-					value<Vec3>(*selected_mesh_, p.vertex_forces_.get(), p.selected_vertex_) =
+					Vec3 pos = value<Vec3>(*mecanical_mesh_, p.vertex_position_.get(), p.selected_vertex_);
+					double m = value<double>(*mecanical_mesh_, p.vertex_masse_.get(), p.selected_vertex_);
+					value<Vec3>(*mecanical_mesh_, p.vertex_forces_.get(), p.selected_vertex_) =
 						m * (p.move_vertex_ - pos) / TIME_STEP;
-					std::cout << value<Vec3>(*selected_mesh_, p.vertex_position_.get(), p.selected_vertex_)
+					std::cout << value<Vec3>(*mecanical_mesh_, p.vertex_position_.get(), p.selected_vertex_)
 							  << std::endl;
 				}
 
-				simu_solver.compute_time_step(*selected_mesh_, *map_, p.vertex_position_.get(), p.vertex_masse_.get(),
-											  TIME_STEP);
+				simu_solver.compute_time_step(*mecanical_mesh_, *geometric_mesh_, p.vertex_position_.get(),
+											  p.vertex_masse_.get(), TIME_STEP);
 				need_update_ = true;
 				std::this_thread::sleep_for(std::chrono::milliseconds(5));
 			}
@@ -320,32 +319,31 @@ protected:
 
 	void step()
 	{
-		Parameters& p = parameters_[selected_mesh_];
+		Parameters& p = parameters_[mecanical_mesh_];
 		if (p.have_selected_vertex_)
 		{
-			Vec3 pos = value<Vec3>(*selected_mesh_, p.vertex_position_.get(), p.selected_vertex_);
-			double m = value<double>(*selected_mesh_, p.vertex_masse_.get(), p.selected_vertex_);
-			value<Vec3>(*selected_mesh_, p.vertex_forces_.get(), p.selected_vertex_) =
+			Vec3 pos = value<Vec3>(*mecanical_mesh_, p.vertex_position_.get(), p.selected_vertex_);
+			double m = value<double>(*mecanical_mesh_, p.vertex_masse_.get(), p.selected_vertex_);
+			value<Vec3>(*mecanical_mesh_, p.vertex_forces_.get(), p.selected_vertex_) =
 				m * (p.move_vertex_ - pos) / TIME_STEP;
-			std::cout << value<Vec3>(*selected_mesh_, p.vertex_position_.get(), p.selected_vertex_) << std::endl;
+			std::cout << value<Vec3>(*mecanical_mesh_, p.vertex_position_.get(), p.selected_vertex_) << std::endl;
 		}
 
-		/*foreach_cell(*map_, [&](Vertex v) -> bool {
-			std::cout << "vertex pos : " << index_of(*map_, v) << std::endl;
-			std::cout << value<Vec3>(*map_, p.vertex_position_.get(), v) << std::endl;
+		/*foreach_cell(*geometric_mesh_, [&](Vertex v) -> bool {
+			std::cout << "vertex pos : " << index_of(*geometric_mesh_, v) << std::endl;
+			std::cout << value<Vec3>(*geometric_mesh_, p.vertex_position_.get(), v) << std::endl;
 			std::cout << "######################" << std::endl;
 			return true;
 		});*/
 
-		simu_solver.compute_time_step(*selected_mesh_, *map_, p.vertex_position_.get(), p.vertex_masse_.get(), 0.005);
+		simu_solver.compute_time_step(*mecanical_mesh_, *geometric_mesh_, p.vertex_position_.get(),
+									  p.vertex_masse_.get(), 0.005);
 		need_update_ = true;
 	}
 
 	void reset_forces()
 	{
-		map_ = new MR_MESH(*selected_mesh_);
-		map_->current_level_ = selected_mesh_->maximum_level_;
-		simu_solver.reset_forces(*map_);
+		simu_solver.reset_forces(*mecanical_mesh_);
 	}
 
 	void draw(View* view) override
@@ -395,31 +393,42 @@ protected:
 			ImGui::EndCombo();
 		}
 
-		if (ImGui::ListBoxHeader("Mesh"))
+		if (ImGui::ListBoxHeader("Mesh_meca"))
 		{
 			mesh_provider_->foreach_mesh([this](MR_MESH* m, const std::string& name) {
-				if (ImGui::Selectable(name.c_str(), m == selected_mesh_))
+				if (ImGui::Selectable(name.c_str(), m == mecanical_mesh_))
 				{
-					selected_mesh_ = m;
-					simu_solver.init_solver(*selected_mesh_, &sm_solver_, &ps_);
+					mecanical_mesh_ = m;
+					simu_solver.init_solver(*mecanical_mesh_, &sm_solver_, &ps_);
+				}
+			});
+			ImGui::ListBoxFooter();
+		}
+		if (ImGui::ListBoxHeader("Mesh_geom"))
+		{
+			mesh_provider_->foreach_mesh([this](MR_MESH* m, const std::string& name) {
+				if (ImGui::Selectable(name.c_str(), m == geometric_mesh_))
+				{
+					geometric_mesh_ = m;
+					simu_solver.init_solver(*geometric_mesh_, &sm_solver_, &ps_);
 				}
 			});
 			ImGui::ListBoxFooter();
 		}
 
-		if (selected_mesh_)
+		if (mecanical_mesh_ && geometric_mesh_)
 		{
 			double X_button_width = ImGui::CalcTextSize("X").x + ImGui::GetStyle().FramePadding.x * 2;
 
-			Parameters& p = parameters_[selected_mesh_];
+			Parameters& p = parameters_[mecanical_mesh_];
 
 			if (ImGui::BeginCombo("Position", p.vertex_position_ ? p.vertex_position_->name().c_str() : "-- select --"))
 			{
-				foreach_attribute<Vec3, Vertex>(*selected_mesh_,
+				foreach_attribute<Vec3, Vertex>(*mecanical_mesh_,
 												[&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
 													bool is_selected = attribute == p.vertex_position_;
 													if (ImGui::Selectable(attribute->name().c_str(), is_selected))
-														set_vertex_position(*selected_mesh_, attribute);
+														set_vertex_position(*mecanical_mesh_, attribute);
 													if (is_selected)
 														ImGui::SetItemDefaultFocus();
 												});
@@ -429,15 +438,15 @@ protected:
 			{
 				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
 				if (ImGui::Button("X##position"))
-					set_vertex_position(*selected_mesh_, nullptr);
+					set_vertex_position(*mecanical_mesh_, nullptr);
 			}
 			if (ImGui::BeginCombo("Forces", p.vertex_forces_ ? p.vertex_forces_->name().c_str() : "-- select --"))
 			{
-				foreach_attribute<Vec3, Vertex>(*selected_mesh_,
+				foreach_attribute<Vec3, Vertex>(*mecanical_mesh_,
 												[&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
 													bool is_selected = attribute == p.vertex_forces_;
 													if (ImGui::Selectable(attribute->name().c_str(), is_selected))
-														set_vertex_force(*selected_mesh_, attribute);
+														set_vertex_force(*mecanical_mesh_, attribute);
 													if (is_selected)
 														ImGui::SetItemDefaultFocus();
 												});
@@ -447,19 +456,19 @@ protected:
 			{
 				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
 				if (ImGui::Button("X##force"))
-					set_vertex_force(*selected_mesh_, nullptr);
+					set_vertex_force(*mecanical_mesh_, nullptr);
 			}
 			if (ImGui::BeginCombo("Init vertex position",
 								  p.init_vertex_position_ ? p.init_vertex_position_->name().c_str() : "-- select --"))
 			{
 				foreach_attribute<Vec3, Vertex>(
-					*selected_mesh_, [&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
+					*mecanical_mesh_, [&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
 						bool is_selected = attribute == p.init_vertex_position_;
 						if (ImGui::Selectable(attribute->name().c_str(), is_selected))
 						{
-							set_init_vertex_position(*selected_mesh_, attribute);
+							set_init_vertex_position(*mecanical_mesh_, attribute);
 							if (p.vertex_masse_)
-								sm_solver_.init_solver(*selected_mesh_, p.init_vertex_position_, p.vertex_masse_);
+								sm_solver_.init_solver(*mecanical_mesh_, p.init_vertex_position_, p.vertex_masse_);
 						}
 						if (is_selected)
 							ImGui::SetItemDefaultFocus();
@@ -470,18 +479,18 @@ protected:
 			{
 				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
 				if (ImGui::Button("X##init"))
-					set_init_vertex_position(*selected_mesh_, nullptr);
+					set_init_vertex_position(*mecanical_mesh_, nullptr);
 			}
 			if (ImGui::BeginCombo("vertex masse", p.vertex_masse_ ? p.vertex_masse_->name().c_str() : "-- select --"))
 			{
 				foreach_attribute<double, Vertex>(
-					*selected_mesh_, [&](const std::shared_ptr<Attribute<double>>& attribute) {
+					*mecanical_mesh_, [&](const std::shared_ptr<Attribute<double>>& attribute) {
 						bool is_selected = attribute == p.vertex_masse_;
 						if (ImGui::Selectable(attribute->name().c_str(), is_selected))
 						{
-							set_vertex_masse(*selected_mesh_, attribute);
+							set_vertex_masse(*mecanical_mesh_, attribute);
 							if (p.init_vertex_position_)
-								sm_solver_.init_solver(*selected_mesh_, p.init_vertex_position_, p.vertex_masse_);
+								sm_solver_.init_solver(*mecanical_mesh_, p.init_vertex_position_, p.vertex_masse_);
 						}
 						if (is_selected)
 							ImGui::SetItemDefaultFocus();
@@ -492,19 +501,19 @@ protected:
 			{
 				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
 				if (ImGui::Button("X##masse"))
-					set_vertex_masse(*selected_mesh_, nullptr);
+					set_vertex_masse(*mecanical_mesh_, nullptr);
 			}
 
 			if (ImGui::BeginCombo("vertex relative position", p.vertex_relative_position_
 																  ? p.vertex_relative_position_->name().c_str()
 																  : "-- select --"))
 			{
-				foreach_attribute<Vec3, Vertex>(*selected_mesh_,
+				foreach_attribute<Vec3, Vertex>(*mecanical_mesh_,
 												[&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
 													bool is_selected = attribute == p.vertex_relative_position_;
 													if (ImGui::Selectable(attribute->name().c_str(), is_selected))
 													{
-														set_vertex_relative_position(*selected_mesh_, attribute);
+														set_vertex_relative_position(*mecanical_mesh_, attribute);
 													}
 													if (is_selected)
 														ImGui::SetItemDefaultFocus();
@@ -515,16 +524,16 @@ protected:
 			{
 				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
 				if (ImGui::Button("X##relative"))
-					set_vertex_relative_position(*selected_mesh_, nullptr);
+					set_vertex_relative_position(*mecanical_mesh_, nullptr);
 			}
 			if (ImGui::BeginCombo("vertex parent",
 								  p.vertex_parents_ ? p.vertex_parents_->name().c_str() : "-- select --"))
 			{
 				foreach_attribute<std::pair<Vertex, Vertex>, Vertex>(
-					*selected_mesh_, [&](const std::shared_ptr<Attribute<std::pair<Vertex, Vertex>>>& attribute) {
+					*mecanical_mesh_, [&](const std::shared_ptr<Attribute<std::pair<Vertex, Vertex>>>& attribute) {
 						bool is_selected = attribute == p.vertex_parents_;
 						if (ImGui::Selectable(attribute->name().c_str(), is_selected))
-							set_vertex_parents(*selected_mesh_, attribute);
+							set_vertex_parents(*mecanical_mesh_, attribute);
 						if (is_selected)
 							ImGui::SetItemDefaultFocus();
 					});
@@ -534,43 +543,41 @@ protected:
 			{
 				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
 				if (ImGui::Button("X##parents"))
-					set_vertex_parents(*selected_mesh_, nullptr);
+					set_vertex_parents(*mecanical_mesh_, nullptr);
 			}
 			if (p.init_vertex_position_ && p.vertex_position_ && p.vertex_masse_)
 			{
 				if (ImGui::Button("init initial pos"))
 				{
-					foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
-						value<Vec3>(*selected_mesh_, p.init_vertex_position_.get(), v) =
-							value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v);
+					foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
+						value<Vec3>(*mecanical_mesh_, p.init_vertex_position_.get(), v) =
+							value<Vec3>(*mecanical_mesh_, p.vertex_position_.get(), v);
 						return true;
 					});
-					sm_solver_.update_topo(*selected_mesh_, {});
+					sm_solver_.update_topo(*mecanical_mesh_, {});
 				}
 			}
 			if (p.vertex_masse_)
 			{
 				if (ImGui::Button("init masse"))
 				{
-					map_ = new MR_MESH(*selected_mesh_);
-					map_->current_level_ = selected_mesh_->maximum_level_;
-					foreach_cell(*map_, [&](Vertex v) -> bool {
-						value<double>(*map_, p.vertex_masse_.get(), v) = 1.0f;
+					foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
+						value<double>(*mecanical_mesh_, p.vertex_masse_.get(), v) = 1.0f;
 						return true;
 					});
-					sm_solver_.update_topo(*selected_mesh_, {});
+					sm_solver_.update_topo(*mecanical_mesh_, {});
 				}
 			}
 			if (ImGui::Button("new attribute Vec3"))
 			{
 				static uint32 nb_new_attribute_Vec3 = 0;
-				add_attribute<Vec3, Vertex>(*selected_mesh_,
+				add_attribute<Vec3, Vertex>(*mecanical_mesh_,
 											"SM_attributte_vec3_" + std::to_string(nb_new_attribute_Vec3++));
 			}
 			if (ImGui::Button("new attribute double"))
 			{
 				static uint32 nb_new_attribute_double = 0;
-				add_attribute<double, Vertex>(*selected_mesh_,
+				add_attribute<double, Vertex>(*mecanical_mesh_,
 											  "SM_attributte_double_" + std::to_string(nb_new_attribute_double++));
 			}
 			if (p.vertex_forces_)
@@ -584,8 +591,8 @@ protected:
 			{
 				ImGui::Separator();
 
-				MeshData<MR_MESH>* md = mesh_provider_->mesh_data(selected_mesh_);
-				Parameters& p = parameters_[selected_mesh_];
+				MeshData<MR_MESH>* md = mesh_provider_->mesh_data(mecanical_mesh_);
+				Parameters& p = parameters_[mecanical_mesh_];
 
 				if (!running_)
 				{
@@ -620,15 +627,15 @@ protected:
 	}
 
 public:
-	MR_MESH* selected_mesh_;
-	MR_MESH* map_;
+	MR_MESH* mecanical_mesh_;
+	MR_MESH* geometric_mesh_;
 	std::unordered_map<const MR_MESH*, Parameters> parameters_;
 	std::vector<std::shared_ptr<boost::synapse::connection>> connections_;
 	std::unordered_map<const MR_MESH*, std::vector<std::shared_ptr<boost::synapse::connection>>> mesh_connections_;
 	MeshProvider<MR_MESH>* mesh_provider_;
 	simulation::shape_matching_constraint_solver<MR_MESH> sm_solver_;
 	simulation::Simulation_solver_multiresolution<MR_MESH> simu_solver;
-	simulation::Propagation_Spring<MR_MESH> ps_;
+	simulation::Propagation_Plastique<MR_MESH> ps_;
 	bool running_;
 	bool need_update_;
 	bool can_move_vertex_;

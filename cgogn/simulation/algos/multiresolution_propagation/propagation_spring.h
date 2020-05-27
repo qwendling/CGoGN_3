@@ -35,13 +35,13 @@ public:
 	{
 
 		std::vector<std::vector<Vertex>> vect_vertex_per_resolution;
-		vect_vertex_per_resolution.resize(m_geom.maximum_level_ + 1);
+		vect_vertex_per_resolution.resize(m_meca.maximum_level_ + 1);
 		foreach_cell(m_geom, [&](Vertex v) -> bool {
 			if (!m_meca.dart_is_visible(v.dart))
-				vect_vertex_per_resolution[m_geom.dart_level(v.dart)].push_back(v);
+				vect_vertex_per_resolution[m_meca.dart_level(v.dart)].push_back(v);
 			return true;
 		});
-		CPH3 cph_(m_geom);
+		CPH3 cph_(m_meca);
 		for (int i = 0; i < vect_vertex_per_resolution.size(); i++)
 		{
 			cph_.current_level_ = i;

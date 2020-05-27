@@ -27,6 +27,8 @@
 
 #include <cgogn/core/types/mesh_traits.h>
 #include <cgogn/core/utils/numerics.h>
+#include <cgogn/core/utils/type_traits.h>
+#include <cgogn/geometry/types/vector_traits.h>
 #include <cgogn/rendering/vbo.h>
 
 #include <GL/gl3w.h>

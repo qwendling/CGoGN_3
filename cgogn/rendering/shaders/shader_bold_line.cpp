@@ -41,7 +41,7 @@ in vec3 vertex_pos;
 void main()
 {
 	gl_Position =  vec4(vertex_pos,1.0);
-};
+}
 )";
 
 static const char* geometry_shader_source = R"(
@@ -53,6 +53,8 @@ out vec4 posi_clip;
 uniform mat4 projection_matrix;
 uniform mat4 model_view_matrix;
 uniform vec2 lineWidths;
+flat out vec3 col;
+
 void main()
 {
 	vec4 A = model_view_matrix * gl_in[0].gl_Position;
@@ -60,6 +62,8 @@ void main()
 	float nearZ = 1.0;
 	if (projection_matrix[2][2] !=  1.0)
 		nearZ = - projection_matrix[3][2] / (projection_matrix[2][2] - 1.0);
+	float farZ = - projection_matrix[3][2] / (projection_matrix[2][2] + 1.0);
+
 	if ((A.z < nearZ) || (B.z < nearZ))
 	{
 		if (A.z >= nearZ)
@@ -69,41 +73,42 @@ void main()
 
 		vec3 AB = B.xyz/B.w - A.xyz/A.w;
 		vec3 Nl = normalize(cross(AB,vec3(0,0,1)));
-		vec3 Nm = normalize(cross(Nl,AB));
+		vec3 Nm = vec3(0,0,1);
+
 
 		A = projection_matrix*A;
 		B = projection_matrix*B;
 		A = A/A.w;
 		B = B/B.w;
 
-
 		vec2 U2 = normalize(vec2(lineWidths[1],lineWidths[0])*(B.xy - A.xy));
-		vec2 LWCorr =lineWidths * max(abs(U2.x),abs(U2.y));
-		vec3 U = vec3(0.5*LWCorr*U2,0.0);
-		vec3 V = vec3(LWCorr*vec2(U2[1], -U2[0]), 0.0);
+		vec2 LWCorr = lineWidths * max(abs(U2.x),abs(U2.y));
+
+		vec4 U = vec4(0.5*LWCorr*U2,0,0);
+		vec4 V = vec4(LWCorr*vec2(U2[1], -U2[0]), 0,0);
 		posi_clip = gl_in[0].gl_Position;
-		Nz = Nl.z;
-		gl_Position = vec4(A.xyz-V, 1.0);
+		Nz = 0;
+		gl_Position = (A-V);
 		EmitVertex();
 		posi_clip = gl_in[1].gl_Position;
-		Nz = Nl.z;
-		gl_Position = vec4(B.xyz-V, 1.0);
+		Nz = 0;
+		gl_Position = (B-V);
 		EmitVertex();
 		posi_clip = gl_in[0].gl_Position;
-		Nz = Nm.z;
-		gl_Position = vec4(A.xyz-U, 1.0);
+		Nz = 1;
+		gl_Position = (A-U);
 		EmitVertex();
 		posi_clip = gl_in[1].gl_Position;
-		Nz = Nm.z;
-		gl_Position = vec4(B.xyz+U, 1.0);
+		Nz = 1;
+		gl_Position = (B+U);
 		EmitVertex();
 		posi_clip = gl_in[0].gl_Position;
-		Nz = -Nl.z;
-		gl_Position = vec4(A.xyz+V, 1.0);
+		Nz = 0;
+		gl_Position = (A+V);
 		EmitVertex();
 		posi_clip = gl_in[1].gl_Position;
-		Nz = -Nl.z;
-		gl_Position = vec4(B.xyz+V, 1.0);
+		Nz = 0;
+		gl_Position = (B+V);
 		EmitVertex();
 		EndPrimitive();
 	}
@@ -126,15 +131,23 @@ void main()
 	float d2 = dot(plane_clip2,posi_clip);
 	if ((d>0.0)||(d2>0.0))  discard;
 
-	float lambert = (1.0-lighted) + lighted*max(0.0,Nz); // Nz = dot(N,0,0,1)
+	float lambert = max(1.0-lighted,Nz); // Nz = dot(N,0,0,1)
 	fragColor = lineColor.rgb * lambert;
-};
+}
 )";
 
 ShaderBoldLine::ShaderBoldLine()
 {
 	load3_bind(vertex_shader_source, fragment_shader_source, geometry_shader_source, "vertex_pos");
 	add_uniforms("lineColor", "lineWidths", "lighted", "plane_clip", "plane_clip2");
+}
+
+void ShaderParamBoldLine::set_uniforms()
+{
+	int viewport[4];
+	glGetIntegerv(GL_VIEWPORT, viewport);
+	GLVec2 wd(width_ / float32(viewport[2]), width_ / float32(viewport[3]));
+	shader_->set_uniforms_values(color_, wd, lighted_, plane_clip_, plane_clip2_);
 }
 
 } // namespace rendering
