@@ -1,6 +1,6 @@
 /*******************************************************************************
  * CGoGN: Combinatorial and Geometric modeling with Generic N-dimensional Maps  *
- * Copyright (C) 2015, IGG Group, ICube, University of Strasbourg, France       *
+ * Copyright (C), IGG Group, ICube, University of Strasbourg, France            *
  *                                                                              *
  * This library is free software; you can redistribute it and/or modify it      *
  * under the terms of the GNU Lesser General Public License as published by the *
@@ -71,7 +71,7 @@ int main(int argc, char** argv)
 
 	cgogn::ui::MeshProvider<Mesh> mp(app);
 	cgogn::ui::MeshProvider<MRMesh> mrmp(app);
-	cgogn::ui::Volume_Render<MRMesh> mrsr(app);
+	cgogn::ui::VolumeRender<MRMesh> mrsr(app);
 	cgogn::ui::VolumeSelection<MRMesh> vs(app);
 
 	cgogn::ui::VolumeMRModeling vmrm(app);

@@ -32,7 +32,6 @@ namespace cgogn
 
 namespace rendering
 {
-
 DECLARE_SHADER_CLASS(NoIllumColorPerFace, true, CGOGN_STR(NoIllumColorPerFace))
 
 class CGOGN_RENDERING_EXPORT ShaderParamNoIllumColorPerFace : public ShaderParam
@@ -48,9 +47,9 @@ public:
 		double_side_ = pp.double_side_;
 	}
 
-	using LocalShader = ShaderNoIllumColorPerFace;
+	using ShaderType = ShaderNoIllumColorPerFace;
 
-	ShaderParamNoIllumColorPerFace(LocalShader* sh) : ShaderParam(sh), double_side_(true)
+	ShaderParamNoIllumColorPerFace(ShaderType* sh) : ShaderParam(sh), double_side_(true)
 	{
 		for (auto& v : vbos_)
 			v = nullptr;
@@ -67,7 +66,6 @@ public:
 };
 
 } // namespace rendering
-
 } // namespace cgogn
 
 #endif // CGOGN_RENDERING_SHADERS_NoIllum_H_

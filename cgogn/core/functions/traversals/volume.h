@@ -119,11 +119,11 @@ auto foreach_incident_volume(const MESH& m, CELL c, const FUNC& func)
 		{
 			DartMarkerStore<MESH> marker(m);
 			foreach_dart_of_orbit(m, c, [&](Dart d) -> bool {
-				Volume v(d);
 				if constexpr (mesh_traits<MESH>::dimension == 3) // volumes can be boundary cells
 				{
 					if (!marker.is_marked(d) && !is_boundary(m, d))
 					{
+						Volume v(d);
 						foreach_dart_of_orbit(m, v, [&](Dart d) -> bool {
 							marker.mark(d);
 							return true;
@@ -135,6 +135,7 @@ auto foreach_incident_volume(const MESH& m, CELL c, const FUNC& func)
 				{
 					if (!marker.is_marked(d))
 					{
+						Volume v(d);
 						foreach_dart_of_orbit(m, v, [&](Dart d) -> bool {
 							marker.mark(d);
 							return true;

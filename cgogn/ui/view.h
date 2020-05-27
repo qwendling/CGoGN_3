@@ -1,6 +1,6 @@
 /*******************************************************************************
  * CGoGN                                                                        *
- * Copyright (C) 2019, IGG Group, ICube, University of Strasbourg, France       *
+ * Copyright (C), IGG Group, ICube, University of Strasbourg, France            *
  *                                                                              *
  * This library is free software; you can redistribute it and/or modify it      *
  * under the terms of the GNU Lesser General Public License as published by the *
@@ -84,6 +84,7 @@ public:
 	void update_scene_bb();
 	void lock_scene_bb();
 	void unlock_scene_bb();
+	bool scene_bb_locked() const;
 
 	virtual bool pixel_scene_position(int32 x, int32 y, rendering::GLVec3d& P) const override;
 	virtual std::pair<rendering::GLVec3d, rendering::GLVec3d> pixel_ray(int32 x, int32 y) const override;
@@ -113,7 +114,7 @@ protected:
 	int32 viewport_x_offset_;
 	int32 viewport_y_offset_;
 
-	std::unique_ptr<rendering::ShaderFSTexture::Param> param_fst_;
+	std::unique_ptr<rendering::ShaderFullScreenTexture::Param> param_full_screen_texture_;
 	std::unique_ptr<rendering::FBO> fbo_;
 	std::unique_ptr<rendering::Texture2D> tex_;
 
