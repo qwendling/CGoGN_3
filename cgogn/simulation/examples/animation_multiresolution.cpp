@@ -70,7 +70,7 @@ int main(int argc, char** argv)
 	app.set_window_size(1000, 800);
 
 	cgogn::ui::MeshProvider<Mesh> mp(app);
-	cgogn::ui::Volume_Render<MRMesh> mrsr(app);
+	cgogn::ui::VolumeRender<MRMesh> mrsr(app);
 	cgogn::ui::VolumeSelection<MRMesh> vs(app);
 	cgogn::ui::AnimationMultiresolution<MRMesh> am(app);
 	cgogn::ui::VolumeMRModeling vmrm(app);
@@ -99,8 +99,8 @@ int main(int argc, char** argv)
 
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*m, "position");
 
-	vmrm.create_cph3(*m, mp.mesh_name(m));
-	vmrm.create_cph3(*m, mp.mesh_name(m));
+	MRMesh* cph1 = vmrm.create_cph3(*m, mp.mesh_name(m));
+	MRMesh* cph2 = vmrm.create_cph3(*m, mp.mesh_name(m));
 
 	vmrm.selected_vertex_parents_ = cgogn::add_attribute<std::pair<Vertex, Vertex>, Vertex>(*m, "parents");
 	vmrm.selected_vertex_relative_position_ = cgogn::add_attribute<Vec3, Vertex>(*m, "relative_position");
@@ -108,6 +108,9 @@ int main(int argc, char** argv)
 	cgogn::index_cells<Mesh::Volume>(*m);
 	cgogn::index_cells<Mesh::Edge>(*m);
 	cgogn::index_cells<Mesh::Face>(*m);
+
+	mrsr.set_vertex_position(*v1, *cph1, position);
+	mrsr.set_vertex_position(*v2, *cph2, position);
 
 	std::srand(std::time(nullptr));
 
@@ -124,6 +127,17 @@ int main(int argc, char** argv)
 			});
 			break;
 		}
+		case GLFW_KEY_S:
+			cgogn::foreach_cell(*selected_mesh, [&](Face f) -> bool {
+				if (is_incident_to_boundary(*selected_mesh, f))
+				{
+
+					selected_mesh->activate_face_subdivision(f);
+				}
+				return true;
+			});
+			vmrm.changed_connectivity(*selected_mesh, position.get());
+			break;
 		}
 	};
 

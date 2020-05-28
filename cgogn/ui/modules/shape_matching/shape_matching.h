@@ -311,7 +311,7 @@ protected:
 
 			if (p.have_selected_vertex_ && p.param_move_vertex_->vao_initialized())
 			{
-				p.param_move_vertex_->size_ = p.vertex_base_size_ * p.vertex_scale_factor_;
+				p.param_move_vertex_->point_size_ = p.vertex_base_size_ * p.vertex_scale_factor_;
 				p.param_move_vertex_->bind(proj_matrix, view_matrix);
 				glDrawArrays(GL_POINTS, 0, 2);
 				p.param_move_vertex_->release();

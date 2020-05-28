@@ -512,6 +512,8 @@ protected:
 
 		imgui_view_selector(this, selected_view_, [&](View* v) { selected_view_ = v; });
 
+		need_update |= ImGui::Checkbox("Lock scene bb", &selected_view_->scene_bb_locked_);
+
 		imgui_mesh_selector(mesh_provider_, selected_mesh_, [&](MESH* m) {
 			selected_mesh_ = m;
 			mesh_provider_->mesh_data(selected_mesh_)->outlined_until_ = App::frame_time_ + 1.0;

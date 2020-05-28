@@ -69,7 +69,7 @@ int main(int argc, char** argv)
 	app.set_window_size(1000, 800);
 
 	cgogn::ui::MeshProvider<Mesh> mp(app);
-	cgogn::ui::Volume_Render<Mesh> mrsr(app);
+	cgogn::ui::VolumeRender<Mesh> mrsr(app);
 	cgogn::ui::VolumeSelection<Mesh> vs(app);
 	cgogn::ui::ShapeMatching<Mesh> sm(app);
 
