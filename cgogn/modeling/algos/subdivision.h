@@ -930,11 +930,12 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
 template <typename MRMESH>
 auto butterflyMultiresolution(
 	MRMESH& m, double angle_threshold, std::vector<typename mesh_traits<MRMESH>::template Attribute<Vec3>*> attributes,
-	typename mesh_traits<MRMESH>::template Attribute<
-		std::pair<typename mesh_traits<MRMESH>::Vertex, typename mesh_traits<MRMESH>::Vertex>>* parents = nullptr,
+	typename mesh_traits<MRMESH>::template Attribute<std::array<typename mesh_traits<MRMESH>::Vertex, 3>>* parents =
+		nullptr,
 	typename mesh_traits<MRMESH>::template Attribute<Vec3>* position_relative = nullptr)
 {
 	using Vertex = typename mesh_traits<MRMESH>::Vertex;
+	using Volume = typename mesh_traits<MRMESH>::Volume;
 	std::vector<Vertex> new_vertices;
 
 	if (!parents || !position_relative)
@@ -948,21 +949,31 @@ auto butterflyMultiresolution(
 	m2.current_level_ = m.maximum_level_ + 1;
 
 	auto after_cut = [&](Vertex v) {
-		value<std::pair<Vertex, Vertex>>(m2, parents, v) =
-			std::make_pair(Vertex(phi1(m2, v.dart)), Vertex(phi_1(m2, v.dart)));
+		Dart old = m2.volume_oldest_dart(v.dart);
+		m2.current_level_--;
+		int i = 0;
+		std::array<Vertex, 3> p;
+		foreach_incident_vertex(m2, Volume(old), [&](Vertex w) -> bool {
+			p[i++] = w;
+			return i < 3;
+		});
+		value<std::array<Vertex, 3>>(m2, parents, v) = p;
 		new_vertices.push_back(v);
+		m2.current_level_++;
 	};
 
 	butterflySubdivisionVolumeAdaptative(m, angle_threshold, attributes, after_cut);
+	m2.current_level_--;
 	for (auto v : new_vertices)
 	{
 		auto pos = attributes[0];
-		std::pair<Vertex, Vertex> p = value<std::pair<Vertex, Vertex>>(m, parents, v);
-		Vec3 C1 = (value<Vec3>(m, pos, p.first) + value<Vec3>(m, pos, p.second)) / 2;
-		Vec3 C2 = geometry::centroid<Vec3>(m2, typename mesh_traits<MRMESH>::Volume(v.dart), pos);
-		Vec3 A = value<Vec3>(m, pos, p.first);
-		Vec3 X = (A - C1).normalized();
-		Vec3 Y = (C2 - C1).normalized();
+		std::array<Vertex, 3> p = value<std::array<Vertex, 3>>(m, parents, v);
+		Vec3 A = value<Vec3>(m, pos, p[0]);
+		Vec3 B = value<Vec3>(m, pos, p[1]);
+		Vec3 C = value<Vec3>(m, pos, p[2]);
+
+		Vec3 X = (B - A).normalized();
+		Vec3 Y = (C - A).normalized();
 		Vec3 Z = (X.cross(Y));
 		Z = Z.normalized();
 		Eigen::Matrix3d mb;
@@ -973,7 +984,7 @@ auto butterflyMultiresolution(
 		bool is_inversible;
 		mb.computeInverseWithCheck(inv, is_inversible);
 		assert(is_inversible);
-		value<Vec3>(m, position_relative, v) = inv * (value<Vec3>(m, pos, v) - C1);
+		value<Vec3>(m, position_relative, v) = inv * (value<Vec3>(m, pos, v) - A);
 	}
 }
 

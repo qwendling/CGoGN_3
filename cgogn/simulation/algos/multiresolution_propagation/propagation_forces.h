@@ -25,7 +25,7 @@ public:
 	{
 	}
 	void propagate(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>*, Attribute<Vec3>* result_forces, Attribute<Vec3>*,
-				   Attribute<std::pair<Vertex, Vertex>>* parent, const std::function<void(Vertex)>& integration,
+				   Attribute<std::array<Vertex, 3>>* parent, const std::function<void(Vertex)>& integration,
 				   double) override
 	{
 

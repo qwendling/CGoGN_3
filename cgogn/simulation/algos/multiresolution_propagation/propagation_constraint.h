@@ -19,7 +19,7 @@ class Propagation_Constraint
 
 public:
 	virtual void propagate(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>* pos, Attribute<Vec3>* result_forces,
-						   Attribute<Vec3>* pos_relative, Attribute<std::pair<Vertex, Vertex>>* parent,
+						   Attribute<Vec3>* pos_relative, Attribute<std::array<Vertex, 3>>* parent,
 						   const std::function<void(Vertex)>& integration, double time_step = 0.005f) = 0;
 };
 } // namespace simulation

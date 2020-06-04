@@ -30,38 +30,53 @@ public:
 	{
 	}
 	void propagate(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>* pos, Attribute<Vec3>* result_forces,
-				   Attribute<Vec3>* pos_relative, Attribute<std::pair<Vertex, Vertex>>* parent,
+				   Attribute<Vec3>* pos_relative, Attribute<std::array<Vertex, 3>>* parent,
 				   const std::function<void(Vertex)>& integration, double time_step) override
 	{
 
 		std::vector<std::vector<Vertex>> vect_vertex_per_resolution;
 		vect_vertex_per_resolution.resize(m_geom.maximum_level_ + 1);
+		std::unordered_set<uint32> list_vertices;
+
+		std::function<void(Vertex)> add_vertex;
+		add_vertex = [&](Vertex v) {
+			if (m_meca.dart_is_visible(v.dart))
+				return;
+			if (list_vertices.count(index_of(m_meca, v)))
+				return;
+			vect_vertex_per_resolution[m_geom.dart_level(v.dart)].push_back(v);
+
+			list_vertices.insert(index_of(m_meca, v));
+			std::array<Vertex, 3> p = value<std::array<Vertex, 3>>(m_geom, parent, v);
+			add_vertex(p[0]);
+			add_vertex(p[1]);
+			add_vertex(p[2]);
+		};
+
 		foreach_cell(m_geom, [&](Vertex v) -> bool {
 			if (!m_meca.dart_is_visible(v.dart))
-				vect_vertex_per_resolution[m_geom.dart_level(v.dart)].push_back(v);
+			{
+				add_vertex(v);
+			}
 			return true;
 		});
-		CPH3 cph_(m_geom);
-		for (int i = 0; i < vect_vertex_per_resolution.size(); i++)
+		for (uint32 i = 1; i < vect_vertex_per_resolution.size(); i++)
 		{
-			cph_.current_level_ = i;
 			for (auto& v : vect_vertex_per_resolution[i])
 			{
-				if (is_boundary(cph_, v.dart))
-					v.dart = phi3(cph_, v.dart);
-				std::pair<Vertex, Vertex> p = value<std::pair<Vertex, Vertex>>(m_geom, parent, v);
-				Vec3 C1 = (value<Vec3>(m_geom, pos, p.first) + value<Vec3>(m_geom, pos, p.second)) / 2;
-				Vec3 C2 = geometry::centroid<Vec3>(cph_, CPH3::Volume(v.dart), pos);
-				Vec3 A = value<Vec3>(m_geom, pos, p.first);
-				Vec3 V1 = (A - C1).normalized();
-				Vec3 V2 = (C2 - C1).normalized();
+				std::array<Vertex, 3>& p = value<std::array<Vertex, 3>>(m_geom, parent, v);
+				Vec3 A = value<Vec3>(m_geom, pos, p[0]);
+				Vec3 B = value<Vec3>(m_geom, pos, p[1]);
+				Vec3 C = value<Vec3>(m_geom, pos, p[2]);
+				Vec3 V1 = (B - A).normalized();
+				Vec3 V2 = (C - A).normalized();
 				Vec3 V3 = (V1.cross(V2));
 				V3 = V3.normalized();
 				Vec3 p_r = value<Vec3>(m_geom, pos_relative, v);
-				Vec3 dest = C1 + V1 * p_r[0] + V2 * p_r[1] + V3 * p_r[2];
+				Vec3 dest = A + V1 * p_r[0] + V2 * p_r[1] + V3 * p_r[2];
 				Vec3 cur_pos = value<Vec3>(m_geom, pos, v);
 				value<Vec3>(m_geom, result_forces, v) += alpha_ * (dest - cur_pos) / (time_step * time_step);
-				integration(v);
+				// integration(v);
 				value<Vec3>(m_geom, pos, v) = dest;
 			}
 		}

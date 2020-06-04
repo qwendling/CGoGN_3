@@ -96,7 +96,7 @@ int main(int argc, char** argv)
 	}
 
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*m, "position");
-	vmrm.selected_vertex_parents_ = cgogn::add_attribute<std::pair<Vertex, Vertex>, Vertex>(*m, "parents");
+	vmrm.selected_vertex_parents_ = cgogn::add_attribute<std::array<Vertex, 3>, Vertex>(*m, "parents");
 	vmrm.selected_vertex_relative_position_ = cgogn::add_attribute<Vec3, Vertex>(*m, "relative_position");
 
 	MRMesh* cph1 = vmrm.create_cph3(*m, mp.mesh_name(m));
@@ -160,12 +160,26 @@ int main(int argc, char** argv)
 		case GLFW_KEY_F:
 			if (selected_vertices != nullptr)
 			{
-				selected_vertices->foreach_cell([&](Vertex v) {
-					cgogn::foreach_incident_face(*m, v, [&](Face f) -> bool {
-						selected_mesh->activate_face_subdivision(f);
+				selected_vertices->foreach_cell([&](Vertex e) {
+					std::vector<Face> face_list;
+					cgogn::foreach_incident_face(*selected_mesh, e, [&](Face f) -> bool {
+						face_list.push_back(f);
 						return true;
 					});
+					for (auto f : face_list)
+					{
+						if (view->shift_pressed())
+						{
+							if (selected_mesh->dart_is_visible(f.dart))
+								selected_mesh->disable_face_subdivision(f, true, true);
+						}
+						else
+						{
+							selected_mesh->activate_face_subdivision(f);
+						}
+					}
 				});
+
 				vmrm.changed_connectivity(*selected_mesh, position.get());
 			}
 			if (selected_edges != nullptr)
@@ -216,12 +230,27 @@ int main(int argc, char** argv)
 		case GLFW_KEY_V:
 			if (selected_vertices != nullptr)
 			{
-				selected_vertices->foreach_cell([&](Vertex v) {
-					cgogn::foreach_incident_volume(*m, v, [&](Volume w) -> bool {
-						selected_mesh->activate_volume_subdivision(w);
+
+				std::vector<Volume> volume_list;
+				selected_vertices->foreach_cell([&](Vertex e) {
+					cgogn::foreach_incident_volume(*m, e, [&](Volume v) -> bool {
+						volume_list.push_back(v);
 						return true;
 					});
 				});
+				for (Volume v : volume_list)
+				{
+					if (view->shift_pressed())
+					{
+						if (selected_mesh->dart_is_visible(v.dart))
+							selected_mesh->disable_volume_subdivision(v, true);
+						std::cout << "hello" << std::endl;
+					}
+					else
+					{
+						selected_mesh->activate_volume_subdivision(v);
+					}
+				}
 				vmrm.changed_connectivity(*selected_mesh, position.get());
 			}
 			if (selected_edges != nullptr)

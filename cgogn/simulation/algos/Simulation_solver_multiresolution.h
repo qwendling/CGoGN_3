@@ -24,7 +24,7 @@ class Simulation_solver_multiresolution : public Simulation_solver<MR_MAP>
 
 public:
 	Propagation_Constraint<MR_MAP>* pc_;
-	std::shared_ptr<Attribute<std::pair<Vertex, Vertex>>> parents_;
+	std::shared_ptr<Attribute<std::array<Vertex, 3>>> parents_;
 	std::shared_ptr<Attribute<Vec3>> relative_pos_;
 	Simulation_solver_multiresolution()
 		: Simulation_solver<MR_MAP>(), pc_(nullptr), parents_(nullptr), relative_pos_(nullptr)

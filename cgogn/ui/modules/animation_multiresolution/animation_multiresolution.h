@@ -37,6 +37,7 @@
 #include <cgogn/geometry/algos/selection.h>
 #include <cgogn/geometry/types/vector_traits.h>
 
+#include <cgogn/rendering/frame_manipulator.h>
 #include <cgogn/rendering/shaders/shader_bold_line.h>
 #include <cgogn/rendering/shaders/shader_flat.h>
 #include <cgogn/rendering/shaders/shader_point_sprite.h>
@@ -77,7 +78,8 @@ class AnimationMultiresolution : public ViewModule
 		Parameters()
 			: vertex_position_(nullptr), vertex_relative_position_(nullptr), init_vertex_position_(nullptr),
 			  vertex_forces_(nullptr), vertex_masse_(nullptr), vertex_parents_(nullptr), vertex_scale_factor_(1.0),
-			  sphere_scale_factor_(10.0), have_selected_vertex_(false), move_vertex_(0, 0, 0)
+			  sphere_scale_factor_(10.0), have_selected_vertex_(false), move_vertex_(0, 0, 0),
+			  show_frame_manipulator_(false), manipulating_frame_(false)
 		{
 			param_move_vertex_ = rendering::ShaderPointSprite::generate_param();
 			param_move_vertex_->color_ = rendering::GLColor(1, 1, 0, 0.65);
@@ -111,7 +113,7 @@ class AnimationMultiresolution : public ViewModule
 		std::shared_ptr<Attribute<Vec3>> init_vertex_position_;
 		std::shared_ptr<Attribute<Vec3>> vertex_forces_;
 		std::shared_ptr<Attribute<double>> vertex_masse_;
-		std::shared_ptr<Attribute<std::pair<Vertex, Vertex>>> vertex_parents_;
+		std::shared_ptr<Attribute<std::array<Vertex, 3>>> vertex_parents_;
 
 		std::unique_ptr<rendering::ShaderPointSprite::Param> param_move_vertex_;
 		std::unique_ptr<rendering::ShaderBoldLine::Param> param_edge_;
@@ -126,6 +128,9 @@ class AnimationMultiresolution : public ViewModule
 		Vec3 move_vertex_;
 		bool have_selected_vertex_;
 		Vertex selected_vertex_;
+		rendering::FrameManipulator frame_manipulator_;
+		bool show_frame_manipulator_;
+		bool manipulating_frame_;
 	};
 
 public:
@@ -192,8 +197,7 @@ public:
 		p.vertex_masse_ = vertex_masse;
 	}
 
-	void set_vertex_parents(const MR_MESH& m,
-							const std::shared_ptr<Attribute<std::pair<Vertex, Vertex>>>& vertex_parents)
+	void set_vertex_parents(const MR_MESH& m, const std::shared_ptr<Attribute<std::array<Vertex, 3>>>& vertex_parents)
 	{
 		Parameters& p = parameters_[&m];
 
@@ -230,6 +234,12 @@ protected:
 			p.update_move_vertex_vbo();
 			view->request_update();
 		}
+		if (p.manipulating_frame_)
+		{
+			auto [P, Q] = view->pixel_ray(x, y);
+			p.frame_manipulator_.pick(x, y, P, Q);
+			view->request_update();
+		}
 		if (mecanical_mesh_ && view->shift_pressed())
 		{
 			if (p.vertex_position_)
@@ -260,6 +270,15 @@ protected:
 			v->lock_rotation_ = true;
 			can_move_vertex_ = true;
 		}
+		if (key_code == GLFW_KEY_C)
+		{
+			if (mecanical_mesh_)
+			{
+				Parameters& p = parameters_[mecanical_mesh_];
+				if (p.show_frame_manipulator_)
+					p.manipulating_frame_ = true;
+			}
+		}
 	}
 
 	void key_release_event(View* v, int32 key_code)
@@ -268,6 +287,24 @@ protected:
 		{
 			v->lock_rotation_ = false;
 			can_move_vertex_ = false;
+		}
+		if (key_code == GLFW_KEY_C)
+		{
+			if (mecanical_mesh_)
+			{
+				Parameters& p = parameters_[mecanical_mesh_];
+				p.manipulating_frame_ = false;
+			}
+		}
+	}
+
+	void mouse_release_event(View* view, int32, int32, int32) override
+	{
+		if (mecanical_mesh_)
+		{
+			Parameters& p = parameters_[mecanical_mesh_];
+			p.frame_manipulator_.release();
+			view->request_update();
 		}
 	}
 
@@ -281,6 +318,14 @@ protected:
 			p.update_move_vertex_vbo();
 			view->request_update();
 		}
+		bool leftpress = view->mouse_button_pressed(GLFW_MOUSE_BUTTON_LEFT);
+		bool rightpress = view->mouse_button_pressed(GLFW_MOUSE_BUTTON_RIGHT);
+		if (p.manipulating_frame_ && (rightpress || leftpress))
+		{
+			p.frame_manipulator_.drag(leftpress, x, y);
+			view->stop_event();
+			view->request_update();
+		}
 	}
 #define TIME_STEP 0.005f
 	void start()
@@ -292,20 +337,63 @@ protected:
 		launch_thread([this, &p]() {
 			while (this->running_)
 			{
+				std::unique_lock<std::mutex> lk(cv_m);
+				if (meca_update_)
+				{
+					need_update_ = true;
+					cv.wait(lk, [this] { return !meca_update_; });
+				}
+
 				if (p.have_selected_vertex_)
 				{
 					Vec3 pos = value<Vec3>(*mecanical_mesh_, p.vertex_position_.get(), p.selected_vertex_);
 					double m = value<double>(*mecanical_mesh_, p.vertex_masse_.get(), p.selected_vertex_);
 					value<Vec3>(*mecanical_mesh_, p.vertex_forces_.get(), p.selected_vertex_) =
 						m * (p.move_vertex_ - pos) / TIME_STEP;
-					std::cout << value<Vec3>(*mecanical_mesh_, p.vertex_position_.get(), p.selected_vertex_)
-							  << std::endl;
 				}
+
+				parallel_foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
+					double m = value<double>(*mecanical_mesh_, p.vertex_masse_.get(), v);
+					value<Vec3>(*mecanical_mesh_, p.vertex_forces_.get(), v) += m * Vec3(0, 0, -9.81);
+					return true;
+				});
 
 				simu_solver.compute_time_step(*mecanical_mesh_, *geometric_mesh_, p.vertex_position_.get(),
 											  p.vertex_masse_.get(), TIME_STEP);
-				need_update_ = true;
-				std::this_thread::sleep_for(std::chrono::milliseconds(5));
+				if (p.show_frame_manipulator_)
+				{
+					Vec3 position;
+					Vec3 axis_z;
+					p.frame_manipulator_.get_position(position);
+					p.frame_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, axis_z);
+					double d = position.dot(axis_z);
+					parallel_foreach_cell(*geometric_mesh_, [&](Vertex v) -> bool {
+						double tmp = value<Vec3>(*geometric_mesh_, p.vertex_position_.get(), v).dot(axis_z);
+						if (value<Vec3>(*geometric_mesh_, p.vertex_position_.get(), v).dot(axis_z) < d)
+						{
+							value<Vec3>(*geometric_mesh_, p.vertex_position_.get(), v) += (d - tmp) * axis_z;
+							value<Vec3>(*geometric_mesh_, simu_solver.speed_.get(), v) -=
+								axis_z.dot(value<Vec3>(*geometric_mesh_, simu_solver.speed_.get(), v)) * axis_z;
+						}
+						return true;
+					});
+				}
+
+				meca_finish_ = true;
+
+				// std::this_thread::sleep_for(std::chrono::milliseconds(5));
+			}
+		});
+
+		launch_thread([this, &p]() {
+			while (this->running_)
+			{
+				if (meca_finish_)
+				{
+					meca_update_ = true;
+					meca_finish_ = false;
+				}
+				std::this_thread::sleep_for(std::chrono::milliseconds(16));
 			}
 		});
 
@@ -369,6 +457,12 @@ protected:
 				glDrawArrays(GL_LINES, 0, 2);
 				p.param_edge_->release();
 			}
+			if (p.show_frame_manipulator_)
+			{
+				Scalar size = (md->bb_max_ - md->bb_min_).norm() / 10;
+				p.frame_manipulator_.set_size(size);
+				p.frame_manipulator_.draw(true, true, proj_matrix, view_matrix);
+			}
 		}
 	}
 
@@ -422,6 +516,7 @@ protected:
 
 			Parameters& p = parameters_[mecanical_mesh_];
 
+			need_update_ |= ImGui::Checkbox("Show ground", &p.show_frame_manipulator_);
 			if (ImGui::BeginCombo("Position", p.vertex_position_ ? p.vertex_position_->name().c_str() : "-- select --"))
 			{
 				foreach_attribute<Vec3, Vertex>(*mecanical_mesh_,
@@ -529,8 +624,8 @@ protected:
 			if (ImGui::BeginCombo("vertex parent",
 								  p.vertex_parents_ ? p.vertex_parents_->name().c_str() : "-- select --"))
 			{
-				foreach_attribute<std::pair<Vertex, Vertex>, Vertex>(
-					*mecanical_mesh_, [&](const std::shared_ptr<Attribute<std::pair<Vertex, Vertex>>>& attribute) {
+				foreach_attribute<std::array<Vertex, 3>, Vertex>(
+					*mecanical_mesh_, [&](const std::shared_ptr<Attribute<std::array<Vertex, 3>>>& attribute) {
 						bool is_selected = attribute == p.vertex_parents_;
 						if (ImGui::Selectable(attribute->name().c_str(), is_selected))
 							set_vertex_parents(*mecanical_mesh_, attribute);
@@ -619,9 +714,11 @@ protected:
 						mesh_provider_->emit_attribute_changed(m, p.vertex_position_.get());
 					});
 					need_update_ = false;
+					meca_update_ = false;
+					cv.notify_all();
 				}
 				double min = 0, max = 1;
-				ImGui::SliderScalar("Level", ImGuiDataType_Double, &sm_solver_.stiffness_, &min, &max);
+				ImGui::SliderScalar("stiffness", ImGuiDataType_Double, &sm_solver_.stiffness_, &min, &max);
 			}
 		}
 	}
@@ -636,8 +733,12 @@ public:
 	simulation::shape_matching_constraint_solver<MR_MESH> sm_solver_;
 	simulation::Simulation_solver_multiresolution<MR_MESH> simu_solver;
 	simulation::Propagation_Plastique<MR_MESH> ps_;
+	std::condition_variable cv;
+	std::mutex cv_m;
 	bool running_;
 	bool need_update_;
+	bool meca_finish_;
+	bool meca_update_;
 	bool can_move_vertex_;
 	View* selected_view_;
 };

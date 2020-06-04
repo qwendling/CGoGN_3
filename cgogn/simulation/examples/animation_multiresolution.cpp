@@ -102,7 +102,7 @@ int main(int argc, char** argv)
 	MRMesh* cph1 = vmrm.create_cph3(*m, mp.mesh_name(m));
 	MRMesh* cph2 = vmrm.create_cph3(*m, mp.mesh_name(m));
 
-	vmrm.selected_vertex_parents_ = cgogn::add_attribute<std::pair<Vertex, Vertex>, Vertex>(*m, "parents");
+	vmrm.selected_vertex_parents_ = cgogn::add_attribute<std::array<Vertex, 3>, Vertex>(*m, "parents");
 	vmrm.selected_vertex_relative_position_ = cgogn::add_attribute<Vec3, Vertex>(*m, "relative_position");
 
 	cgogn::index_cells<Mesh::Volume>(*m);
