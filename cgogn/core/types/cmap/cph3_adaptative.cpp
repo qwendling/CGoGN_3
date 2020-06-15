@@ -12,7 +12,7 @@ int CPH3_adaptative::id = 0;
 std::shared_ptr<CPH3_adaptative> CPH3_adaptative::get_child()
 {
 	std::shared_ptr<CPH3_adaptative> result = std::make_shared<CPH3_adaptative>(CPH3_adaptative(CPH3(*this)));
-	result->father_ = std::shared_ptr<CPH3_adaptative>(this);
+	result->father_ = this;
 	return result;
 }
 

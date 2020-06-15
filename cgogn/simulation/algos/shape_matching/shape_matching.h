@@ -2,6 +2,7 @@
 #define CGOGN_SIMULATION_SHAPE_MATCHING_SHAPE_MATCHING_H_
 #include <cgogn/core/functions/attributes.h>
 #include <cgogn/core/types/mesh_traits.h>
+#include <cgogn/geometry/algos/volume.h>
 #include <cgogn/geometry/types/vector_traits.h>
 #include <cgogn/simulation/algos/Simulation_constraint.h>
 
@@ -18,6 +19,7 @@ class shape_matching_constraint_solver : public Simulation_constraint<MAP>
 	using Vec3 = geometry::Vec3;
 	using Mat3d = geometry::Mat3d;
 	using Vertex = typename mesh_traits<MAP>::Vertex;
+	using Volume = typename mesh_traits<MAP>::Volume;
 
 public:
 	std::shared_ptr<Attribute<Vec3>> vertex_init_position_;
@@ -26,10 +28,17 @@ public:
 	std::shared_ptr<Attribute<Vec3>> goals_;
 	Vec3 init_cm_;
 	double stiffness_;
+	int id;
+	static inline int nb_solver = 0;
 
 	shape_matching_constraint_solver(double stiffness)
-		: vertex_init_position_(nullptr), q_(nullptr), stiffness_(stiffness)
+		: vertex_init_position_(nullptr), q_(nullptr), stiffness_(stiffness), id(nb_solver++)
 	{
+	}
+
+	Simulation_constraint<MAP>* get_new_ptr()
+	{
+		return new shape_matching_constraint_solver<MAP>(stiffness_);
 	}
 
 	void init_solver(MAP& m, const std::shared_ptr<Attribute<Vec3>>& init_pos,
@@ -43,6 +52,57 @@ public:
 		goals_ = get_attribute<Vec3, Vertex>(m, "shape_matching_constraint_solver_goals");
 		if (goals_ == nullptr)
 			goals_ = add_attribute<Vec3, Vertex>(m, "shape_matching_constraint_solver_goals");
+		init_cm_ = Vec3(0, 0, 0);
+		double masse_totale = 0;
+		foreach_cell(m, [&](Vertex v) -> bool {
+			init_cm_ += value<double>(m, masse_, v) * value<Vec3>(m, vertex_init_position_.get(), v);
+			masse_totale += value<double>(m, masse_, v);
+			return true;
+		});
+		init_cm_ /= masse_totale;
+		parallel_foreach_cell(m, [&](Vertex v) -> bool {
+			value<Vec3>(m, q_.get(), v) = value<Vec3>(m, vertex_init_position_.get(), v) - init_cm_;
+			return true;
+		});
+	}
+
+	void init_solver(MAP& m, Attribute<Vec3>* pos)
+	{
+		vertex_init_position_ =
+			get_attribute<Vec3, Vertex>(m, "shape_matching_constraint_solver_vertex_init_position" + id);
+		if (vertex_init_position_ == nullptr)
+		{
+			vertex_init_position_ =
+				add_attribute<Vec3, Vertex>(m, "shape_matching_constraint_solver_vertex_init_position" + id);
+			parallel_foreach_cell(m, [&](Vertex v) -> bool {
+				value<Vec3>(m, vertex_init_position_.get(), v) = value<Vec3>(m, pos, v);
+				return true;
+			});
+		}
+		masse_ = get_attribute<double, Vertex>(m, "shape_matching_constraint_solver_masse" + id);
+		if (masse_ == nullptr)
+		{
+			masse_ = add_attribute<double, Vertex>(m, "shape_matching_constraint_solver_masse" + id);
+			foreach_cell(m, [&](Volume v) -> bool {
+				double vol = geometry::volume(m, v, vertex_init_position_.get());
+				std::vector<Vertex> inc_vertices;
+				foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
+					inc_vertices.push_back(w);
+					return true;
+				});
+				for (auto w : inc_vertices)
+				{
+					value<double>(m, masse_.get(), w) += vol / inc_vertices.size();
+				}
+			});
+		}
+
+		q_ = get_attribute<Vec3, Vertex>(m, "shape_matching_constraint_solver_q" + id);
+		if (q_ == nullptr)
+			q_ = add_attribute<Vec3, Vertex>(m, "shape_matching_constraint_solver_q" + id);
+		goals_ = get_attribute<Vec3, Vertex>(m, "shape_matching_constraint_solver_goals" + id);
+		if (goals_ == nullptr)
+			goals_ = add_attribute<Vec3, Vertex>(m, "shape_matching_constraint_solver_goals" + id);
 		init_cm_ = Vec3(0, 0, 0);
 		double masse_totale = 0;
 		foreach_cell(m, [&](Vertex v) -> bool {
@@ -203,5 +263,4 @@ public:
 };
 } // namespace simulation
 } // namespace cgogn
-
 #endif // CGOGN_SIMULATION_SHAPE_MATCHING_SHAPE_MATCHING_H_

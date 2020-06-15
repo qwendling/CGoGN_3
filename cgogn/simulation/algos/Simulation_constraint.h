@@ -20,6 +20,8 @@ public:
 	virtual void solve_constraint(const MAP& m, Attribute<Vec3>* pos, Attribute<Vec3>* result_forces,
 								  double time_step) = 0;
 	virtual void update_topo(const MAP&, const std::vector<Vertex>&){};
+	virtual void init_solver(MAP&, Attribute<Vec3>*){};
+	virtual Simulation_constraint<MAP>* get_new_ptr(){};
 };
 } // namespace simulation
 } // namespace cgogn

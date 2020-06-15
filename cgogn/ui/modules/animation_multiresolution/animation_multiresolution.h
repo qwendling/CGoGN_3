@@ -358,8 +358,8 @@ protected:
 					return true;
 				});
 
-				simu_solver.compute_time_step(*mecanical_mesh_, *geometric_mesh_, p.vertex_position_.get(),
-											  p.vertex_masse_.get(), TIME_STEP);
+				simu_solver.compute_time_step(*geometric_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(),
+											  TIME_STEP);
 				if (p.show_frame_manipulator_)
 				{
 					Vec3 position;
@@ -379,8 +379,6 @@ protected:
 					});
 				}
 
-				meca_finish_ = true;
-
 				// std::this_thread::sleep_for(std::chrono::milliseconds(5));
 			}
 		});
@@ -388,11 +386,7 @@ protected:
 		launch_thread([this, &p]() {
 			while (this->running_)
 			{
-				if (meca_finish_)
-				{
-					meca_update_ = true;
-					meca_finish_ = false;
-				}
+				meca_update_ = true;
 				std::this_thread::sleep_for(std::chrono::milliseconds(16));
 			}
 		});
@@ -424,8 +418,7 @@ protected:
 			return true;
 		});*/
 
-		simu_solver.compute_time_step(*mecanical_mesh_, *geometric_mesh_, p.vertex_position_.get(),
-									  p.vertex_masse_.get(), 0.005);
+		simu_solver.compute_time_step(*geometric_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(), 0.005);
 		need_update_ = true;
 	}
 
@@ -504,7 +497,7 @@ protected:
 				if (ImGui::Selectable(name.c_str(), m == geometric_mesh_))
 				{
 					geometric_mesh_ = m;
-					simu_solver.init_solver(*geometric_mesh_, &sm_solver_, &ps_);
+					// simu_solver.init_solver(*geometric_mesh_, &sm_solver_, &ps_);
 				}
 			});
 			ImGui::ListBoxFooter();
@@ -737,7 +730,6 @@ public:
 	std::mutex cv_m;
 	bool running_;
 	bool need_update_;
-	bool meca_finish_;
 	bool meca_update_;
 	bool can_move_vertex_;
 	View* selected_view_;

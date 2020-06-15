@@ -30,7 +30,8 @@ public:
 	void init_solver(MAP& m, Simulation_constraint<MAP>* sc, const std::shared_ptr<Attribute<Vec3>>& speed = nullptr,
 					 const std::shared_ptr<Attribute<Vec3>>& forces = nullptr)
 	{
-		speed_ = speed;
+		if (speed != nullptr)
+			speed_ = speed;
 		if (speed_ == nullptr)
 		{
 			speed_ = get_attribute<Vec3, Vertex>(m, "simulation_solver_vitesse");
@@ -43,7 +44,8 @@ public:
 				});
 			}
 		}
-		forces_ext_ = forces;
+		if (forces != nullptr)
+			forces_ext_ = forces;
 		if (forces_ext_ == nullptr)
 		{
 			forces_ext_ = get_attribute<Vec3, Vertex>(m, "simulation_solver_forces_ext");

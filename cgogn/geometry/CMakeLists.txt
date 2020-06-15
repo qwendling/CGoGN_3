@@ -28,6 +28,7 @@ target_sources(${PROJECT_NAME}
 
         "${CMAKE_CURRENT_LIST_DIR}/algos/angle.h"
         "${CMAKE_CURRENT_LIST_DIR}/algos/area.h"
+	"${CMAKE_CURRENT_LIST_DIR}/algos/volume.h"
 		"${CMAKE_CURRENT_LIST_DIR}/algos/centroid.h"
 		"${CMAKE_CURRENT_LIST_DIR}/algos/curvature.h"
         "${CMAKE_CURRENT_LIST_DIR}/algos/ear_triangulation.h"

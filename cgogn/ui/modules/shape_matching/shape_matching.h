@@ -277,8 +277,7 @@ protected:
 							  << std::endl;
 				}
 
-				simu_solver.compute_time_step(*selected_mesh_, *selected_mesh_, p.vertex_position_.get(),
-											  p.vertex_masse_.get(), 0.005);
+				simu_solver.compute_time_step(*selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(), 0.005);
 				need_update_ = true;
 				std::this_thread::sleep_for(std::chrono::milliseconds(5));
 			}
@@ -295,8 +294,7 @@ protected:
 	void step()
 	{
 		Parameters& p = parameters_[selected_mesh_];
-		simu_solver.compute_time_step(*selected_mesh_, *selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(),
-									  0.005);
+		simu_solver.compute_time_step(*selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(), 0.005);
 		need_update_ = true;
 	}
 
@@ -525,7 +523,7 @@ public:
 	std::unordered_map<const MESH*, std::vector<std::shared_ptr<boost::synapse::connection>>> mesh_connections_;
 	MeshProvider<MESH>* mesh_provider_;
 	simulation::shape_matching_constraint_solver<MESH> sm_solver_;
-	simulation::Simulation_solver_multiresolution<MESH> simu_solver;
+	simulation::Simulation_solver<MESH> simu_solver;
 	bool running_;
 	bool need_update_;
 	bool can_move_vertex_;

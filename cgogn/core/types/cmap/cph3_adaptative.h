@@ -11,7 +11,7 @@ struct CPH3_adaptative : public CPH3
 {
 	using Self = CPH3_adaptative;
 
-	std::shared_ptr<Self> father_;
+	CPH3_adaptative* father_;
 	std::shared_ptr<Attribute<std::set<uint32>>> dart_visibility_level_;
 	std::shared_ptr<Attribute<std::set<uint32>>> representative_visibility_level_;
 	std::shared_ptr<Attribute<Dart>> representative_;
