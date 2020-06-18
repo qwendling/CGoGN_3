@@ -454,7 +454,7 @@ void App::adapt_views_geometry()
 	case 3:
 		views_[0]->set_view_ratio(0, 0, 0.5, 0.5);
 		views_[1]->set_view_ratio(0.5, 0, 0.5, 0.5);
-		views_[2]->set_view_ratio(0, 0, 1, 0.5);
+		views_[2]->set_view_ratio(0, 0.5, 1, 0.5);
 		break;
 	case 4:
 		views_[0]->set_view_ratio(0, 0, 0.5, 0.5);

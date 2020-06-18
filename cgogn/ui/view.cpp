@@ -281,8 +281,12 @@ bool View::pixel_scene_position(int32 x, int32 y, rendering::GLVec3d& P) const
 
 std::pair<rendering::GLVec3d, rendering::GLVec3d> View::pixel_ray(int32 x, int32 y) const
 {
+	y = height_ / ratio_height_ - y;
+
 	float64 xs = float64(float64(x - x_offset_) / float64(width_) * viewport_width_);
 	float64 ys = float64(float64(height_ - (y - y_offset_)) / float64(height_) * viewport_height_);
+
+	ys = viewport_height_ - ys;
 
 	float64 xogl = (xs / viewport_width_) * 2.0 - 1.0;
 	float64 yogl = (ys / viewport_height_) * 2.0 - 1.0;
@@ -301,8 +305,15 @@ std::pair<rendering::GLVec3d, rendering::GLVec3d> View::pixel_ray(int32 x, int32
 
 rendering::GLVec3d View::unproject(int32 x, int32 y, float64 z) const
 {
-	float64 xogl = (double(x - x_offset_) / double(width_)) * 2.0 - 1.0;
-	float64 yogl = (double(height_ - (y - y_offset_)) / double(height_)) * 2.0 - 1.0;
+	y = height_ / ratio_height_ - y;
+
+	float64 xs = float64(float64(x - x_offset_) / float64(width_) * viewport_width_);
+	float64 ys = float64(float64(height_ - (y - y_offset_)) / float64(height_) * viewport_height_);
+
+	ys = viewport_height_ - ys;
+
+	float64 xogl = (xs / viewport_width_) * 2.0 - 1.0;
+	float64 yogl = (ys / viewport_height_) * 2.0 - 1.0;
 	float64 zogl = z * 2.0 - 1.0;
 
 	rendering::GLVec4d Q(xogl, yogl, zogl, 1.0);
@@ -314,13 +325,17 @@ rendering::GLVec3d View::unproject(int32 x, int32 y, float64 z) const
 
 rendering::GLVec3d View::pixel_scene_(int32 x, int32 y, const rendering::GLVec3d& P) const
 {
-	GLint xs, ys;
+	float64 xs, ys;
 	float64 xogl;
 	float64 yogl;
 	float64 zogl;
 
-	xs = GLint(double(x - x_offset_) / double(width_) * viewport_width_);
-	ys = GLint(double(height_ - (y - y_offset_)) / double(height_) * viewport_height_);
+	y = height_ / ratio_height_ - y;
+
+	xs = float64(float64(x - x_offset_) / float64(width_) * viewport_width_);
+	ys = float64(float64(height_ - (y - y_offset_)) / float64(height_) * viewport_height_);
+
+	ys = viewport_height_ - ys;
 
 	rendering::GLVec4d P_vec4;
 	P_vec4(0) = P(0);

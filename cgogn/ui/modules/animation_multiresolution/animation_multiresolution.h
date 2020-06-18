@@ -240,11 +240,11 @@ protected:
 			p.frame_manipulator_.pick(x, y, P, Q);
 			view->request_update();
 		}
+		view->pixel_ray(x, y);
 		if (mecanical_mesh_ && view->shift_pressed())
 		{
 			if (p.vertex_position_)
 			{
-
 				rendering::GLVec3d near = view->unproject(x, y, 0.0);
 				rendering::GLVec3d far = view->unproject(x, y, 1.0);
 				Vec3 A{near.x(), near.y(), near.z()};
