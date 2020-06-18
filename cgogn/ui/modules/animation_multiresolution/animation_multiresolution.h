@@ -352,11 +352,11 @@ protected:
 						m * (p.move_vertex_ - pos) / TIME_STEP;
 				}
 
-				parallel_foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
+				/*parallel_foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
 					double m = value<double>(*mecanical_mesh_, p.vertex_masse_.get(), v);
 					value<Vec3>(*mecanical_mesh_, p.vertex_forces_.get(), v) += m * Vec3(0, 0, -9.81);
 					return true;
-				});
+				});*/
 
 				simu_solver.compute_time_step(*geometric_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(),
 											  TIME_STEP);
@@ -486,7 +486,6 @@ protected:
 				if (ImGui::Selectable(name.c_str(), m == mecanical_mesh_))
 				{
 					mecanical_mesh_ = m;
-					simu_solver.init_solver(*mecanical_mesh_, &sm_solver_, &ps_);
 				}
 			});
 			ImGui::ListBoxFooter();
@@ -512,14 +511,22 @@ protected:
 			need_update_ |= ImGui::Checkbox("Show ground", &p.show_frame_manipulator_);
 			if (ImGui::BeginCombo("Position", p.vertex_position_ ? p.vertex_position_->name().c_str() : "-- select --"))
 			{
-				foreach_attribute<Vec3, Vertex>(*mecanical_mesh_,
-												[&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
-													bool is_selected = attribute == p.vertex_position_;
-													if (ImGui::Selectable(attribute->name().c_str(), is_selected))
-														set_vertex_position(*mecanical_mesh_, attribute);
-													if (is_selected)
-														ImGui::SetItemDefaultFocus();
-												});
+				foreach_attribute<Vec3, Vertex>(
+					*mecanical_mesh_, [&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
+						bool is_selected = attribute == p.vertex_position_;
+						if (ImGui::Selectable(attribute->name().c_str(), is_selected))
+						{
+							set_vertex_position(*mecanical_mesh_, attribute);
+							simu_solver.init_solver(*mecanical_mesh_, &sm_solver_, p.vertex_position_.get(), &ps_);
+							mesh_provider_->register_mesh(simu_solver.coarse_meca_mesh_, "coarse_mesh");
+							mesh_provider_->register_mesh(simu_solver.fine_meca_mesh_, "fine_mesh");
+							p.vertex_masse_ = sm_solver_.masse_;
+							p.init_vertex_position_ = sm_solver_.vertex_init_position_;
+							p.vertex_forces_ = simu_solver.forces_ext_;
+						}
+						if (is_selected)
+							ImGui::SetItemDefaultFocus();
+					});
 				ImGui::EndCombo();
 			}
 			if (p.vertex_position_)
@@ -528,69 +535,58 @@ protected:
 				if (ImGui::Button("X##position"))
 					set_vertex_position(*mecanical_mesh_, nullptr);
 			}
-			if (ImGui::BeginCombo("Forces", p.vertex_forces_ ? p.vertex_forces_->name().c_str() : "-- select --"))
-			{
-				foreach_attribute<Vec3, Vertex>(*mecanical_mesh_,
-												[&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
-													bool is_selected = attribute == p.vertex_forces_;
-													if (ImGui::Selectable(attribute->name().c_str(), is_selected))
-														set_vertex_force(*mecanical_mesh_, attribute);
-													if (is_selected)
-														ImGui::SetItemDefaultFocus();
-												});
-				ImGui::EndCombo();
-			}
-			if (p.vertex_forces_)
-			{
-				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
-				if (ImGui::Button("X##force"))
-					set_vertex_force(*mecanical_mesh_, nullptr);
-			}
-			if (ImGui::BeginCombo("Init vertex position",
-								  p.init_vertex_position_ ? p.init_vertex_position_->name().c_str() : "-- select --"))
-			{
-				foreach_attribute<Vec3, Vertex>(
-					*mecanical_mesh_, [&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
-						bool is_selected = attribute == p.init_vertex_position_;
-						if (ImGui::Selectable(attribute->name().c_str(), is_selected))
-						{
-							set_init_vertex_position(*mecanical_mesh_, attribute);
-							if (p.vertex_masse_)
-								sm_solver_.init_solver(*mecanical_mesh_, p.init_vertex_position_, p.vertex_masse_);
-						}
-						if (is_selected)
-							ImGui::SetItemDefaultFocus();
-					});
-				ImGui::EndCombo();
-			}
-			if (p.init_vertex_position_)
-			{
-				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
-				if (ImGui::Button("X##init"))
-					set_init_vertex_position(*mecanical_mesh_, nullptr);
-			}
-			if (ImGui::BeginCombo("vertex masse", p.vertex_masse_ ? p.vertex_masse_->name().c_str() : "-- select --"))
-			{
-				foreach_attribute<double, Vertex>(
-					*mecanical_mesh_, [&](const std::shared_ptr<Attribute<double>>& attribute) {
-						bool is_selected = attribute == p.vertex_masse_;
-						if (ImGui::Selectable(attribute->name().c_str(), is_selected))
-						{
-							set_vertex_masse(*mecanical_mesh_, attribute);
-							if (p.init_vertex_position_)
-								sm_solver_.init_solver(*mecanical_mesh_, p.init_vertex_position_, p.vertex_masse_);
-						}
-						if (is_selected)
-							ImGui::SetItemDefaultFocus();
-					});
-				ImGui::EndCombo();
-			}
-			if (p.vertex_masse_)
-			{
-				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
-				if (ImGui::Button("X##masse"))
-					set_vertex_masse(*mecanical_mesh_, nullptr);
-			}
+
+			//			if (ImGui::BeginCombo("Init vertex position",
+			//								  p.init_vertex_position_ ? p.init_vertex_position_->name().c_str() : "--
+			// select
+			//--"))
+			//			{
+			//				foreach_attribute<Vec3, Vertex>(
+			//					*mecanical_mesh_, [&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
+			//						bool is_selected = attribute == p.init_vertex_position_;
+			//						if (ImGui::Selectable(attribute->name().c_str(), is_selected))
+			//						{
+			//							set_init_vertex_position(*mecanical_mesh_, attribute);
+			//							if (p.vertex_masse_)
+			//								sm_solver_.init_solver(*mecanical_mesh_, p.init_vertex_position_,
+			// p.vertex_masse_);
+			//						}
+			//						if (is_selected)
+			//							ImGui::SetItemDefaultFocus();
+			//					});
+			//				ImGui::EndCombo();
+			//			}
+			//			if (p.init_vertex_position_)
+			//			{
+			//				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
+			//				if (ImGui::Button("X##init"))
+			//					set_init_vertex_position(*mecanical_mesh_, nullptr);
+			//			}
+			//			if (ImGui::BeginCombo("vertex masse", p.vertex_masse_ ? p.vertex_masse_->name().c_str() : "--
+			// select
+			//--"))
+			//			{
+			//				foreach_attribute<double, Vertex>(
+			//					*mecanical_mesh_, [&](const std::shared_ptr<Attribute<double>>& attribute) {
+			//						bool is_selected = attribute == p.vertex_masse_;
+			//						if (ImGui::Selectable(attribute->name().c_str(), is_selected))
+			//						{
+			//							set_vertex_masse(*mecanical_mesh_, attribute);
+			//							if (p.init_vertex_position_)
+			//								sm_solver_.init_solver(*mecanical_mesh_, p.init_vertex_position_,
+			// p.vertex_masse_);
+			//						}
+			//						if (is_selected)
+			//							ImGui::SetItemDefaultFocus();
+			//					});
+			//				ImGui::EndCombo();
+			//			}
+			//			if (p.vertex_masse_)
+			//			{
+			//				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
+			//				if (ImGui::Button("X##masse"))
+			//					set_vertex_masse(*mecanical_mesh_, nullptr);
+			//			}
 
 			if (ImGui::BeginCombo("vertex relative position", p.vertex_relative_position_
 																  ? p.vertex_relative_position_->name().c_str()
@@ -633,48 +629,50 @@ protected:
 				if (ImGui::Button("X##parents"))
 					set_vertex_parents(*mecanical_mesh_, nullptr);
 			}
-			if (p.init_vertex_position_ && p.vertex_position_ && p.vertex_masse_)
-			{
-				if (ImGui::Button("init initial pos"))
-				{
-					foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
-						value<Vec3>(*mecanical_mesh_, p.init_vertex_position_.get(), v) =
-							value<Vec3>(*mecanical_mesh_, p.vertex_position_.get(), v);
-						return true;
-					});
-					sm_solver_.update_topo(*mecanical_mesh_, {});
-				}
-			}
-			if (p.vertex_masse_)
-			{
-				if (ImGui::Button("init masse"))
-				{
-					foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
-						value<double>(*mecanical_mesh_, p.vertex_masse_.get(), v) = 1.0f;
-						return true;
-					});
-					sm_solver_.update_topo(*mecanical_mesh_, {});
-				}
-			}
-			if (ImGui::Button("new attribute Vec3"))
-			{
-				static uint32 nb_new_attribute_Vec3 = 0;
-				add_attribute<Vec3, Vertex>(*mecanical_mesh_,
-											"SM_attributte_vec3_" + std::to_string(nb_new_attribute_Vec3++));
-			}
-			if (ImGui::Button("new attribute double"))
-			{
-				static uint32 nb_new_attribute_double = 0;
-				add_attribute<double, Vertex>(*mecanical_mesh_,
-											  "SM_attributte_double_" + std::to_string(nb_new_attribute_double++));
-			}
-			if (p.vertex_forces_)
-			{
-				if (ImGui::Button("reset forces"))
-				{
-					reset_forces();
-				}
-			}
+			//			if (p.init_vertex_position_ && p.vertex_position_ && p.vertex_masse_)
+			//			{
+			//				if (ImGui::Button("init initial pos"))
+			//				{
+			//					foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
+			//						value<Vec3>(*mecanical_mesh_, p.init_vertex_position_.get(), v) =
+			//							value<Vec3>(*mecanical_mesh_, p.vertex_position_.get(), v);
+			//						return true;
+			//					});
+			//					sm_solver_.update_topo(*mecanical_mesh_, {});
+			//				}
+			//			}
+			//			if (p.vertex_masse_)
+			//			{
+			//				if (ImGui::Button("init masse"))
+			//				{
+			//					foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
+			//						value<double>(*mecanical_mesh_, p.vertex_masse_.get(), v) = 1.0f;
+			//						return true;
+			//					});
+			//					sm_solver_.update_topo(*mecanical_mesh_, {});
+			//				}
+			//			}
+			//			if (ImGui::Button("new attribute Vec3"))
+			//			{
+			//				static uint32 nb_new_attribute_Vec3 = 0;
+			//				add_attribute<Vec3, Vertex>(*mecanical_mesh_,
+			//											"SM_attributte_vec3_" +
+			// std::to_string(nb_new_attribute_Vec3++));
+			//			}
+			//			if (ImGui::Button("new attribute double"))
+			//			{
+			//				static uint32 nb_new_attribute_double = 0;
+			//				add_attribute<double, Vertex>(*mecanical_mesh_,
+			//											  "SM_attributte_double_" +
+			// std::to_string(nb_new_attribute_double++));
+			//			}
+			//			if (p.vertex_forces_)
+			//			{
+			//				if (ImGui::Button("reset forces"))
+			//				{
+			//					reset_forces();
+			//				}
+			//			}
 			if (p.vertex_position_ && p.init_vertex_position_ && p.vertex_forces_ && p.vertex_masse_)
 			{
 				ImGui::Separator();

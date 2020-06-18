@@ -9,9 +9,21 @@ namespace cgogn
 
 int CPH3_adaptative::id = 0;
 
-std::shared_ptr<CPH3_adaptative> CPH3_adaptative::get_child()
+CPH3_adaptative* CPH3_adaptative::get_copy()
 {
-	std::shared_ptr<CPH3_adaptative> result = std::make_shared<CPH3_adaptative>(CPH3_adaptative(CPH3(*this)));
+	CPH3_adaptative* result = new CPH3_adaptative(CPH3(*this));
+	for (Dart it = begin(); it != end(); it = next(it))
+	{
+		result->set_representative(it, get_representative(it));
+		(*result->representative_visibility_level_)[it.index] = (*representative_visibility_level_)[it.index];
+		(*result->dart_visibility_level_)[it.index] = (*dart_visibility_level_)[it.index];
+	}
+	return result;
+}
+
+CPH3_adaptative* CPH3_adaptative::get_child()
+{
+	CPH3_adaptative* result = new CPH3_adaptative(CPH3(*this));
 	result->father_ = this;
 	return result;
 }

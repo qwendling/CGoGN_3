@@ -17,6 +17,7 @@ class Simulation_constraint
 	using Vertex = typename mesh_traits<MAP>::Vertex;
 
 public:
+	std::shared_ptr<Attribute<double>> masse_;
 	virtual void solve_constraint(const MAP& m, Attribute<Vec3>* pos, Attribute<Vec3>* result_forces,
 								  double time_step) = 0;
 	virtual void update_topo(const MAP&, const std::vector<Vertex>&){};

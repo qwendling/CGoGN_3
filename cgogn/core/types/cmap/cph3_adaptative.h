@@ -71,7 +71,9 @@ struct CPH3_adaptative : public CPH3
 		return d;
 	}
 
-	std::shared_ptr<CPH3_adaptative> get_child();
+	CPH3_adaptative* get_copy();
+
+	CPH3_adaptative* get_child();
 
 	void set_representative(Dart d, Dart r);
 	Dart get_representative(Dart d) const;

@@ -23,7 +23,7 @@ class shape_matching_constraint_solver : public Simulation_constraint<MAP>
 
 public:
 	std::shared_ptr<Attribute<Vec3>> vertex_init_position_;
-	std::shared_ptr<Attribute<double>> masse_;
+
 	std::shared_ptr<Attribute<Vec3>> q_;
 	std::shared_ptr<Attribute<Vec3>> goals_;
 	Vec3 init_cm_;
@@ -45,7 +45,7 @@ public:
 					 const std::shared_ptr<Attribute<double>>& masse)
 	{
 		vertex_init_position_ = init_pos;
-		masse_ = masse;
+		this->masse_ = masse;
 		q_ = get_attribute<Vec3, Vertex>(m, "shape_matching_constraint_solver_q");
 		if (q_ == nullptr)
 			q_ = add_attribute<Vec3, Vertex>(m, "shape_matching_constraint_solver_q");
@@ -55,8 +55,8 @@ public:
 		init_cm_ = Vec3(0, 0, 0);
 		double masse_totale = 0;
 		foreach_cell(m, [&](Vertex v) -> bool {
-			init_cm_ += value<double>(m, masse_, v) * value<Vec3>(m, vertex_init_position_.get(), v);
-			masse_totale += value<double>(m, masse_, v);
+			init_cm_ += value<double>(m, this->masse_, v) * value<Vec3>(m, vertex_init_position_.get(), v);
+			masse_totale += value<double>(m, this->masse_, v);
 			return true;
 		});
 		init_cm_ /= masse_totale;
@@ -79,10 +79,10 @@ public:
 				return true;
 			});
 		}
-		masse_ = get_attribute<double, Vertex>(m, "shape_matching_constraint_solver_masse" + id);
-		if (masse_ == nullptr)
+		this->masse_ = get_attribute<double, Vertex>(m, "shape_matching_constraint_solver_masse" + id);
+		if (this->masse_ == nullptr)
 		{
-			masse_ = add_attribute<double, Vertex>(m, "shape_matching_constraint_solver_masse" + id);
+			this->masse_ = add_attribute<double, Vertex>(m, "shape_matching_constraint_solver_masse" + id);
 			foreach_cell(m, [&](Volume v) -> bool {
 				double vol = geometry::volume(m, v, vertex_init_position_.get());
 				std::vector<Vertex> inc_vertices;
@@ -92,8 +92,9 @@ public:
 				});
 				for (auto w : inc_vertices)
 				{
-					value<double>(m, masse_.get(), w) += vol / inc_vertices.size();
+					value<double>(m, this->masse_.get(), w) += vol / inc_vertices.size();
 				}
+				return true;
 			});
 		}
 
@@ -106,8 +107,8 @@ public:
 		init_cm_ = Vec3(0, 0, 0);
 		double masse_totale = 0;
 		foreach_cell(m, [&](Vertex v) -> bool {
-			init_cm_ += value<double>(m, masse_, v) * value<Vec3>(m, vertex_init_position_.get(), v);
-			masse_totale += value<double>(m, masse_, v);
+			init_cm_ += value<double>(m, this->masse_, v) * value<Vec3>(m, vertex_init_position_.get(), v);
+			masse_totale += value<double>(m, this->masse_, v);
 			return true;
 		});
 		init_cm_ /= masse_totale;
@@ -122,8 +123,8 @@ public:
 		init_cm_ = Vec3(0, 0, 0);
 		double masse_totale = 0;
 		foreach_cell(m, [&](Vertex v) -> bool {
-			init_cm_ += value<double>(m, masse_, v) * value<Vec3>(m, vertex_init_position_.get(), v);
-			masse_totale += value<double>(m, masse_, v);
+			init_cm_ += value<double>(m, this->masse_, v) * value<Vec3>(m, vertex_init_position_.get(), v);
+			masse_totale += value<double>(m, this->masse_, v);
 			return true;
 		});
 		init_cm_ /= masse_totale;
@@ -240,23 +241,24 @@ public:
 		Vec3 cm = Vec3(0, 0, 0);
 		double masse_total = 0;
 		foreach_cell(m, [&](Vertex v) -> bool {
-			cm += value<double>(m, masse_, v) * value<Vec3>(m, pos, v);
-			masse_total += value<double>(m, masse_, v);
+			cm += value<double>(m, this->masse_, v) * value<Vec3>(m, pos, v);
+			masse_total += value<double>(m, this->masse_, v);
 			return true;
 		});
 		cm /= masse_total;
 		foreach_cell(m, [&](Vertex v) -> bool {
 			Vec3 p = value<Vec3>(m, pos, v) - cm;
-			Apq += value<double>(m, masse_, v) * p * value<Vec3>(m, q_.get(), v).transpose();
+			Apq += value<double>(m, this->masse_, v) * p * value<Vec3>(m, q_.get(), v).transpose();
 			return true;
 		});
 		Mat3d R;
 		polarDecompositionStable(Apq, 1.0e-6, R);
 		parallel_foreach_cell(m, [&](Vertex v) -> bool {
 			value<Vec3>(m, goals_.get(), v) = R * value<Vec3>(m, q_.get(), v) + cm;
-			value<Vec3>(m, result_forces, v) += value<double>(m, masse_, v) * stiffness_ *
-												(value<Vec3>(m, goals_.get(), v) - value<Vec3>(m, pos, v)) /
-												(time_step * time_step);
+			Vec3 result = value<double>(m, this->masse_, v) * stiffness_ *
+						  (value<Vec3>(m, goals_.get(), v) - value<Vec3>(m, pos, v)) / (time_step * time_step);
+			if (result.norm() > 1.0e-10)
+				value<Vec3>(m, result_forces, v) += result;
 			return true;
 		});
 	}

@@ -88,6 +88,18 @@ int main(int argc, char** argv)
 	v2->link_module(&vs);
 	v2->link_module(&am);
 
+	cgogn::ui::View* v3 = app.add_view();
+	v3->link_module(&mrmp);
+	v3->link_module(&mrsr);
+	v3->link_module(&vs);
+	v3->link_module(&am);
+
+	cgogn::ui::View* v4 = app.add_view();
+	v4->link_module(&mrmp);
+	v4->link_module(&mrsr);
+	v4->link_module(&vs);
+	v4->link_module(&am);
+
 	app.init_modules();
 
 	Mesh* m = mp.load_volume_from_file(filename);
@@ -109,8 +121,25 @@ int main(int argc, char** argv)
 	cgogn::index_cells<Mesh::Edge>(*m);
 	cgogn::index_cells<Mesh::Face>(*m);
 
+	vmrm.subdivide(*cph2, position.get());
+	vmrm.subdivide(*cph2, position.get());
+	std::vector<Volume> list_cut_volumes;
+	cgogn::foreach_cell(*cph2, [&list_cut_volumes](Volume v) -> bool {
+		list_cut_volumes.push_back(v);
+		return true;
+	});
+	for (Volume v : list_cut_volumes)
+		cph2->activate_volume_subdivision(v);
+	vmrm.changed_connectivity(*cph2, position.get());
+
 	mrsr.set_vertex_position(*v1, *cph1, position);
+	mrsr.set_vertex_position(*v1, *cph2, nullptr);
+	mrsr.set_vertex_position(*v2, *cph1, nullptr);
 	mrsr.set_vertex_position(*v2, *cph2, position);
+	/*mrsr.set_vertex_position(*v3, *cph1, position);
+	mrsr.set_vertex_position(*v3, *cph2, position);
+	mrsr.set_vertex_position(*v4, *cph1, position);
+	mrsr.set_vertex_position(*v4, *cph2, position);*/
 
 	std::srand(std::time(nullptr));
 
