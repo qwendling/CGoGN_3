@@ -4,6 +4,7 @@
 #include <cgogn/core/functions/attributes.h>
 #include <cgogn/core/functions/traversals/vertex.h>
 #include <cgogn/core/types/mesh_traits.h>
+#include <cgogn/core/types/mesh_views/cell_cache.h>
 #include <cgogn/geometry/algos/volume.h>
 #include <cgogn/geometry/types/vector_traits.h>
 #include <cgogn/simulation/algos/Simulation_constraint.h>
@@ -47,7 +48,7 @@ class Simulation_solver_multiresolution : public Simulation_solver<MR_MAP>
 			{
 				if (!fn(it))
 					return;
-				it = fils->frere;
+				it = it->frere;
 			}
 		}
 	};
@@ -66,17 +67,33 @@ public:
 	std::forward_list<tree_volume*> list_volume_fine_;
 	std::forward_list<tree_volume*> list_volume_coarse_;
 
-	std::shared_ptr<Attribute<Vec3>> pos_tmp_;
-	std::shared_ptr<Attribute<Vec3>> forces_tmp_;
+	std::shared_ptr<Attribute<Vec3>> pos_coarse_;
+	std::shared_ptr<Attribute<Vec3>> pos_current_;
+	std::shared_ptr<Attribute<Vec3>> forces_coarse_;
+	std::shared_ptr<Attribute<Vec3>> forces_current_;
 
-	std::shared_ptr<Attribute<double>> volume_fine_;
-	std::shared_ptr<Attribute<double>> volume_current_;
+	std::shared_ptr<Attribute<double>> diff_volume_current_fine_;
+	std::shared_ptr<Attribute<double>> diff_volume_coarse_current_;
 	std::shared_ptr<Attribute<double>> volume_coarse_;
+	Vec3 gravity_;
+
+	CellCache<MR_MAP>* cache_current_vol_;
 
 	Simulation_solver_multiresolution()
-		: Simulation_solver<MR_MAP>(), pc_(nullptr), parents_(nullptr), relative_pos_(nullptr)
+		: Simulation_solver<MR_MAP>(), pc_(nullptr), parents_(nullptr), relative_pos_(nullptr), gravity_(0, 0, -9.81f),
+		  cache_current_vol_(nullptr)
 	{
 	}
+
+	void init_cell_cache(CellCache<MR_MAP>& cc, std::forward_list<tree_volume*>& lv)
+	{
+		cc.template clear<Volume>();
+		for (auto t : lv)
+		{
+			cc.add(Volume(t->volume_dart));
+		}
+	}
+
 	void init_solver(MR_MAP& m, Simulation_constraint<MR_MAP>* sc, Attribute<Vec3>* pos,
 					 Propagation_Constraint<MR_MAP>* pc = nullptr,
 					 const std::shared_ptr<Attribute<Vec3>>& speed = nullptr,
@@ -87,6 +104,10 @@ public:
 		mecanical_mesh_ = &m;
 		fine_meca_mesh_ = m.get_child();
 		coarse_meca_mesh_ = m.get_copy();
+
+		if (cache_current_vol_ != nullptr)
+			delete cache_current_vol_;
+		cache_current_vol_ = new CellCache<MR_MAP>(*mecanical_mesh_);
 
 		std::vector<tree_volume*> tmp_watcher;
 
@@ -157,6 +178,9 @@ public:
 			}
 			return true;
 		});
+
+		init_cell_cache(*cache_current_vol_, list_volume_current_);
+
 		fine_meca_mesh_->current_level_ = mecanical_mesh_->current_level_ + 1;
 		reset_forces(*fine_meca_mesh_);
 
@@ -167,27 +191,39 @@ public:
 		sc_coarse_ = std::shared_ptr<Simulation_constraint<MR_MAP>>(sc->get_new_ptr());
 		sc_coarse_->init_solver(*coarse_meca_mesh_, pos);
 
-		pos_tmp_ = get_attribute<Vec3, Vertex>(m, "Solver_multiresolution_pos_tmp");
-		if (pos_tmp_ == nullptr)
-			pos_tmp_ = add_attribute<Vec3, Vertex>(m, "Solver_multiresolution_pos_tmp");
-		forces_tmp_ = get_attribute<Vec3, Vertex>(m, "Solver_multiresolution_forces_tmp");
-		if (forces_tmp_ == nullptr)
-			forces_tmp_ = add_attribute<Vec3, Vertex>(m, "Solver_multiresolution_forces_tmp");
+		pos_coarse_ = get_attribute<Vec3, Vertex>(m, "Solver_multiresolution_pos_coarse");
+		if (pos_coarse_ == nullptr)
+			pos_coarse_ = add_attribute<Vec3, Vertex>(m, "Solver_multiresolution_pos_coarse");
 
-		volume_fine_ = get_attribute<double, Volume>(m, "Solver_multiresolution_volume_fine");
-		if (volume_fine_ == nullptr)
-			volume_fine_ = add_attribute<double, Volume>(m, "Solver_multiresolution_volume_fine");
+		pos_current_ = get_attribute<Vec3, Vertex>(m, "Solver_multiresolution_pos_current");
+		if (pos_current_ == nullptr)
+			pos_current_ = add_attribute<Vec3, Vertex>(m, "Solver_multiresolution_pos_current");
+
+		forces_current_ = get_attribute<Vec3, Vertex>(m, "Solver_multiresolution_forces_current");
+		if (forces_current_ == nullptr)
+			forces_current_ = add_attribute<Vec3, Vertex>(m, "Solver_multiresolution_forces_current");
+
+		forces_coarse_ = get_attribute<Vec3, Vertex>(m, "Solver_multiresolution_forces_coarse");
+		if (forces_coarse_ == nullptr)
+			forces_coarse_ = add_attribute<Vec3, Vertex>(m, "Solver_multiresolution_forces_coarse");
+
+		diff_volume_current_fine_ = get_attribute<double, Volume>(m, "Solver_multiresolution_diff_volume_current_fine");
+		if (diff_volume_current_fine_ == nullptr)
+			diff_volume_current_fine_ =
+				add_attribute<double, Volume>(m, "Solver_multiresolution_diff_volume_current_fine");
 		volume_coarse_ = get_attribute<double, Volume>(m, "Solver_multiresolution_volume_coarse");
 		if (volume_coarse_ == nullptr)
 			volume_coarse_ = add_attribute<double, Volume>(m, "Solver_multiresolution_volume_coarse");
-		volume_current_ = get_attribute<double, Volume>(m, "Solver_multiresolution_volume_current");
-		if (volume_current_ == nullptr)
-			volume_current_ = add_attribute<double, Volume>(m, "Solver_multiresolution_volume_current");
+		diff_volume_coarse_current_ =
+			get_attribute<double, Volume>(m, "Solver_multiresolution_diff_volume_coarse_current");
+		if (diff_volume_coarse_current_ == nullptr)
+			diff_volume_coarse_current_ =
+				add_attribute<double, Volume>(m, "Solver_multiresolution_diff_volume_coarse_current");
 	}
 
 	void reset_forces(MR_MAP& m)
 	{
-		parallel_foreach_cell(m, [&](Vertex v) -> bool {
+		parallel_foreach_cell(m.m_, [&](Vertex v) -> bool {
 			value<Vec3>(m, this->forces_ext_.get(), v) = Vec3(0, 0, 0);
 			value<Vec3>(m, this->speed_.get(), v) = Vec3(0, 0, 0);
 			return true;
@@ -199,134 +235,198 @@ public:
 		if (!this->constraint_)
 			return;
 
+		ThreadPool* pool = thread_pool();
+		std::clock_t start;
+		double duration;
+		start = std::clock();
 		/////////////////////////////////////////////////
 		////	         coarse_solve				/////
 		/////////////////////////////////////////////////
-		parallel_foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
-			value<Vec3>(*mecanical_mesh_, this->forces_tmp_.get(), v) =
-				value<Vec3>(*coarse_meca_mesh_, this->forces_ext_.get(), v);
-			return true;
-		});
-		sc_coarse_->solve_constraint(*coarse_meca_mesh_, vertex_position, this->forces_tmp_.get(), time_step);
-		parallel_foreach_cell(*coarse_meca_mesh_, [&](Vertex v) -> bool {
-			// compute speed
-			auto s = 0.995 * value<Vec3>(*coarse_meca_mesh_, this->speed_.get(), v) +
-					 time_step * value<Vec3>(*coarse_meca_mesh_, this->forces_tmp_.get(), v) /
-						 value<double>(*coarse_meca_mesh_, sc_coarse_->masse_, v);
-			value<Vec3>(*coarse_meca_mesh_, pos_tmp_, v) =
-				value<Vec3>(*coarse_meca_mesh_, vertex_position, v) + time_step * s;
-			return true;
-		});
 
-		if (!pc_)
-			return;
-		pc_->propagate(
-			*coarse_meca_mesh_, *mecanical_mesh_, pos_tmp_.get(), this->forces_tmp_.get(), relative_pos_.get(),
-			parents_.get(),
-			[&](Vertex v) {
-				auto s = 0.995 * value<Vec3>(*mecanical_mesh_, this->speed_.get(), v) +
-						 time_step * value<Vec3>(*mecanical_mesh_, this->forces_tmp_.get(), v) /
-							 value<double>(*mecanical_mesh_, sc_coarse_->masse_, v);
-				value<Vec3>(*mecanical_mesh_, pos_tmp_.get(), v) =
-					value<Vec3>(*mecanical_mesh_, vertex_position, v) + time_step * s;
-			},
-			time_step);
+		auto solve_coarse = [&]() {
+			parallel_foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
+				value<Vec3>(*mecanical_mesh_, this->forces_coarse_.get(), v) =
+					value<Vec3>(*coarse_meca_mesh_, this->forces_ext_.get(), v);
+				return true;
+			});
+			sc_coarse_->solve_constraint(*coarse_meca_mesh_, vertex_position, this->forces_coarse_.get(), time_step);
+			parallel_foreach_cell(*coarse_meca_mesh_, [&](Vertex v) -> bool {
+				// compute speed
+				Vec3 s = 0.995 * value<Vec3>(*coarse_meca_mesh_, this->speed_.get(), v) +
+						 time_step * value<Vec3>(*coarse_meca_mesh_, this->forces_coarse_.get(), v) /
+							 value<double>(*coarse_meca_mesh_, sc_coarse_->masse_, v);
+				s += time_step * gravity_;
+				value<Vec3>(*coarse_meca_mesh_, pos_coarse_, v) =
+					value<Vec3>(*coarse_meca_mesh_, vertex_position, v) + time_step * s;
+				return true;
+			});
+			if (!pc_)
+				return;
+			pc_->propagate(*coarse_meca_mesh_, *mecanical_mesh_, pos_coarse_.get(), nullptr, this->forces_coarse_.get(),
+						   masse, relative_pos_.get(), parents_.get(), time_step);
+		};
 
-		parallel_foreach_cell(*mecanical_mesh_, [&](Volume v) -> bool {
-			value<double>(*mecanical_mesh_, this->volume_current_.get(), v) =
-				geometry::volume(*mecanical_mesh_, v, pos_tmp_.get());
-			return true;
-		});
+		auto future_solve_coarse = pool->enqueue(solve_coarse);
 
 		/////////////////////////////////////////////////
 		////	         current_solve				/////
 		/////////////////////////////////////////////////
 
-		parallel_foreach_cell(*fine_meca_mesh_, [&](Vertex v) -> bool {
-			value<Vec3>(*fine_meca_mesh_, this->forces_tmp_.get(), v) =
-				value<Vec3>(*mecanical_mesh_, this->forces_ext_.get(), v);
-			return true;
-		});
-		sc_->solve_constraint(*mecanical_mesh_, vertex_position, this->forces_tmp_.get(), time_step);
-		parallel_foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
-			// compute speed
-			auto s = 0.995 * value<Vec3>(*mecanical_mesh_, this->speed_.get(), v) +
-					 time_step * value<Vec3>(*mecanical_mesh_, this->forces_tmp_.get(), v) /
-						 value<double>(*mecanical_mesh_, masse, v);
-			value<Vec3>(*mecanical_mesh_, pos_tmp_, v) =
-				value<Vec3>(*mecanical_mesh_, vertex_position, v) + time_step * s;
-			return true;
-		});
+		auto solve_current = [&]() {
+			parallel_foreach_cell(*fine_meca_mesh_, [&](Vertex v) -> bool {
+				value<Vec3>(*fine_meca_mesh_, this->forces_current_.get(), v) =
+					value<Vec3>(*mecanical_mesh_, this->forces_ext_.get(), v);
+				return true;
+			});
 
-		if (!pc_)
-			return;
-		pc_->propagate(
-			*mecanical_mesh_, *fine_meca_mesh_, pos_tmp_.get(), this->forces_tmp_.get(), relative_pos_.get(),
-			parents_.get(),
-			[&](Vertex v) {
-				auto s = 0.995 * value<Vec3>(*fine_meca_mesh_, this->speed_.get(), v) +
-						 time_step * value<Vec3>(*fine_meca_mesh_, this->forces_tmp_.get(), v) /
-							 value<double>(*fine_meca_mesh_, masse, v);
-				value<Vec3>(*fine_meca_mesh_, pos_tmp_.get(), v) =
-					value<Vec3>(*fine_meca_mesh_, vertex_position, v) + time_step * s;
-			},
-			time_step);
+			sc_->solve_constraint(*mecanical_mesh_, vertex_position, this->forces_current_.get(), time_step);
+			parallel_foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
+				// compute speed
+				Vec3 s = 0.995 * value<Vec3>(*mecanical_mesh_, this->speed_.get(), v) +
+						 time_step * value<Vec3>(*mecanical_mesh_, this->forces_current_.get(), v) /
+							 value<double>(*mecanical_mesh_, masse, v);
+				s += time_step * gravity_;
+				value<Vec3>(*mecanical_mesh_, pos_current_, v) =
+					value<Vec3>(*mecanical_mesh_, vertex_position, v) + time_step * s;
+				return true;
+			});
 
-		parallel_foreach_cell(*mecanical_mesh_, [&](Volume v) -> bool {
-			value<double>(*mecanical_mesh_, this->volume_current_.get(), v) =
-				fabs(value<double>(*mecanical_mesh_, this->volume_current_.get(), v) -
-					 geometry::volume(*mecanical_mesh_, v, pos_tmp_.get()));
-			return true;
-		});
+			if (!pc_)
+				return;
+			pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, pos_current_.get(), nullptr, this->forces_current_.get(),
+						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(), time_step);
+		};
 
-		parallel_foreach_cell(*fine_meca_mesh_, [&](Volume v) -> bool {
-			value<double>(*fine_meca_mesh_, this->volume_fine_.get(), v) =
-				geometry::volume(*fine_meca_mesh_, v, pos_tmp_.get());
-			return true;
-		});
+		auto future_solve_current = pool->enqueue(solve_current);
 
 		/////////////////////////////////////////////////
 		////	         fine_solve				/////
 		/////////////////////////////////////////////////
-		sc_fine_->solve_constraint(*fine_meca_mesh_, vertex_position, this->forces_ext_.get(), time_step);
-		parallel_foreach_cell(*fine_meca_mesh_, [&](Vertex v) -> bool {
-			std::cout << value<Vec3>(*fine_meca_mesh_, this->forces_ext_.get(), v) << std::endl;
-			// compute speed
-			value<Vec3>(*fine_meca_mesh_, this->speed_.get(), v) =
-				0.995 * value<Vec3>(*fine_meca_mesh_, this->speed_.get(), v) +
-				time_step * value<Vec3>(*fine_meca_mesh_, this->forces_ext_.get(), v) /
-					value<double>(*fine_meca_mesh_, sc_fine_->masse_, v);
-			value<Vec3>(*fine_meca_mesh_, vertex_position, v) =
-				value<Vec3>(*fine_meca_mesh_, vertex_position, v) +
-				time_step * value<Vec3>(*fine_meca_mesh_, this->speed_.get(), v);
-			return true;
-		});
 
-		if (!pc_)
-			return;
-		pc_->propagate(
-			*fine_meca_mesh_, m_geom, vertex_position, this->forces_tmp_.get(), relative_pos_.get(), parents_.get(),
-			[&](Vertex v) {
-				value<Vec3>(m_geom, this->speed_.get(), v) = 0.995 * value<Vec3>(m_geom, this->speed_.get(), v) +
-															 time_step *
-																 value<Vec3>(m_geom, this->forces_ext_.get(), v) /
-																 value<double>(m_geom, sc_fine_->masse_, v);
-				value<Vec3>(m_geom, vertex_position, v) =
-					value<Vec3>(m_geom, vertex_position, v) + time_step * value<Vec3>(m_geom, this->speed_.get(), v);
-			},
-			time_step);
+		auto solve_fine = [&]() {
+			sc_fine_->solve_constraint(*fine_meca_mesh_, vertex_position, this->forces_ext_.get(), time_step);
+			parallel_foreach_cell(*fine_meca_mesh_, [&](Vertex v) -> bool {
+				// compute speed
+				value<Vec3>(*fine_meca_mesh_, this->speed_.get(), v) =
+					0.995 * value<Vec3>(*fine_meca_mesh_, this->speed_.get(), v) +
+					time_step * value<Vec3>(*fine_meca_mesh_, this->forces_ext_.get(), v) /
+						value<double>(*fine_meca_mesh_, sc_fine_->masse_, v);
+				value<Vec3>(*fine_meca_mesh_, this->speed_.get(), v) += time_step * gravity_;
+				value<Vec3>(*fine_meca_mesh_, vertex_position, v) =
+					value<Vec3>(*fine_meca_mesh_, vertex_position, v) +
+					time_step * value<Vec3>(*fine_meca_mesh_, this->speed_.get(), v);
+				return true;
+			});
 
-		parallel_foreach_cell(*fine_meca_mesh_, [&](Volume v) -> bool {
-			value<double>(*fine_meca_mesh_, this->volume_fine_.get(), v) =
-				fabs(value<double>(*fine_meca_mesh_, this->volume_fine_.get(), v) -
-					 geometry::volume(*fine_meca_mesh_, v, vertex_position));
-			return true;
-		});
+			if (!pc_)
+				return;
+			pc_->propagate(*fine_meca_mesh_, m_geom, vertex_position, this->speed_.get(), this->forces_ext_.get(),
+						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(), time_step);
+		};
 
-		parallel_foreach_cell(m_geom, [&](Vertex v) -> bool {
+		auto future_solve_fine = pool->enqueue(solve_fine);
+
+		/////////////////////////////////////////////////
+		////	         error_criteria				/////
+		/////////////////////////////////////////////////
+
+		auto volume_current = [&]() {
+			future_solve_coarse.wait();
+			for (tree_volume* t : list_volume_current_)
+			{
+				value<double>(*mecanical_mesh_, this->diff_volume_coarse_current_.get(), Volume(t->volume_dart)) =
+					geometry::volume(*mecanical_mesh_, Volume(t->volume_dart), pos_coarse_.get());
+			}
+		};
+		auto future_volume_current = pool->enqueue(volume_current);
+
+		auto volume_fine = [&]() {
+			future_solve_current.wait();
+			for (tree_volume* t : list_volume_fine_)
+			{
+				value<double>(*fine_meca_mesh_, this->diff_volume_current_fine_.get(), Volume(t->volume_dart)) =
+					geometry::volume(*fine_meca_mesh_, Volume(t->volume_dart), pos_current_.get());
+			}
+		};
+		auto future_volume_fine = pool->enqueue(volume_fine);
+
+		auto error_coarse_current = [&]() {
+			future_volume_current.wait();
+			future_solve_current.wait();
+			for (tree_volume* t : list_volume_current_)
+			{
+				Volume v = Volume(t->volume_dart);
+				double vol = geometry::volume(*mecanical_mesh_, v, vertex_position);
+				double vol2 = value<double>(*mecanical_mesh_, this->diff_volume_coarse_current_.get(), v);
+				double diff;
+				diff = vol2 / vol;
+				if (diff > 1)
+					diff = 1 / diff;
+				diff = 1 - diff;
+				diff *= log(fabs(vol2 - vol) + 1);
+				value<double>(*mecanical_mesh_, this->diff_volume_coarse_current_.get(), v) = diff;
+			}
+			for (tree_volume* t : list_volume_coarse_)
+			{
+				Volume v = Volume(t->volume_dart);
+				value<double>(*coarse_meca_mesh_, this->diff_volume_coarse_current_.get(), v) = 0;
+				int i = 0;
+				t->for_each_child([&](tree_volume* t2) -> bool {
+					i++;
+					Volume v2 = Volume(t2->volume_dart);
+					value<double>(*coarse_meca_mesh_, this->diff_volume_coarse_current_.get(), v) +=
+						value<double>(*mecanical_mesh_, this->diff_volume_coarse_current_.get(), v2);
+					return true;
+				});
+				value<double>(*coarse_meca_mesh_, this->diff_volume_coarse_current_.get(), v) /= i;
+			}
+		};
+
+		auto future_error_cc = pool->enqueue(error_coarse_current);
+
+		auto error_current_fine = [&]() {
+			future_volume_fine.wait();
+			future_solve_fine.wait();
+			for (tree_volume* t : list_volume_fine_)
+			{
+				Volume v = Volume(t->volume_dart);
+				double vol = geometry::volume(*fine_meca_mesh_, v, vertex_position);
+				double vol2 = value<double>(*fine_meca_mesh_, this->diff_volume_current_fine_.get(), v);
+				double diff;
+				diff = vol2 / vol;
+				if (diff > 1)
+					diff = 1 / diff;
+				diff = 1 - diff;
+				diff *= log(fabs(vol2 - vol) + 1);
+				value<double>(*fine_meca_mesh_, this->diff_volume_current_fine_.get(), v) = diff;
+			}
+
+			for (tree_volume* t : list_volume_current_)
+			{
+				Volume v = Volume(t->volume_dart);
+				value<double>(*mecanical_mesh_, this->diff_volume_current_fine_.get(), v) = 0;
+				int i = 0;
+				t->for_each_child([&](tree_volume* t2) -> bool {
+					i++;
+					Volume v2 = Volume(t2->volume_dart);
+					value<double>(*mecanical_mesh_, this->diff_volume_current_fine_.get(), v) +=
+						value<double>(*fine_meca_mesh_, this->diff_volume_current_fine_.get(), v2);
+					return true;
+				});
+				value<double>(*mecanical_mesh_, this->diff_volume_current_fine_.get(), v) /= i;
+			}
+		};
+
+		auto future_error_cf = pool->enqueue(error_current_fine);
+
+		parallel_foreach_cell(mecanical_mesh_->m_, [&](Vertex v) -> bool {
 			value<Vec3>(m_geom, this->forces_ext_.get(), v) = Vec3(0, 0, 0);
 			return true;
 		});
+		future_error_cc.wait();
+		future_error_cf.wait();
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << "time step : " << duration << std::endl;
 	}
 };
 } // namespace simulation

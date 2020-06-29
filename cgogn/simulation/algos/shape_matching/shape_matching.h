@@ -128,7 +128,7 @@ public:
 			return true;
 		});
 		init_cm_ /= masse_totale;
-		foreach_cell(m, [&](Vertex v) -> bool {
+		parallel_foreach_cell(m, [&](Vertex v) -> bool {
 			value<Vec3>(m, q_.get(), v) = value<Vec3>(m, vertex_init_position_.get(), v) - init_cm_;
 			return true;
 		});

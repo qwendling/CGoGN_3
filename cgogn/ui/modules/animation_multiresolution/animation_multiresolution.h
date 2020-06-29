@@ -337,11 +337,10 @@ protected:
 		launch_thread([this, &p]() {
 			while (this->running_)
 			{
-				std::unique_lock<std::mutex> lk(cv_m);
 				if (meca_update_)
 				{
 					need_update_ = true;
-					cv.wait(lk, [this] { return !meca_update_; });
+					cv_m.lock();
 				}
 
 				if (p.have_selected_vertex_)
@@ -367,7 +366,7 @@ protected:
 					p.frame_manipulator_.get_position(position);
 					p.frame_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, axis_z);
 					double d = position.dot(axis_z);
-					parallel_foreach_cell(*geometric_mesh_, [&](Vertex v) -> bool {
+					parallel_foreach_cell(mecanical_mesh_->m_, [&](Vertex v) -> bool {
 						double tmp = value<Vec3>(*geometric_mesh_, p.vertex_position_.get(), v).dot(axis_z);
 						if (value<Vec3>(*geometric_mesh_, p.vertex_position_.get(), v).dot(axis_z) < d)
 						{
@@ -384,9 +383,11 @@ protected:
 		});
 
 		launch_thread([this, &p]() {
+			cv_m.try_lock();
 			while (this->running_)
 			{
 				meca_update_ = true;
+				// cv_m.try_lock();
 				std::this_thread::sleep_for(std::chrono::milliseconds(16));
 			}
 		});
@@ -536,58 +537,6 @@ protected:
 					set_vertex_position(*mecanical_mesh_, nullptr);
 			}
 
-			//			if (ImGui::BeginCombo("Init vertex position",
-			//								  p.init_vertex_position_ ? p.init_vertex_position_->name().c_str() : "--
-			// select
-			//--"))
-			//			{
-			//				foreach_attribute<Vec3, Vertex>(
-			//					*mecanical_mesh_, [&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
-			//						bool is_selected = attribute == p.init_vertex_position_;
-			//						if (ImGui::Selectable(attribute->name().c_str(), is_selected))
-			//						{
-			//							set_init_vertex_position(*mecanical_mesh_, attribute);
-			//							if (p.vertex_masse_)
-			//								sm_solver_.init_solver(*mecanical_mesh_, p.init_vertex_position_,
-			// p.vertex_masse_);
-			//						}
-			//						if (is_selected)
-			//							ImGui::SetItemDefaultFocus();
-			//					});
-			//				ImGui::EndCombo();
-			//			}
-			//			if (p.init_vertex_position_)
-			//			{
-			//				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
-			//				if (ImGui::Button("X##init"))
-			//					set_init_vertex_position(*mecanical_mesh_, nullptr);
-			//			}
-			//			if (ImGui::BeginCombo("vertex masse", p.vertex_masse_ ? p.vertex_masse_->name().c_str() : "--
-			// select
-			//--"))
-			//			{
-			//				foreach_attribute<double, Vertex>(
-			//					*mecanical_mesh_, [&](const std::shared_ptr<Attribute<double>>& attribute) {
-			//						bool is_selected = attribute == p.vertex_masse_;
-			//						if (ImGui::Selectable(attribute->name().c_str(), is_selected))
-			//						{
-			//							set_vertex_masse(*mecanical_mesh_, attribute);
-			//							if (p.init_vertex_position_)
-			//								sm_solver_.init_solver(*mecanical_mesh_, p.init_vertex_position_,
-			// p.vertex_masse_);
-			//						}
-			//						if (is_selected)
-			//							ImGui::SetItemDefaultFocus();
-			//					});
-			//				ImGui::EndCombo();
-			//			}
-			//			if (p.vertex_masse_)
-			//			{
-			//				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
-			//				if (ImGui::Button("X##masse"))
-			//					set_vertex_masse(*mecanical_mesh_, nullptr);
-			//			}
-
 			if (ImGui::BeginCombo("vertex relative position", p.vertex_relative_position_
 																  ? p.vertex_relative_position_->name().c_str()
 																  : "-- select --"))
@@ -629,51 +578,8 @@ protected:
 				if (ImGui::Button("X##parents"))
 					set_vertex_parents(*mecanical_mesh_, nullptr);
 			}
-			//			if (p.init_vertex_position_ && p.vertex_position_ && p.vertex_masse_)
-			//			{
-			//				if (ImGui::Button("init initial pos"))
-			//				{
-			//					foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
-			//						value<Vec3>(*mecanical_mesh_, p.init_vertex_position_.get(), v) =
-			//							value<Vec3>(*mecanical_mesh_, p.vertex_position_.get(), v);
-			//						return true;
-			//					});
-			//					sm_solver_.update_topo(*mecanical_mesh_, {});
-			//				}
-			//			}
-			//			if (p.vertex_masse_)
-			//			{
-			//				if (ImGui::Button("init masse"))
-			//				{
-			//					foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
-			//						value<double>(*mecanical_mesh_, p.vertex_masse_.get(), v) = 1.0f;
-			//						return true;
-			//					});
-			//					sm_solver_.update_topo(*mecanical_mesh_, {});
-			//				}
-			//			}
-			//			if (ImGui::Button("new attribute Vec3"))
-			//			{
-			//				static uint32 nb_new_attribute_Vec3 = 0;
-			//				add_attribute<Vec3, Vertex>(*mecanical_mesh_,
-			//											"SM_attributte_vec3_" +
-			// std::to_string(nb_new_attribute_Vec3++));
-			//			}
-			//			if (ImGui::Button("new attribute double"))
-			//			{
-			//				static uint32 nb_new_attribute_double = 0;
-			//				add_attribute<double, Vertex>(*mecanical_mesh_,
-			//											  "SM_attributte_double_" +
-			// std::to_string(nb_new_attribute_double++));
-			//			}
-			//			if (p.vertex_forces_)
-			//			{
-			//				if (ImGui::Button("reset forces"))
-			//				{
-			//					reset_forces();
-			//				}
-			//			}
-			if (p.vertex_position_ && p.init_vertex_position_ && p.vertex_forces_ && p.vertex_masse_)
+
+			if (p.vertex_position_ && p.init_vertex_position_ && p.vertex_forces_)
 			{
 				ImGui::Separator();
 
@@ -703,13 +609,29 @@ protected:
 					p.update_move_vertex_vbo();
 					mesh_provider_->foreach_mesh([&](MR_MESH* m, const std::string&) {
 						mesh_provider_->emit_attribute_changed(m, p.vertex_position_.get());
+						mesh_provider_->emit_attribute_changed(m, simu_solver.diff_volume_current_fine_.get());
+						mesh_provider_->emit_attribute_changed(m, simu_solver.diff_volume_coarse_current_.get());
+						mesh_provider_->emit_attribute_changed(m, simu_solver.pos_current_.get());
+						mesh_provider_->emit_attribute_changed(m, simu_solver.pos_coarse_.get());
 					});
 					need_update_ = false;
 					meca_update_ = false;
-					cv.notify_all();
+					// cv.notify_all();
+					cv_m.unlock();
 				}
-				double min = 0, max = 1;
-				ImGui::SliderScalar("stiffness", ImGuiDataType_Double, &sm_solver_.stiffness_, &min, &max);
+				simulation::shape_matching_constraint_solver<MR_MESH>* sm1 =
+					static_cast<simulation::shape_matching_constraint_solver<MR_MESH>*>(simu_solver.sc_);
+				simulation::shape_matching_constraint_solver<MR_MESH>* sm2 =
+					static_cast<simulation::shape_matching_constraint_solver<MR_MESH>*>(simu_solver.sc_fine_.get());
+				simulation::shape_matching_constraint_solver<MR_MESH>* sm3 =
+					static_cast<simulation::shape_matching_constraint_solver<MR_MESH>*>(simu_solver.sc_coarse_.get());
+
+				double min = 0, max = 1, new_alpha = sm1->stiffness_;
+				ImGui::SliderScalar("stiffness", ImGuiDataType_Double, &new_alpha, &min, &max);
+
+				sm1->stiffness_ = new_alpha;
+				sm2->stiffness_ = new_alpha;
+				sm3->stiffness_ = new_alpha;
 			}
 		}
 	}

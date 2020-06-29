@@ -29,9 +29,9 @@ public:
 	Propagation_Plastique(double alpha) : alpha_(alpha)
 	{
 	}
-	void propagate(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>* pos, Attribute<Vec3>* result_forces,
-				   Attribute<Vec3>* pos_relative, Attribute<std::array<Vertex, 3>>* parent,
-				   const std::function<void(Vertex)>& integration, double time_step) override
+	void propagate(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>* pos, Attribute<Vec3>* speed, Attribute<Vec3>*,
+				   Attribute<double>*, Attribute<Vec3>* pos_relative, Attribute<std::array<Vertex, 3>>* parent,
+				   double time_step) const override
 	{
 
 		std::vector<std::vector<Vertex>> vect_vertex_per_resolution;
@@ -60,6 +60,10 @@ public:
 			}
 			return true;
 		});
+		std::clock_t start;
+		double duration;
+
+		start = std::clock();
 		for (uint32 i = 1; i < vect_vertex_per_resolution.size(); i++)
 		{
 			for (auto& v : vect_vertex_per_resolution[i])
@@ -75,11 +79,13 @@ public:
 				Vec3 p_r = value<Vec3>(m_geom, pos_relative, v);
 				Vec3 dest = A + V1 * p_r[0] + V2 * p_r[1] + V3 * p_r[2];
 				Vec3 cur_pos = value<Vec3>(m_geom, pos, v);
-				value<Vec3>(m_geom, result_forces, v) += alpha_ * (dest - cur_pos) / (time_step * time_step);
-				// integration(v);
+				if (speed != nullptr)
+					value<Vec3>(m_geom, speed, v) = (dest - cur_pos) / time_step;
 				value<Vec3>(m_geom, pos, v) = dest;
 			}
 		}
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << "Real P time : " << duration << std::endl;
 	}
 };
 } // namespace simulation
