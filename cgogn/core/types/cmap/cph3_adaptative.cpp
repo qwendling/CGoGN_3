@@ -12,7 +12,7 @@ int CPH3_adaptative::id = 0;
 CPH3_adaptative* CPH3_adaptative::get_copy()
 {
 	CPH3_adaptative* result = new CPH3_adaptative(CPH3(*this));
-	for (Dart it = begin(); it != end(); it = next(it))
+	for (Dart it = m_.begin(); it != m_.end(); it = m_.next(it))
 	{
 		result->set_representative(it, get_representative(it));
 		(*result->representative_visibility_level_)[it.index] = (*representative_visibility_level_)[it.index];
@@ -23,7 +23,7 @@ CPH3_adaptative* CPH3_adaptative::get_copy()
 
 CPH3_adaptative* CPH3_adaptative::get_child()
 {
-	CPH3_adaptative* result = new CPH3_adaptative(CPH3(*this));
+	CPH3_adaptative* result = get_copy();
 	result->father_ = this;
 	return result;
 }
@@ -78,11 +78,13 @@ uint32 CPH3_adaptative::get_representative_visibility_level(Dart d) const
 
 void CPH3_adaptative::set_representative_visibility_level(Dart d, uint32 l)
 {
-	(*representative_visibility_level_)[d.index].insert(l);
+	Dart r = get_representative(d);
+	(*representative_visibility_level_)[r.index].insert(l);
 }
 void CPH3_adaptative::unset_representative_visibility_level(Dart d, uint32 l)
 {
-	(*representative_visibility_level_)[d.index].erase(l);
+	Dart r = get_representative(d);
+	(*representative_visibility_level_)[r.index].erase(l);
 }
 
 bool CPH3_adaptative::representative_is_visible(Dart d) const

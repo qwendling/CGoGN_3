@@ -60,10 +60,6 @@ public:
 			}
 			return true;
 		});
-		std::clock_t start;
-		double duration;
-
-		start = std::clock();
 		for (uint32 i = 1; i < vect_vertex_per_resolution.size(); i++)
 		{
 			for (auto& v : vect_vertex_per_resolution[i])
@@ -84,8 +80,6 @@ public:
 				value<Vec3>(m_geom, pos, v) = dest;
 			}
 		}
-		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << "Real P time : " << duration << std::endl;
 	}
 };
 } // namespace simulation

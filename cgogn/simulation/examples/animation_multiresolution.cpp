@@ -124,12 +124,28 @@ int main(int argc, char** argv)
 	vmrm.subdivide(*cph2, position.get());
 	vmrm.subdivide(*cph2, position.get());
 	std::vector<Volume> list_cut_volumes;
-	cgogn::foreach_cell(*cph2, [&list_cut_volumes](Volume v) -> bool {
-		list_cut_volumes.push_back(v);
-		return true;
-	});
-	for (Volume v : list_cut_volumes)
-		cph2->activate_volume_subdivision(v);
+
+	std::srand(164512792);
+	while (std::rand() / ((RAND_MAX + 1u) / 5) > 1)
+	{
+		cgogn::foreach_cell(*cph2, [&list_cut_volumes](Volume v) -> bool {
+			list_cut_volumes.push_back(v);
+			return true;
+		});
+		for (Volume v : list_cut_volumes)
+		{
+
+			int tmp = std::rand() / ((RAND_MAX + 1u) / 2);
+			if (tmp == 1)
+			{
+				cph2->activate_volume_subdivision(v);
+				tmp = std::rand() / ((RAND_MAX + 1u) / 2);
+				if (tmp == 1)
+					cph2->disable_volume_subdivision(v, true);
+			}
+		}
+		list_cut_volumes.clear();
+	}
 	vmrm.changed_connectivity(*cph2, position.get());
 
 	mrsr.set_vertex_position(*v1, *cph1, position);
@@ -165,6 +181,20 @@ int main(int argc, char** argv)
 				}
 				return true;
 			});
+			vmrm.changed_connectivity(*selected_mesh, position.get());
+			break;
+		case GLFW_KEY_V:
+			cgogn::foreach_cell(*selected_mesh, [&list_cut_volumes](Volume v) -> bool {
+				list_cut_volumes.push_back(v);
+				return true;
+			});
+			for (Volume v : list_cut_volumes)
+			{
+				selected_mesh->activate_volume_subdivision(v);
+			}
+			vmrm.changed_connectivity(*selected_mesh, position.get());
+			break;
+		case GLFW_KEY_U:
 			vmrm.changed_connectivity(*selected_mesh, position.get());
 			break;
 		}

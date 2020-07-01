@@ -31,6 +31,7 @@
 #include <cgogn/core/functions/traversals/face.h>
 
 #include <cgogn/geometry/algos/centroid.h>
+#include <cgogn/geometry/algos/normal.h>
 #include <cgogn/geometry/functions/area.h>
 #include <cgogn/geometry/types/vector_traits.h>
 
@@ -61,6 +62,15 @@ Scalar convex_area(const MESH& m, typename mesh_traits<MESH>::Face f,
 			face_area += area(center, value<Vec3>(m, vertex_position, vertices[i]),
 							  value<Vec3>(m, vertex_position, vertices[(i + 1) % size]));
 		}
+		/*Vec3 n = normal(m, f, vertex_position);
+		std::vector<Vertex> vertices = incident_vertices(m, f);
+		Vec3 tmp = Vec3::Zero();
+		for (uint32 i = 0, size = uint32(vertices.size()); i < size; ++i)
+		{
+			tmp += value<Vec3>(m, vertex_position, vertices[(i + 1) % size])
+					   .cross(value<Vec3>(m, vertex_position, vertices[i]));
+		}
+		face_area = n.dot(tmp) / 2;*/
 		return face_area;
 	}
 }
