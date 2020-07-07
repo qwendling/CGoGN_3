@@ -39,7 +39,8 @@ class Simulation_solver_multiresolution : public Simulation_solver<MR_MAP>
 		tree_volume* frere;
 		Dart volume_dart;
 		bool is_current;
-		tree_volume() : fils(nullptr), pere(nullptr), frere(nullptr), is_current(false)
+		int clock;
+		tree_volume() : fils(nullptr), pere(nullptr), frere(nullptr), is_current(false), clock(0)
 		{
 		}
 
@@ -70,6 +71,7 @@ public:
 	MR_MAP* fine_meca_mesh_;
 	MR_MAP* coarse_meca_mesh_;
 	std::forward_list<tree_volume*> list_volume_coarse_;
+	std::forward_list<tree_volume*> list_volume_current_;
 
 	std::shared_ptr<Attribute<Vec3>> pos_coarse_;
 	std::shared_ptr<Attribute<Vec3>> pos_current_;
@@ -84,10 +86,11 @@ public:
 	Vec3 gravity_;
 
 	CellCache<MR_MAP>* cache_current_vol_;
+	int clock;
 
 	Simulation_solver_multiresolution()
 		: Simulation_solver<MR_MAP>(), pc_(nullptr), parents_(nullptr), relative_pos_(nullptr), gravity_(0, 0, -9.81f),
-		  cache_current_vol_(nullptr)
+		  cache_current_vol_(nullptr), clock(1)
 	{
 	}
 
@@ -118,23 +121,27 @@ public:
 		std::vector<tree_volume*> tmp_watcher;
 
 		list_volume_coarse_.clear();
+		list_volume_current_.clear();
 		int cmp_cur = 0, cmp_fine = 0, cmp_coarse = 0;
 		CPH3 tmp(m);
 		tmp.current_level_ = m.current_level_;
-		std::function<void(tree_volume*, CPH3&, uint32)> progress_tree;
-		progress_tree = [&](tree_volume* p, CPH3& cph, uint32 l) {
+		std::function<void(tree_volume*, CPH3&)> progress_tree;
+		progress_tree = [&](tree_volume* p, CPH3& cph) {
 			uint32 cph_level = cph.volume_level(p->volume_dart);
+			uint32 l = 0;
+			if (mecanical_mesh_->dart_is_visible(p->volume_dart))
+				l = mecanical_mesh_->volume_level(p->volume_dart);
 			if (l == cph_level)
 			{
-				// list_volume_current_.push_front(p);
+				list_volume_current_.push_front(p);
 				tmp_watcher.push_back(p);
 				cmp_cur++;
+				p->is_current = true;
 				fine_meca_mesh_->activate_volume_subdivision(Volume(p->volume_dart));
 			}
 			if (l == cph_level + 1)
 			{
-				list_volume_coarse_.push_front(p);
-				coarse_meca_mesh_->disable_volume_subdivision(Volume(p->volume_dart), true);
+				// coarse_meca_mesh_->disable_volume_subdivision(Volume(p->volume_dart), true);
 				cmp_coarse++;
 			}
 			if (l == cph_level - 1)
@@ -161,29 +168,37 @@ public:
 				p->fils = t;
 				t->pere = p;
 
-				progress_tree(t, cph, l);
+				progress_tree(t, cph);
 			}
 			cph.current_level_--;
 		};
 		foreach_cell(tmp, [&](CPH3::Volume v) -> bool {
-			if (tmp.volume_is_subdivided(v.dart))
-			{
-
-				CPH3 tmp2(tmp);
-				tree_volume* t = new tree_volume();
-				t->volume_dart = v.dart;
-				uint32 l = mecanical_mesh_->volume_level(v.dart);
-				if (l == tmp.current_level_)
-				{
-					list_volume_coarse_.push_front(t);
-					t->is_current = true;
-					cmp_coarse++;
-				}
-				progress_tree(t, tmp2, l);
-			}
+			CPH3 tmp2(tmp);
+			tree_volume* t = new tree_volume();
+			t->volume_dart = v.dart;
+			progress_tree(t, tmp2);
 			return true;
 		});
 		// init_cell_cache(*cache_current_vol_, list_volume_current_);
+
+		for (tree_volume* t : list_volume_current_)
+		{
+			if (t->pere && t->pere->clock != clock)
+			{
+				t->pere->clock = clock;
+				bool can_be_coarse = true;
+				t->pere->for_each_child([&](tree_volume* c) {
+					if (!c->is_current)
+						can_be_coarse = false;
+					return can_be_coarse;
+				});
+				if (can_be_coarse)
+				{
+					coarse_meca_mesh_->disable_volume_subdivision(Volume(t->pere->volume_dart), true);
+					list_volume_coarse_.push_front(t->pere);
+				}
+			}
+		}
 
 		fine_meca_mesh_->current_level_ = mecanical_mesh_->current_level_ + 1;
 		reset_forces(*fine_meca_mesh_);
@@ -294,8 +309,6 @@ public:
 			return;
 		std::cout << v1 << std::endl;
 		std::cout << v2 << std::endl;
-		if (v2 < v1)
-			std::cout << "hum" << std::endl;
 		while (v2 - v1 < -0.00001 && nb_modif < MODIF_MAX)
 		{
 			list_volume_current_.pop_front();
@@ -304,6 +317,7 @@ public:
 			if (max_fine->pere)
 			{
 				coarse_meca_mesh_->activate_volume_subdivision(Volume(max_fine->pere->volume_dart));
+				list_volume_coarse_.remove(max_fine->pere);
 			}
 			else
 			{
@@ -315,24 +329,22 @@ public:
 				return true;
 			});
 			list_new_volume_.push_front(max_fine);
+
 			// disable
-			if (!min_coarse->pere)
+			/*if (!min_coarse->pere)
 			{
 				min_coarse->is_current = true;
 			}
-			coarse_meca_mesh_->disable_volume_subdivision(Volume(min_coarse->volume_dart), true);
+			else
+			{
+				coarse_meca_mesh_->disable_volume_subdivision(Volume(min_coarse->volume_dart), true);
+			}
+			mecanical_mesh_->disable_volume_subdivision(Volume(min_coarse->volume_dart), true);
 			min_coarse->for_each_child([&](tree_volume* c) -> bool {
-				mecanical_mesh_->disable_volume_subdivision(Volume(c->volume_dart), true);
 				list_new_volume_.push_front(c);
+				fine_meca_mesh_->disable_volume_subdivision(Volume(c->volume_dart), true);
 				return true;
-			});
-			min_coarse->for_each_child([&](tree_volume* cc) -> bool {
-				cc->for_each_child([&](tree_volume* c) -> bool {
-					fine_meca_mesh_->disable_volume_subdivision(Volume(c->volume_dart), true);
-					return true;
-				});
-				return true;
-			});
+			});*/
 
 			if (list_volume_coarse_.empty() || list_volume_current_.empty())
 				break;
@@ -467,11 +479,6 @@ public:
 			};
 			for (tree_volume* tp : list_volume_coarse_)
 			{
-				if (tp->is_current)
-				{
-					fn(tp);
-					continue;
-				}
 				tp->for_each_child(fn);
 			}
 		};
@@ -484,17 +491,9 @@ public:
 					geometry::volume(*fine_meca_mesh_, Volume(t->volume_dart), pos_current_.get());
 				return true;
 			};
-			for (tree_volume* tp : list_volume_coarse_)
+			for (tree_volume* tp : list_volume_current_)
 			{
-				if (tp->is_current)
-				{
-					tp->for_each_child(fn);
-					continue;
-				}
-				tp->for_each_child([&](tree_volume* tc) -> bool {
-					tc->for_each_child(fn);
-					return true;
-				});
+				tp->for_each_child(fn);
 			}
 		};
 		auto future_volume_fine = pool->enqueue(volume_fine);
@@ -517,11 +516,6 @@ public:
 			};
 			for (tree_volume* tp : list_volume_coarse_)
 			{
-				if (tp->is_current)
-				{
-					fn(tp);
-					continue;
-				}
 				tp->for_each_child(fn);
 			}
 			for (tree_volume* t : list_volume_coarse_)
@@ -538,6 +532,11 @@ public:
 						value<double>(*mecanical_mesh_, this->diff_volume_coarse_current_.get(), v2);
 					return true;
 				});
+				if (i == 0)
+				{
+					value<double>(*coarse_meca_mesh_, this->diff_volume_coarse_current_.get(), v) = 0;
+					continue;
+				}
 				value<double>(*coarse_meca_mesh_, this->diff_volume_coarse_current_.get(), v) /= i;
 			}
 		};
@@ -560,17 +559,9 @@ public:
 				value<double>(*fine_meca_mesh_, this->diff_volume_current_fine_.get(), v) = diff;
 				return true;
 			};
-			for (tree_volume* tp : list_volume_coarse_)
+			for (tree_volume* tp : list_volume_current_)
 			{
-				if (tp->is_current)
-				{
-					tp->for_each_child(fn2);
-					continue;
-				}
-				tp->for_each_child([&](tree_volume* tc) -> bool {
-					tc->for_each_child(fn2);
-					return true;
-				});
+				tp->for_each_child(fn2);
 			}
 
 			auto fn = [&](tree_volume* t) -> bool {
@@ -586,18 +577,18 @@ public:
 						value<double>(*fine_meca_mesh_, this->diff_volume_current_fine_.get(), v2);
 					return true;
 				});
+				if (i == 0)
+				{
+					value<double>(*mecanical_mesh_, this->diff_volume_current_fine_.get(), v) = 0;
+					return true;
+				}
 				value<double>(*mecanical_mesh_, this->diff_volume_current_fine_.get(), v) /= i;
 
 				return true;
 			};
-			for (tree_volume* tp : list_volume_coarse_)
+			for (tree_volume* tp : list_volume_current_)
 			{
-				if (tp->is_current)
-				{
-					fn(tp);
-					continue;
-				}
-				tp->for_each_child(fn);
+				fn(tp);
 			}
 		};
 

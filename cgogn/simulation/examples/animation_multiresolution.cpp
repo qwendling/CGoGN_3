@@ -197,6 +197,19 @@ int main(int argc, char** argv)
 		case GLFW_KEY_U:
 			vmrm.changed_connectivity(*selected_mesh, position.get());
 			break;
+		case GLFW_KEY_L:
+			if (selected_vertices != nullptr)
+			{
+				selected_vertices->foreach_cell([&](Vertex e) {
+					cgogn::foreach_incident_volume(*selected_mesh, e, [&](Volume v) -> bool {
+						std::cout << selected_mesh->volume_level(v.dart) << std::endl;
+						return true;
+					});
+				});
+
+				vmrm.changed_connectivity(*selected_mesh, position.get());
+			}
+			break;
 		}
 	};
 

@@ -74,7 +74,7 @@ public:
 		{
 			vertex_init_position_ =
 				add_attribute<Vec3, Vertex>(m, "shape_matching_constraint_solver_vertex_init_position" + id);
-			parallel_foreach_cell(m, [&](Vertex v) -> bool {
+			parallel_foreach_cell(static_cast<CMap3&>(m), [&](Vertex v) -> bool {
 				value<Vec3>(m, vertex_init_position_.get(), v) = value<Vec3>(m, pos, v);
 				return true;
 			});
@@ -122,6 +122,19 @@ public:
 	{
 		init_cm_ = Vec3(0, 0, 0);
 		double masse_totale = 0;
+		foreach_cell(m, [&](Volume v) -> bool {
+			double vol = geometry::volume(m, v, vertex_init_position_.get());
+			std::vector<Vertex> inc_vertices;
+			foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
+				inc_vertices.push_back(w);
+				return true;
+			});
+			for (auto w : inc_vertices)
+			{
+				value<double>(m, this->masse_.get(), w) += vol / inc_vertices.size();
+			}
+			return true;
+		});
 		foreach_cell(m, [&](Vertex v) -> bool {
 			init_cm_ += value<double>(m, this->masse_, v) * value<Vec3>(m, vertex_init_position_.get(), v);
 			masse_totale += value<double>(m, this->masse_, v);
