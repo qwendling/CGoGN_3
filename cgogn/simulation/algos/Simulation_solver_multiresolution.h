@@ -39,8 +39,9 @@ class Simulation_solver_multiresolution : public Simulation_solver<MR_MAP>
 		tree_volume* frere;
 		Dart volume_dart;
 		bool is_current;
+		bool is_coarse;
 		int clock;
-		tree_volume() : fils(nullptr), pere(nullptr), frere(nullptr), is_current(false), clock(0)
+		tree_volume() : fils(nullptr), pere(nullptr), frere(nullptr), is_current(false), is_coarse(false), clock(0)
 		{
 		}
 
@@ -185,6 +186,7 @@ public:
 				{
 					coarse_meca_mesh_->disable_volume_subdivision(Volume(t->pere->volume_dart), true);
 					list_volume_coarse_.push_front(t->pere);
+					t->pere->is_coarse = true;
 				}
 			}
 			fine_meca_mesh_->activate_volume_subdivision(Volume(t->volume_dart));
@@ -243,8 +245,12 @@ public:
 		});
 	}
 
-	void update_topo()
+	bool update_topo()
 	{
+		if (list_volume_current_.empty() || list_volume_coarse_.empty())
+		{
+			return false;
+		}
 		list_volume_current_.sort([&](tree_volume* t1, tree_volume* t2) {
 			double v1 = value<double>(*mecanical_mesh_, this->diff_volume_current_fine_.get(), Volume(t1->volume_dart));
 			double v2 = value<double>(*mecanical_mesh_, this->diff_volume_current_fine_.get(), Volume(t2->volume_dart));
@@ -268,30 +274,34 @@ public:
 		double v2 =
 			value<double>(*coarse_meca_mesh_, this->diff_volume_coarse_current_.get(), Volume(min_coarse->volume_dart));
 		int nb_modif = 0;
-		if (min_coarse->is_current)
-			return;
-		std::cout << v1 << std::endl;
-		std::cout << v2 << std::endl;
 		while (v2 - v1 < -0.00001 && nb_modif < MODIF_MAX)
 		{
 			list_volume_current_.pop_front();
 			list_volume_coarse_.pop_front();
+			max_fine->is_current = false;
 			// Activation
-			if (max_fine->pere)
+			if (max_fine->pere && max_fine->pere->is_coarse)
 			{
 				coarse_meca_mesh_->activate_volume_subdivision(Volume(max_fine->pere->volume_dart));
 				list_volume_coarse_.remove(max_fine->pere);
+				max_fine->pere->is_coarse = false;
 				max_fine->pere->for_each_child([&](tree_volume* c) -> bool {
-					list_volume_current_.remove(c);
+					list_new_coarse_.push_front(c);
+					c->is_coarse = true;
 					return true;
 				});
 			}
-			list_new_coarse_.push_front(max_fine);
-			max_fine->is_current = false;
+			if (!max_fine->pere)
+			{
+				list_new_coarse_.push_front(max_fine);
+				max_fine->is_coarse = true;
+			}
+
 			mecanical_mesh_->activate_volume_subdivision(Volume(max_fine->volume_dart));
 			max_fine->for_each_child([&](tree_volume* c) -> bool {
 				fine_meca_mesh_->activate_volume_subdivision(Volume(c->volume_dart));
 				list_new_current_.push_front(c);
+				c->is_current = true;
 				return true;
 			});
 
@@ -309,18 +319,10 @@ public:
 				if (can_be_coarse)
 				{
 					coarse_meca_mesh_->disable_volume_subdivision(Volume(min_coarse->volume_dart), true);
-					min_coarse->pere->for_each_child([&](tree_volume* t) -> bool {
-						list_new_current_.push_front(t);
-						return true;
-					});
 					list_new_coarse_.push_front(min_coarse->pere);
 				}
 			}
-			else
-			{
-				list_new_current_.push_front(min_coarse);
-			}
-
+			list_new_current_.push_front(min_coarse);
 			min_coarse->for_each_child([&](tree_volume* t) -> bool {
 				list_volume_current_.remove(t);
 				return true;
@@ -354,20 +356,18 @@ public:
 			list_volume_coarse_.push_front(t);
 		for (auto t : list_new_current_)
 			list_volume_current_.push_front(t);
-		if (!list_new_current_.empty())
+		if (!list_new_current_.empty() || !list_new_coarse_.empty())
 		{
-			std::cout << "hello" << std::endl;
 			sc_coarse_->update_topo(*coarse_meca_mesh_, {});
 			sc_->update_topo(*mecanical_mesh_, {});
 			sc_fine_->update_topo(*fine_meca_mesh_, {});
+			return true;
 		}
-		else
-		{
-			std::cout << "bye" << std::endl;
-		}
+		return false;
 	}
 
-	void compute_time_step(MR_MAP& m_geom, Attribute<Vec3>* vertex_position, Attribute<double>* masse, double time_step)
+	void compute_time_step(MR_MAP& m_geom, Attribute<Vec3>* vertex_position, Attribute<double>* masse, double time_step,
+						   bool& modif_topo)
 	{
 		if (!this->constraint_)
 			return;
@@ -599,7 +599,7 @@ public:
 		});
 		future_error_cc.wait();
 		future_error_cf.wait();
-		update_topo();
+		modif_topo = modif_topo || update_topo();
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << "time step : " << duration << std::endl;
 	}

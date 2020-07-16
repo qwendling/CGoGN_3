@@ -137,7 +137,7 @@ public:
 	AnimationMultiresolution(const App& app)
 		: ViewModule(app, "Animation_multiresolution (" + std::string{mesh_traits<MR_MESH>::name} + ")"),
 		  mecanical_mesh_(nullptr), selected_view_(app.current_view()), sm_solver_(0.9f), running_(false), ps_(0.9f),
-		  geometric_mesh_(nullptr)
+		  geometric_mesh_(nullptr), modif_topo_(false)
 	{
 		f_keypress = [](View*, MR_MESH*, int32, CellsSet<MR_MESH, Vertex>*, CellsSet<MR_MESH, Edge>*) {};
 	}
@@ -358,7 +358,7 @@ protected:
 				});*/
 
 				simu_solver.compute_time_step(*geometric_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(),
-											  TIME_STEP);
+											  TIME_STEP, modif_topo_);
 				if (p.show_frame_manipulator_)
 				{
 					Vec3 position;
@@ -409,17 +409,34 @@ protected:
 			double m = value<double>(*mecanical_mesh_, p.vertex_masse_.get(), p.selected_vertex_);
 			value<Vec3>(*mecanical_mesh_, p.vertex_forces_.get(), p.selected_vertex_) =
 				m * (p.move_vertex_ - pos) / TIME_STEP;
-			std::cout << value<Vec3>(*mecanical_mesh_, p.vertex_position_.get(), p.selected_vertex_) << std::endl;
 		}
 
-		/*foreach_cell(*geometric_mesh_, [&](Vertex v) -> bool {
-			std::cout << "vertex pos : " << index_of(*geometric_mesh_, v) << std::endl;
-			std::cout << value<Vec3>(*geometric_mesh_, p.vertex_position_.get(), v) << std::endl;
-			std::cout << "######################" << std::endl;
+		/*parallel_foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
+			double m = value<double>(*mecanical_mesh_, p.vertex_masse_.get(), v);
+			value<Vec3>(*mecanical_mesh_, p.vertex_forces_.get(), v) += m * Vec3(0, 0, -9.81);
 			return true;
 		});*/
 
-		simu_solver.compute_time_step(*geometric_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(), 0.005);
+		simu_solver.compute_time_step(*geometric_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(), TIME_STEP,
+									  modif_topo_);
+		if (p.show_frame_manipulator_)
+		{
+			Vec3 position;
+			Vec3 axis_z;
+			p.frame_manipulator_.get_position(position);
+			p.frame_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, axis_z);
+			double d = position.dot(axis_z);
+			parallel_foreach_cell(mecanical_mesh_->m_, [&](Vertex v) -> bool {
+				double tmp = value<Vec3>(*geometric_mesh_, p.vertex_position_.get(), v).dot(axis_z);
+				if (value<Vec3>(*geometric_mesh_, p.vertex_position_.get(), v).dot(axis_z) < d)
+				{
+					value<Vec3>(*geometric_mesh_, p.vertex_position_.get(), v) += (d - tmp) * axis_z;
+					value<Vec3>(*geometric_mesh_, simu_solver.speed_.get(), v) -=
+						axis_z.dot(value<Vec3>(*geometric_mesh_, simu_solver.speed_.get(), v)) * axis_z;
+				}
+				return true;
+			});
+		}
 		need_update_ = true;
 	}
 
@@ -613,9 +630,14 @@ protected:
 						mesh_provider_->emit_attribute_changed(m, simu_solver.diff_volume_coarse_current_.get());
 						mesh_provider_->emit_attribute_changed(m, simu_solver.pos_current_.get());
 						mesh_provider_->emit_attribute_changed(m, simu_solver.pos_coarse_.get());
+						if (modif_topo_)
+						{
+							mesh_provider_->emit_connectivity_changed(m);
+						}
 					});
 					need_update_ = false;
 					meca_update_ = false;
+					modif_topo_ = false;
 					// cv.notify_all();
 					cv_m.unlock();
 				}
@@ -652,6 +674,7 @@ public:
 	bool need_update_;
 	bool meca_update_;
 	bool can_move_vertex_;
+	bool modif_topo_;
 	View* selected_view_;
 };
 
