@@ -15,10 +15,15 @@ struct CPH3_adaptative : public CPH3
 	std::shared_ptr<Attribute<std::set<uint32>>> dart_visibility_level_;
 	std::shared_ptr<Attribute<std::set<uint32>>> representative_visibility_level_;
 	std::shared_ptr<Attribute<Dart>> representative_;
+	mutable std::shared_ptr<Attribute<std::pair<uint32, Dart>>> phi1_buffer_;
+	mutable std::shared_ptr<Attribute<std::pair<uint32, Dart>>> phi2_buffer_;
+	mutable std::shared_ptr<Attribute<std::pair<uint32, Dart>>> phi3_buffer_;
+	mutable uint32 clock_;
+	mutable uint32 level_clock_;
 	static int id;
 
 	CPH3_adaptative() = delete;
-	CPH3_adaptative(CMAP& m) : CPH3(m), father_(nullptr)
+	CPH3_adaptative(CMAP& m) : CPH3(m), father_(nullptr), clock_(1), level_clock_(0)
 	{
 		dart_visibility_level_ =
 			m_.darts_.add_attribute<std::set<uint32>>("dart_visibility_level" + std::to_string(id));
@@ -27,9 +32,18 @@ struct CPH3_adaptative : public CPH3
 		representative_ = m_.darts_.get_attribute<Dart>("representative");
 		if (!representative_)
 			representative_ = m_.darts_.add_attribute<Dart>("representative");
+		phi1_buffer_ = m_.darts_.get_attribute<std::pair<uint32, Dart>>("phi1_buffer" + std::to_string(id));
+		if (!phi1_buffer_)
+			phi1_buffer_ = m_.darts_.add_attribute<std::pair<uint32, Dart>>("phi1_buffer" + std::to_string(id));
+		phi2_buffer_ = m_.darts_.get_attribute<std::pair<uint32, Dart>>("phi2_buffer" + std::to_string(id));
+		if (!phi2_buffer_)
+			phi2_buffer_ = m_.darts_.add_attribute<std::pair<uint32, Dart>>("phi2_buffer" + std::to_string(id));
+		phi3_buffer_ = m_.darts_.get_attribute<std::pair<uint32, Dart>>("phi3_buffer" + std::to_string(id));
+		if (!phi3_buffer_)
+			phi3_buffer_ = m_.darts_.add_attribute<std::pair<uint32, Dart>>("phi3_buffer" + std::to_string(id));
 		id++;
 	}
-	CPH3_adaptative(const CPH3& cph) : CPH3(cph), father_(nullptr)
+	CPH3_adaptative(const CPH3& cph) : CPH3(cph), father_(nullptr), clock_(1), level_clock_(0)
 	{
 		dart_visibility_level_ =
 			m_.darts_.add_attribute<std::set<uint32>>("dart_visibility_level" + std::to_string(id));
@@ -38,12 +52,22 @@ struct CPH3_adaptative : public CPH3
 		representative_ = m_.darts_.get_attribute<Dart>("representative");
 		if (!representative_)
 			representative_ = m_.darts_.add_attribute<Dart>("representative");
+		phi1_buffer_ = m_.darts_.get_attribute<std::pair<uint32, Dart>>("phi1_buffer" + std::to_string(id));
+		if (!phi1_buffer_)
+			phi1_buffer_ = m_.darts_.add_attribute<std::pair<uint32, Dart>>("phi1_buffer" + std::to_string(id));
+		phi2_buffer_ = m_.darts_.get_attribute<std::pair<uint32, Dart>>("phi2_buffer" + std::to_string(id));
+		if (!phi2_buffer_)
+			phi2_buffer_ = m_.darts_.add_attribute<std::pair<uint32, Dart>>("phi2_buffer" + std::to_string(id));
+		phi3_buffer_ = m_.darts_.get_attribute<std::pair<uint32, Dart>>("phi3_buffer" + std::to_string(id));
+		if (!phi3_buffer_)
+			phi3_buffer_ = m_.darts_.add_attribute<std::pair<uint32, Dart>>("phi3_buffer" + std::to_string(id));
 		id++;
 	}
 	CPH3_adaptative(const CPH3_adaptative& other)
 		: CPH3(other), father_(other.father_), dart_visibility_level_(other.dart_visibility_level_),
 		  representative_visibility_level_(other.representative_visibility_level_),
-		  representative_(other.representative_)
+		  representative_(other.representative_), phi1_buffer_(nullptr), phi2_buffer_(nullptr), phi3_buffer_(nullptr),
+		  clock_(1), level_clock_(0)
 	{
 	}
 
@@ -71,6 +95,12 @@ struct CPH3_adaptative : public CPH3
 		return d;
 	}
 
+	bool get_phi1_buffer(Dart d, Dart& result) const;
+	void set_phi1_buffer(Dart d, Dart d2) const;
+	bool get_phi2_buffer(Dart d, Dart& result) const;
+	void set_phi2_buffer(Dart d, Dart d2) const;
+	bool get_phi3_buffer(Dart d, Dart& result) const;
+	void set_phi3_buffer(Dart d, Dart d2) const;
 	CPH3_adaptative* get_copy();
 
 	CPH3_adaptative* get_child();

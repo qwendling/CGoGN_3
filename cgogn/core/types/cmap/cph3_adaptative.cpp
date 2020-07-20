@@ -49,6 +49,7 @@ uint32 CPH3_adaptative::get_dart_visibility_level(Dart d) const
 void CPH3_adaptative::set_representative(Dart d, Dart r)
 {
 	(*representative_)[d.index] = r;
+	clock_++;
 }
 
 Dart CPH3_adaptative::get_representative(Dart d) const
@@ -80,11 +81,13 @@ void CPH3_adaptative::set_representative_visibility_level(Dart d, uint32 l)
 {
 	Dart r = get_representative(d);
 	(*representative_visibility_level_)[r.index].insert(l);
+	clock_++;
 }
 void CPH3_adaptative::unset_representative_visibility_level(Dart d, uint32 l)
 {
 	Dart r = get_representative(d);
 	(*representative_visibility_level_)[r.index].erase(l);
+	clock_++;
 }
 
 bool CPH3_adaptative::representative_is_visible(Dart d) const
@@ -100,11 +103,94 @@ bool CPH3_adaptative::dart_is_visible(Dart d) const
 void CPH3_adaptative::set_visibility_level(Dart d, uint32 l)
 {
 	(*dart_visibility_level_)[d.index].insert(l);
+	clock_++;
 }
 
 void CPH3_adaptative::unset_visibility_level(Dart d, uint32 l)
 {
 	(*dart_visibility_level_)[d.index].erase(l);
+	clock_++;
+}
+
+bool CPH3_adaptative::get_phi1_buffer(Dart d, Dart& result) const
+{
+	if (!phi1_buffer_)
+		return false;
+	auto p = (*phi1_buffer_)[d.index];
+	if (level_clock_ != current_level_)
+	{
+		clock_++;
+		level_clock_ = current_level_;
+		return false;
+	}
+
+	if (p.first == clock_)
+	{
+		result = p.second;
+		return true;
+	}
+	return false;
+}
+
+void CPH3_adaptative::set_phi1_buffer(Dart d, Dart d2) const
+{
+	if (!phi1_buffer_)
+		return;
+	(*phi1_buffer_)[d.index] = std::make_pair(clock_, d2);
+}
+
+bool CPH3_adaptative::get_phi2_buffer(Dart d, Dart& result) const
+{
+	if (!phi2_buffer_)
+		return false;
+	auto p = (*phi2_buffer_)[d.index];
+	if (level_clock_ != current_level_)
+	{
+		clock_++;
+		level_clock_ = current_level_;
+		return false;
+	}
+
+	if (p.first == clock_)
+	{
+		result = p.second;
+		return true;
+	}
+	return false;
+}
+
+void CPH3_adaptative::set_phi2_buffer(Dart d, Dart d2) const
+{
+	if (!phi2_buffer_)
+		return;
+	(*phi2_buffer_)[d.index] = std::make_pair(clock_, d2);
+}
+
+bool CPH3_adaptative::get_phi3_buffer(Dart d, Dart& result) const
+{
+	if (!phi3_buffer_)
+		return false;
+	auto p = (*phi3_buffer_)[d.index];
+	if (level_clock_ != current_level_)
+	{
+		clock_++;
+		level_clock_ = current_level_;
+		return false;
+	}
+
+	if (p.first == clock_)
+	{
+		result = p.second;
+		return true;
+	}
+	return false;
+}
+
+void CPH3_adaptative::set_phi3_buffer(Dart d, Dart d2) const
+{
+	if (!phi3_buffer_)
+		return;
+	(*phi3_buffer_)[d.index] = std::make_pair(clock_, d2);
 }
 
 /***************************************************
@@ -376,6 +462,7 @@ void CPH3_adaptative::activate_edge_subdivision(CMAP::Edge e)
 {
 	if (!edge_is_subdivided(e.dart))
 		return;
+
 	CMAP::Edge e2 = CMAP::Edge(phi2(*this, e.dart));
 	CPH3 m2(CPH3(*this));
 	m2.current_level_ = edge_level(e.dart) + 1;
@@ -395,6 +482,7 @@ void CPH3_adaptative::activate_face_subdivision(CMAP::Face f)
 	{
 		return;
 	}
+
 	Dart d = face_oldest_dart(f.dart);
 	CPH3 m2(CPH3(*this));
 	m2.current_level_ = face_level(f.dart);
@@ -497,6 +585,7 @@ bool CPH3_adaptative::disable_face_subdivision(CMAP::Face f, bool disable_edge, 
 	Dart y = face_youngest_dart(f.dart);
 	if (dart_level(y) <= current_level_)
 		return false;
+
 	CPH3 m2(CPH3(*this));
 	m2.current_level_ = dart_level(y);
 	Dart old = m2.face_oldest_dart(y);
@@ -517,6 +606,7 @@ bool CPH3_adaptative::disable_face_subdivision(CMAP::Face f, bool disable_edge, 
 			if (disable_subface)
 			{
 				disable_face_subdivision(CMAP::Face(it), disable_edge, true);
+				clock_++;
 			}
 			else
 			{
