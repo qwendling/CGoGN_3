@@ -269,6 +269,13 @@ public:
 
 		tree_volume* min_coarse = list_volume_coarse_.front();
 		tree_volume* max_fine = list_volume_current_.front();
+		if (min_coarse == max_fine->pere)
+		{
+			list_volume_coarse_.pop_front();
+			if (list_volume_coarse_.empty())
+				return false;
+			min_coarse = list_volume_coarse_.front();
+		}
 		double v1 =
 			value<double>(*mecanical_mesh_, this->diff_volume_current_fine_.get(), Volume(max_fine->volume_dart));
 		double v2 =
@@ -278,35 +285,57 @@ public:
 		{
 			list_volume_current_.pop_front();
 			list_volume_coarse_.pop_front();
-			max_fine->is_current = false;
+
 			// Activation
+#if 1
+			max_fine->is_current = false;
+			max_fine->is_coarse = true;
+
 			if (max_fine->pere && max_fine->pere->is_coarse)
 			{
-				coarse_meca_mesh_->activate_volume_subdivision(Volume(max_fine->pere->volume_dart));
+				// coarse_meca_mesh_->activate_volume_subdivision(Volume(max_fine->pere->volume_dart));
 				list_volume_coarse_.remove(max_fine->pere);
 				max_fine->pere->is_coarse = false;
-				max_fine->pere->for_each_child([&](tree_volume* c) -> bool {
+				coarse_meca_mesh_->activate_volume_subdivision(Volume(max_fine->volume_dart));
+				list_new_coarse_.push_front(max_fine);
+				// Probleme : si plusieur fils ce subdiv
+				/*max_fine->pere->for_each_child([&](tree_volume* c) -> bool {
 					list_new_coarse_.push_front(c);
 					c->is_coarse = true;
 					return true;
-				});
+				});*/
 			}
-			if (!max_fine->pere)
+			/*if (!max_fine->pere)
 			{
-				list_new_coarse_.push_front(max_fine);
+
 				max_fine->is_coarse = true;
-			}
+			}*/
 
 			mecanical_mesh_->activate_volume_subdivision(Volume(max_fine->volume_dart));
 			max_fine->for_each_child([&](tree_volume* c) -> bool {
-				fine_meca_mesh_->activate_volume_subdivision(Volume(c->volume_dart));
-				list_new_current_.push_front(c);
+				if (c->fils)
+				{
+					fine_meca_mesh_->activate_volume_subdivision(Volume(c->volume_dart));
+					list_new_current_.push_front(c);
+				}
 				c->is_current = true;
 				return true;
 			});
-
+#endif
 			// Disable
 			min_coarse->is_current = true;
+
+			list_new_current_.push_front(min_coarse);
+
+			mecanical_mesh_->disable_volume_subdivision(Volume(min_coarse->volume_dart), true);
+			min_coarse->for_each_child([&](tree_volume* c) -> bool {
+				list_volume_current_.remove(c);
+				c->is_current = false;
+				if (c->fils)
+					fine_meca_mesh_->disable_volume_subdivision(Volume(c->volume_dart), true);
+				return true;
+			});
+
 			if (min_coarse->pere)
 			{
 
@@ -319,21 +348,10 @@ public:
 				if (can_be_coarse)
 				{
 					coarse_meca_mesh_->disable_volume_subdivision(Volume(min_coarse->volume_dart), true);
+					min_coarse->pere->is_coarse = true;
 					list_new_coarse_.push_front(min_coarse->pere);
 				}
 			}
-			list_new_current_.push_front(min_coarse);
-			min_coarse->for_each_child([&](tree_volume* t) -> bool {
-				list_volume_current_.remove(t);
-				return true;
-			});
-
-			mecanical_mesh_->disable_volume_subdivision(Volume(min_coarse->volume_dart), true);
-			min_coarse->for_each_child([&](tree_volume* c) -> bool {
-				if (c->fils)
-					fine_meca_mesh_->disable_volume_subdivision(Volume(c->volume_dart), true);
-				return true;
-			});
 
 			// end
 			if (list_volume_coarse_.empty() || list_volume_current_.empty())
