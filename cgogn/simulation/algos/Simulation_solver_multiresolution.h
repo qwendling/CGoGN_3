@@ -245,8 +245,18 @@ public:
 		});
 	}
 
-	bool update_topo()
+	int get_size_list(const std::forward_list<tree_volume*>& l)
 	{
+		int i = 0;
+		for (auto t : l)
+			i++;
+		return i;
+	}
+
+	bool update_topo(Attribute<Vec3>* vertex_position)
+	{
+		std::cout << "nb_current : " << get_size_list(list_volume_current_) << std::endl;
+		std::cout << "nb_coarse : " << get_size_list(list_volume_coarse_) << std::endl;
 		if (list_volume_current_.empty() || list_volume_coarse_.empty())
 		{
 			return false;
@@ -267,6 +277,12 @@ public:
 		std::forward_list<tree_volume*> list_new_current_;
 		std::forward_list<tree_volume*> list_new_coarse_;
 
+		CellMarkerStore<MR_MAP, Vertex> marker(*fine_meca_mesh_);
+		foreach_cell(*fine_meca_mesh_, [&](Vertex v) -> bool {
+			marker.mark(v);
+			return true;
+		});
+
 		tree_volume* min_coarse = list_volume_coarse_.front();
 		tree_volume* max_fine = list_volume_current_.front();
 		if (min_coarse == max_fine->pere)
@@ -281,35 +297,22 @@ public:
 		double v2 =
 			value<double>(*coarse_meca_mesh_, this->diff_volume_coarse_current_.get(), Volume(min_coarse->volume_dart));
 		int nb_modif = 0;
-		while (v2 - v1 < -0.00001 && nb_modif < MODIF_MAX)
+		while (v2 / v1 < 0.7 && nb_modif < MODIF_MAX)
 		{
 			list_volume_current_.pop_front();
 			list_volume_coarse_.pop_front();
 
 			// Activation
-#if 1
 			max_fine->is_current = false;
 			max_fine->is_coarse = true;
+			list_new_coarse_.push_front(max_fine);
 
 			if (max_fine->pere && max_fine->pere->is_coarse)
 			{
-				// coarse_meca_mesh_->activate_volume_subdivision(Volume(max_fine->pere->volume_dart));
 				list_volume_coarse_.remove(max_fine->pere);
 				max_fine->pere->is_coarse = false;
 				coarse_meca_mesh_->activate_volume_subdivision(Volume(max_fine->volume_dart));
-				list_new_coarse_.push_front(max_fine);
-				// Probleme : si plusieur fils ce subdiv
-				/*max_fine->pere->for_each_child([&](tree_volume* c) -> bool {
-					list_new_coarse_.push_front(c);
-					c->is_coarse = true;
-					return true;
-				});*/
 			}
-			/*if (!max_fine->pere)
-			{
-
-				max_fine->is_coarse = true;
-			}*/
 
 			mecanical_mesh_->activate_volume_subdivision(Volume(max_fine->volume_dart));
 			max_fine->for_each_child([&](tree_volume* c) -> bool {
@@ -321,7 +324,6 @@ public:
 				c->is_current = true;
 				return true;
 			});
-#endif
 			// Disable
 			min_coarse->is_current = true;
 
@@ -379,6 +381,9 @@ public:
 			sc_coarse_->update_topo(*coarse_meca_mesh_, {});
 			sc_->update_topo(*mecanical_mesh_, {});
 			sc_fine_->update_topo(*fine_meca_mesh_, {});
+			pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, vertex_position, nullptr, this->forces_ext_.get(),
+						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(),
+						   [&](Vertex v) -> bool { return !marker.is_marked(v); });
 			return true;
 		}
 		return false;
@@ -387,6 +392,8 @@ public:
 	void compute_time_step(MR_MAP& m_geom, Attribute<Vec3>* vertex_position, Attribute<double>* masse, double time_step,
 						   bool& modif_topo)
 	{
+		static int nb_step = 0;
+		std::cout << "step : " << nb_step++ << std::endl;
 		if (!this->constraint_)
 			return;
 
@@ -479,8 +486,6 @@ public:
 						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(), time_step);
 		};
 
-		future_solve_coarse.wait();
-		future_solve_current.wait();
 		auto future_solve_fine = pool->enqueue(solve_fine);
 
 		/////////////////////////////////////////////////
@@ -617,7 +622,7 @@ public:
 		});
 		future_error_cc.wait();
 		future_error_cf.wait();
-		modif_topo = modif_topo || update_topo();
+		modif_topo = update_topo(vertex_position) || modif_topo;
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << "time step : " << duration << std::endl;
 	}

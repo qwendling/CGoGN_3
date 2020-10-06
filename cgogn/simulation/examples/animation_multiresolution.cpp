@@ -94,11 +94,11 @@ int main(int argc, char** argv)
 	v3->link_module(&vs);
 	v3->link_module(&am);
 
-	cgogn::ui::View* v4 = app.add_view();
+	/*cgogn::ui::View* v4 = app.add_view();
 	v4->link_module(&mrmp);
 	v4->link_module(&mrsr);
 	v4->link_module(&vs);
-	v4->link_module(&am);
+	v4->link_module(&am);*/
 
 	app.init_modules();
 
@@ -113,6 +113,7 @@ int main(int argc, char** argv)
 
 	MRMesh* cph1 = vmrm.create_cph3(*m, mp.mesh_name(m));
 	MRMesh* cph2 = vmrm.create_cph3(*m, mp.mesh_name(m));
+	MRMesh* cph3 = vmrm.create_cph3(*m, mp.mesh_name(m));
 
 	vmrm.selected_vertex_parents_ = cgogn::add_attribute<std::array<Vertex, 3>, Vertex>(*m, "parents");
 	vmrm.selected_vertex_relative_position_ = cgogn::add_attribute<Vec3, Vertex>(*m, "relative_position");
@@ -152,9 +153,9 @@ int main(int argc, char** argv)
 	mrsr.set_vertex_position(*v1, *cph2, nullptr);
 	mrsr.set_vertex_position(*v2, *cph1, nullptr);
 	mrsr.set_vertex_position(*v2, *cph2, position);
-	/*mrsr.set_vertex_position(*v3, *cph1, position);
+	mrsr.set_vertex_position(*v3, *cph1, position);
 	mrsr.set_vertex_position(*v3, *cph2, position);
-	mrsr.set_vertex_position(*v4, *cph1, position);
+	/*mrsr.set_vertex_position(*v4, *cph1, position);
 	mrsr.set_vertex_position(*v4, *cph2, position);*/
 
 	std::srand(std::time(nullptr));

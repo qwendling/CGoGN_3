@@ -31,7 +31,7 @@ public:
 	}
 	void propagate(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>* pos, Attribute<Vec3>* speed, Attribute<Vec3>*,
 				   Attribute<double>*, Attribute<Vec3>* pos_relative, Attribute<std::array<Vertex, 3>>* parent,
-				   double time_step) const override
+				   const std::function<bool(Vertex)>& filter, double time_step) const override
 	{
 
 		std::vector<std::vector<Vertex>> vect_vertex_per_resolution;
@@ -54,6 +54,8 @@ public:
 		};
 
 		foreach_cell(m_geom, [&](Vertex v) -> bool {
+			if (!filter(v))
+				return true;
 			if (!m_meca.dart_is_visible(v.dart))
 			{
 				add_vertex(v);

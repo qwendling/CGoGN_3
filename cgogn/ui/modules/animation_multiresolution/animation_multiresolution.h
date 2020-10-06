@@ -341,6 +341,7 @@ protected:
 				{
 					need_update_ = true;
 					cv_m.lock();
+					cgogn_message_assert(!need_update_, "sync render - anim failed");
 				}
 
 				if (p.have_selected_vertex_)
@@ -359,7 +360,7 @@ protected:
 
 				simu_solver.compute_time_step(*geometric_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(),
 											  TIME_STEP, modif_topo_);
-				if (p.show_frame_manipulator_)
+				if (true || p.show_frame_manipulator_)
 				{
 					Vec3 position;
 					Vec3 axis_z;
