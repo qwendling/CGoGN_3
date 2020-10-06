@@ -16,6 +16,8 @@ target_sources(${PROJECT_NAME}
 	PRIVATE
         "${CMAKE_CURRENT_LIST_DIR}/algos/shallow_water/riemann_solver.h"
         "${CMAKE_CURRENT_LIST_DIR}/algos/shallow_water/riemann_solver.cpp"
+	"${CMAKE_CURRENT_LIST_DIR}/algos/linked_volumes/linked_volumes.h"
+        "${CMAKE_CURRENT_LIST_DIR}/algos/linked_volumes/linked_volumes.cpp"
 	"${CMAKE_CURRENT_LIST_DIR}/algos/shape_matching/shape_matching.h"
         "${CMAKE_CURRENT_LIST_DIR}/algos/shape_matching/shape_matching.cpp"
 	"${CMAKE_CURRENT_LIST_DIR}/algos/multiresolution_propagation/propagation_forces.h"
