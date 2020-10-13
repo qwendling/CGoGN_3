@@ -1,0 +1,42 @@
+
+#ifndef CGOGN_RENDERING_EXPORT_H
+#define CGOGN_RENDERING_EXPORT_H
+
+#ifdef CGOGN_RENDERING_STATIC_DEFINE
+#  define CGOGN_RENDERING_EXPORT
+#  define CGOGN_RENDERING_NO_EXPORT
+#else
+#  ifndef CGOGN_RENDERING_EXPORT
+#    ifdef cgogn_rendering_EXPORTS
+        /* We are building this library */
+#      define CGOGN_RENDERING_EXPORT 
+#    else
+        /* We are using this library */
+#      define CGOGN_RENDERING_EXPORT 
+#    endif
+#  endif
+
+#  ifndef CGOGN_RENDERING_NO_EXPORT
+#    define CGOGN_RENDERING_NO_EXPORT 
+#  endif
+#endif
+
+#ifndef CGOGN_RENDERING_DEPRECATED
+#  define CGOGN_RENDERING_DEPRECATED __attribute__ ((__deprecated__))
+#endif
+
+#ifndef CGOGN_RENDERING_DEPRECATED_EXPORT
+#  define CGOGN_RENDERING_DEPRECATED_EXPORT CGOGN_RENDERING_EXPORT CGOGN_RENDERING_DEPRECATED
+#endif
+
+#ifndef CGOGN_RENDERING_DEPRECATED_NO_EXPORT
+#  define CGOGN_RENDERING_DEPRECATED_NO_EXPORT CGOGN_RENDERING_NO_EXPORT CGOGN_RENDERING_DEPRECATED
+#endif
+
+#if 0 /* DEFINE_NO_DEPRECATED */
+#  ifndef CGOGN_RENDERING_NO_DEPRECATED
+#    define CGOGN_RENDERING_NO_DEPRECATED
+#  endif
+#endif
+
+#endif

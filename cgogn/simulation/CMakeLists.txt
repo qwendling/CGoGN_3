@@ -20,6 +20,8 @@ target_sources(${PROJECT_NAME}
         "${CMAKE_CURRENT_LIST_DIR}/algos/linked_volumes/linked_volumes.cpp"
 	"${CMAKE_CURRENT_LIST_DIR}/algos/shape_matching/shape_matching.h"
         "${CMAKE_CURRENT_LIST_DIR}/algos/shape_matching/shape_matching.cpp"
+	"${CMAKE_CURRENT_LIST_DIR}/algos/lattice_shape_matching/lattice_shape_matching.h"
+        "${CMAKE_CURRENT_LIST_DIR}/algos/lattice_shape_matching/lattice_shape_matching.cpp"
 	"${CMAKE_CURRENT_LIST_DIR}/algos/multiresolution_propagation/propagation_forces.h"
 	"${CMAKE_CURRENT_LIST_DIR}/algos/multiresolution_propagation/propagation_spring.h"
 	"${CMAKE_CURRENT_LIST_DIR}/algos/multiresolution_propagation/propagation_plastique.h"

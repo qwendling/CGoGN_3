@@ -44,6 +44,7 @@
 #include <cgogn/rendering/vbo_update.h>
 #include <cgogn/simulation/algos/Simulation_solver.h>
 #include <cgogn/simulation/algos/Simulation_solver_multiresolution.h>
+#include <cgogn/simulation/algos/lattice_shape_matching/lattice_shape_matching.h>
 #include <cgogn/simulation/algos/shape_matching/shape_matching.h>
 
 #include <boost/synapse/connect.hpp>
@@ -622,7 +623,7 @@ public:
 	std::vector<std::shared_ptr<boost::synapse::connection>> connections_;
 	std::unordered_map<const MESH*, std::vector<std::shared_ptr<boost::synapse::connection>>> mesh_connections_;
 	MeshProvider<MESH>* mesh_provider_;
-	simulation::shape_matching_constraint_solver<MESH> sm_solver_;
+	simulation::lattice_shape_matching_constraint_solver<MESH> sm_solver_;
 	simulation::Simulation_solver<MESH> simu_solver;
 	bool running_;
 	bool need_update_;
