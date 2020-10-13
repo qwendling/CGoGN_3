@@ -22,8 +22,9 @@ public:
 	Simulation_constraint<MAP>* constraint_;
 	std::shared_ptr<Attribute<Vec3>> speed_;
 	std::shared_ptr<Attribute<Vec3>> forces_ext_;
+	std::shared_ptr<Attribute<bool>> fixed_vertex;
 
-	Simulation_solver() : constraint_(nullptr), speed_(nullptr), forces_ext_(nullptr)
+	Simulation_solver() : constraint_(nullptr), speed_(nullptr), forces_ext_(nullptr), fixed_vertex(nullptr)
 	{
 	}
 
@@ -67,6 +68,8 @@ public:
 			return;
 		constraint_->solve_constraint(m, vertex_position, forces_ext_.get(), time_step);
 		parallel_foreach_cell(m, [&](Vertex v) -> bool {
+			if (fixed_vertex && value<bool>(m, fixed_vertex.get(), v))
+				return true;
 			// compute speed
 			value<Vec3>(m, speed_.get(), v) =
 				0.995 * value<Vec3>(m, speed_.get(), v) +

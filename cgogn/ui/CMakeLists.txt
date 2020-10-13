@@ -45,6 +45,7 @@ target_sources(${PROJECT_NAME}
 		"${CMAKE_CURRENT_LIST_DIR}/modules/volume_selection/volume_selection.h"
 		"${CMAKE_CURRENT_LIST_DIR}/modules/volume_mr_modeling/volume_mr_modeling.h"
 		"${CMAKE_CURRENT_LIST_DIR}/modules/animation_multiresolution/animation_multiresolution.h"
+		"${CMAKE_CURRENT_LIST_DIR}/modules/linked_volumes/linked_volumes.h"
 
 )
 

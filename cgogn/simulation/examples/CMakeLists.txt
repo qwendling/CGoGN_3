@@ -42,6 +42,16 @@ target_link_libraries(animation_multiresolution
 	${CMAKE_DL_LIBS}
 )
 
+add_executable(linked_volumes linked_volumes.cpp)
+target_link_libraries(linked_volumes
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::simulation
+	${CMAKE_DL_LIBS}
+)
+
 if(APPLE)
 	find_library(CORE_FOUNDATION CoreFoundation)
 	find_library(CARBON Carbon)

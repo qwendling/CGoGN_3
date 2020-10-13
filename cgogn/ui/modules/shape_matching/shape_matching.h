@@ -37,6 +37,7 @@
 #include <cgogn/geometry/algos/selection.h>
 #include <cgogn/geometry/types/vector_traits.h>
 
+#include <cgogn/rendering/frame_manipulator.h>
 #include <cgogn/rendering/shaders/shader_bold_line.h>
 #include <cgogn/rendering/shaders/shader_flat.h>
 #include <cgogn/rendering/shaders/shader_point_sprite.h>
@@ -73,8 +74,9 @@ class ShapeMatching : public ViewModule
 	{
 		Parameters()
 			: vertex_position_(nullptr), init_vertex_position_(nullptr), vertex_forces_(nullptr),
-			  vertex_masse_(nullptr), vertex_scale_factor_(1.0), sphere_scale_factor_(10.0),
-			  have_selected_vertex_(false), move_vertex_(0, 0, 0)
+			  vertex_masse_(nullptr), fixed_vertex(nullptr), vertex_scale_factor_(1.0), sphere_scale_factor_(10.0),
+			  have_selected_vertex_(false), move_vertex_(0, 0, 0), show_frame_manipulator_(false),
+			  manipulating_frame_(false)
 		{
 			param_move_vertex_ = rendering::ShaderPointSprite::generate_param();
 			param_move_vertex_->color_ = rendering::GLColor(1, 1, 0, 0.65);
@@ -107,6 +109,7 @@ class ShapeMatching : public ViewModule
 		std::shared_ptr<Attribute<Vec3>> init_vertex_position_;
 		std::shared_ptr<Attribute<Vec3>> vertex_forces_;
 		std::shared_ptr<Attribute<double>> vertex_masse_;
+		std::shared_ptr<Attribute<bool>> fixed_vertex;
 
 		std::unique_ptr<rendering::ShaderPointSprite::Param> param_move_vertex_;
 		std::unique_ptr<rendering::ShaderBoldLine::Param> param_edge_;
@@ -121,12 +124,16 @@ class ShapeMatching : public ViewModule
 		Vec3 move_vertex_;
 		bool have_selected_vertex_;
 		Vertex selected_vertex_;
+
+		rendering::FrameManipulator frame_manipulator_;
+		bool show_frame_manipulator_;
+		bool manipulating_frame_;
 	};
 
 public:
 	ShapeMatching(const App& app)
 		: ViewModule(app, "ShapeMatching (" + std::string{mesh_traits<MESH>::name} + ")"), selected_mesh_(nullptr),
-		  selected_view_(app.current_view()), sm_solver_(0.5f), running_(false)
+		  selected_view_(app.current_view()), sm_solver_(0.005f), running_(false), apply_gravity(false)
 	{
 		f_keypress = [](View*, MESH*, int32, CellsSet<MESH, Vertex>*, CellsSet<MESH, Edge>*) {};
 	}
@@ -227,6 +234,12 @@ protected:
 				}
 			}
 		}
+		if (p.manipulating_frame_)
+		{
+			auto [P, Q] = view->pixel_ray(x, y);
+			p.frame_manipulator_.pick(x, y, P, Q);
+			view->request_update();
+		}
 	}
 
 	void key_press_event(View* v, int32 key_code)
@@ -235,6 +248,38 @@ protected:
 		{
 			v->lock_rotation_ = true;
 			can_move_vertex_ = true;
+		}
+		if (key_code == GLFW_KEY_C)
+		{
+			if (selected_mesh_)
+			{
+				Parameters& p = parameters_[selected_mesh_];
+				if (p.show_frame_manipulator_)
+					p.manipulating_frame_ = true;
+			}
+		}
+		if (key_code == GLFW_KEY_G)
+		{
+			apply_gravity = !apply_gravity;
+		}
+		if (key_code == GLFW_KEY_F)
+		{
+			if (selected_mesh_)
+			{
+				Parameters& p = parameters_[selected_mesh_];
+				Vec3 pos;
+				p.frame_manipulator_.get_position(pos);
+				Vec3 a;
+				p.frame_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, a);
+				double d = pos.dot(a);
+				parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
+					if (value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v).dot(a) < d)
+					{
+						value<bool>(*selected_mesh_, p.fixed_vertex.get(), v) = true;
+					}
+					return true;
+				});
+			}
 		}
 	}
 
@@ -245,19 +290,49 @@ protected:
 			v->lock_rotation_ = false;
 			can_move_vertex_ = false;
 		}
+		if (key_code == GLFW_KEY_C)
+		{
+			if (selected_mesh_)
+			{
+				Parameters& p = parameters_[selected_mesh_];
+				p.manipulating_frame_ = false;
+			}
+		}
 	}
 
 	void mouse_move_event(View* view, int32 x, int32 y)
 	{
-		Parameters& p = parameters_[selected_mesh_];
-		if (p.have_selected_vertex_ && can_move_vertex_)
+		if (selected_mesh_)
 		{
-			p.move_vertex_ =
-				view->pixel_scene_(x, y, value<Vec3>(*selected_mesh_, p.vertex_position_.get(), p.selected_vertex_));
-			p.update_move_vertex_vbo();
+			Parameters& p = parameters_[selected_mesh_];
+			if (p.have_selected_vertex_ && can_move_vertex_)
+			{
+				p.move_vertex_ = view->pixel_scene_(
+					x, y, value<Vec3>(*selected_mesh_, p.vertex_position_.get(), p.selected_vertex_));
+				p.update_move_vertex_vbo();
+				view->request_update();
+			}
+			bool leftpress = view->mouse_button_pressed(GLFW_MOUSE_BUTTON_LEFT);
+			bool rightpress = view->mouse_button_pressed(GLFW_MOUSE_BUTTON_RIGHT);
+			if (p.manipulating_frame_ && (rightpress || leftpress))
+			{
+				p.frame_manipulator_.drag(leftpress, x, y);
+				view->stop_event();
+				view->request_update();
+			}
+		}
+	}
+
+	void mouse_release_event(View* view, int32, int32, int32) override
+	{
+		if (selected_mesh_)
+		{
+			Parameters& p = parameters_[selected_mesh_];
+			p.frame_manipulator_.release();
 			view->request_update();
 		}
 	}
+
 #define TIME_STEP 0.005f
 	void start()
 	{
@@ -275,6 +350,14 @@ protected:
 						m * (p.move_vertex_ - pos) / TIME_STEP;
 					std::cout << value<Vec3>(*selected_mesh_, p.vertex_position_.get(), p.selected_vertex_)
 							  << std::endl;
+				}
+
+				if (apply_gravity)
+				{
+					parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
+						value<Vec3>(*selected_mesh_, p.vertex_forces_, v) += Vec3(0, -9.81, 0);
+						return true;
+					});
 				}
 
 				simu_solver.compute_time_step(*selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(), 0.005);
@@ -300,8 +383,11 @@ protected:
 
 	void draw(View* view) override
 	{
-		for (auto& [m, p] : parameters_)
+		if (selected_mesh_)
 		{
+			auto& m = selected_mesh_;
+			auto& p = parameters_[selected_mesh_];
+
 			MeshData<MESH>* md = mesh_provider_->mesh_data(m);
 
 			const rendering::GLMat4& proj_matrix = view->projection_matrix();
@@ -320,6 +406,13 @@ protected:
 				p.param_edge_->bind(proj_matrix, view_matrix);
 				glDrawArrays(GL_LINES, 0, 2);
 				p.param_edge_->release();
+			}
+
+			if (p.show_frame_manipulator_)
+			{
+				Scalar size = (md->bb_max_ - md->bb_min_).norm() / 10;
+				p.frame_manipulator_.set_size(size);
+				p.frame_manipulator_.draw(true, true, proj_matrix, view_matrix);
 			}
 		}
 	}
@@ -352,6 +445,11 @@ protected:
 				{
 					selected_mesh_ = m;
 					simu_solver.init_solver(*selected_mesh_, &sm_solver_);
+					Parameters& p = parameters_[selected_mesh_];
+					p.fixed_vertex = get_attribute<bool, Vertex>(*m, "fixed_vertex");
+					if (p.fixed_vertex == nullptr)
+						p.fixed_vertex = add_attribute<bool, Vertex>(*m, "fixed_vertex");
+					simu_solver.fixed_vertex = p.fixed_vertex;
 				}
 			});
 			ImGui::ListBoxFooter();
@@ -362,6 +460,8 @@ protected:
 			double X_button_width = ImGui::CalcTextSize("X").x + ImGui::GetStyle().FramePadding.x * 2;
 
 			Parameters& p = parameters_[selected_mesh_];
+
+			need_update_ |= ImGui::Checkbox("Show plane", &p.show_frame_manipulator_);
 
 			if (ImGui::BeginCombo("Position", p.vertex_position_ ? p.vertex_position_->name().c_str() : "-- select --"))
 			{
@@ -527,6 +627,7 @@ public:
 	bool running_;
 	bool need_update_;
 	bool can_move_vertex_;
+	bool apply_gravity;
 	View* selected_view_;
 };
 

@@ -21,8 +21,6 @@
  *                                                                              *
  *******************************************************************************/
 
-#include <cgogn/core/functions/cells.h>
-#include <cgogn/core/functions/mesh_info.h>
 #include <cgogn/core/functions/mesh_ops/face.h>
 #include <cgogn/core/functions/mesh_ops/volume.h>
 #include <cgogn/core/functions/traversals/edge.h>
@@ -288,7 +286,6 @@ CPH3::CMAP::Face cut_volume(CPH3& m, const std::vector<Dart>& path, bool set_ind
 					set_index<CPH3::CMAP::Volume>(m, d, ved2);
 				return true;
 			});
-			
 		}
 	}
 
@@ -305,9 +302,8 @@ CPH3_adaptative::CMAP::Face cut_volume(CPH3_adaptative& m, const std::vector<Dar
 
 	CPH3_adaptative::CMAP::Face result = cut_volume(cph, path, set_indices);
 
-
 	foreach_dart_of_orbit(map, result, [&](Dart d) -> bool {
-		m.set_representative(d,d);
+		m.set_representative(d, d);
 		return true;
 	});
 
@@ -378,7 +374,7 @@ CMap3::Volume close_hole(CMap3& m, Dart d, bool set_indices)
 				}
 				else
 				{
-					if (hole_volume_marker.is_marked(e))
+					if (hole_volume_marker.is_marked(e) || is_boundary(m, e))
 					{
 						found = true;
 						phi2_sew(m, e, bit);
