@@ -201,12 +201,6 @@ protected:
 					std::cout << "hello" << std::endl;
 				}
 				mesh_provider_->emit_connectivity_changed(selected_mesh_);
-				int tmp = 0;
-				foreach_cell(*selected_mesh_, [&tmp](Vertex) -> bool {
-					tmp++;
-					return true;
-				});
-				std::cout << "nb vertex after cut : " << tmp << std::endl;
 			}
 		}
 	}

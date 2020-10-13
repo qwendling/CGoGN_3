@@ -159,6 +159,14 @@ private:
 						p.vertex_base_size_ = geometry::mean_edge_length(*m, p.vertex_position_.get()) / 6.0;
 					}
 				}));
+		mesh_connections_[m].push_back(
+			boost::synapse::connect<typename MeshProvider<MESH>::connectivity_changed>(m, [this, m]() {
+				Parameters& p = parameters_[m];
+				if (p.vertex_position_ && p.init_vertex_position_ && p.vertex_forces_ && p.vertex_masse_)
+				{
+					sm_solver_.update_topo(*m, {});
+				}
+			}));
 	}
 
 public:

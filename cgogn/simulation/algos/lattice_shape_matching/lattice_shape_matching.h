@@ -188,7 +188,7 @@ public:
 
 	void update_topo(const MAP& m, const std::vector<Vertex>&)
 	{
-
+		std::cout << "________________________________________________________________" << std::endl;
 		foreach_cell(m, [&](Volume v) -> bool {
 			double vol = geometry::volume(m, v, vertex_init_position_.get());
 			std::vector<Vertex> inc_vertices;
@@ -243,6 +243,8 @@ public:
 					value<double>(m, modify_masse_vertex_.get(), v2) * value<Vec3>(m, vertex_init_position_.get(), v2);
 			}
 			value<Vec3>(m, init_cm_region_.get(), v) /= value<double>(m, masse_region_.get(), v);
+			std::cout << "value<Vec3>(m, init_cm_region_.get(), v)" << std::endl;
+			std::cout << value<Vec3>(m, init_cm_region_.get(), v) << std::endl;
 			return true;
 		});
 	}
