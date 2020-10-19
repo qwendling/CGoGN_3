@@ -188,6 +188,8 @@ protected:
 				Vec3 a;
 				p.frame_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, a);
 				double d = pos.dot(a);
+				selected_mesh_->start_writer();
+				std::cout << "Début découpe" << std::endl;
 				lv_.compute_cut_plan(a, d, p.vertex_position_.get(), [&](std::pair<Vertex, Vertex> p) -> bool {
 					for (auto attr : list_update_attribute)
 					{
@@ -195,12 +197,15 @@ protected:
 					}
 					return true;
 				});
+				std::cout << "Fin découpe" << std::endl;
+
 				for (auto attr : list_update_attribute)
 				{
 					mesh_provider_->emit_attribute_changed(selected_mesh_, attr.get());
 					std::cout << "hello" << std::endl;
 				}
 				mesh_provider_->emit_connectivity_changed(selected_mesh_);
+				selected_mesh_->end_writer();
 			}
 		}
 	}

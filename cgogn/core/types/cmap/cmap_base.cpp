@@ -26,7 +26,7 @@
 namespace cgogn
 {
 
-CMapBase::CMapBase()
+CMapBase::CMapBase() : nb_reader(0), nb_writer(0), is_modify(false)
 {
 	boundary_marker_ = darts_.get_mark_attribute();
 }

@@ -361,6 +361,8 @@ protected:
 							  << std::endl;
 				}
 
+				selected_mesh_->start_reader();
+				std::cout << "Debut simu" << std::endl;
 				if (apply_gravity)
 				{
 					parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
@@ -371,7 +373,8 @@ protected:
 
 				simu_solver.compute_time_step(*selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(), 0.005);
 				need_update_ = true;
-				std::this_thread::sleep_for(std::chrono::milliseconds(5));
+				std::cout << "fin simu" << std::endl;
+				selected_mesh_->end_reader();
 			}
 		});
 

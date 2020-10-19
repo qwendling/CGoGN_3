@@ -100,6 +100,7 @@ int main(int argc, char** argv)
 	cgogn::index_cells<Mesh::Face>(*m);
 
 	mrsr.set_vertex_position(*v1, *m, position);
+	v1->scene_bb_locked_ = true;
 
 	std::srand(std::time(nullptr));
 

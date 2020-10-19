@@ -34,6 +34,7 @@
 
 #include <any>
 #include <array>
+#include <condition_variable>
 #include <unordered_map>
 
 namespace cgogn
@@ -72,6 +73,16 @@ struct CGOGN_CORE_EXPORT CMapBase
 	/*************************************************************************/
 	mutable std::array<AttributeContainer, NB_ORBITS> attribute_containers_;
 
+	/*************************************************************************/
+	// Threads management (Readers/writers)
+	/*************************************************************************/
+
+	std::condition_variable cv;
+	std::mutex m_;
+	int nb_reader;
+	int nb_writer;
+	bool is_modify;
+
 	CMapBase();
 	~CMapBase();
 
@@ -98,6 +109,36 @@ struct CGOGN_CORE_EXPORT CMapBase
 	inline Dart next(Dart d) const
 	{
 		return Dart(darts_.next_index(d.index));
+	}
+
+	void start_reader()
+	{
+		std::unique_lock<std::mutex> lk(m_);
+		cv.wait(lk, [&] { return nb_writer <= 0; });
+		nb_reader++;
+	}
+
+	void end_reader()
+	{
+		std::unique_lock<std::mutex> lk(m_);
+		nb_reader--;
+		cv.notify_all();
+	}
+
+	void start_writer()
+	{
+		std::unique_lock<std::mutex> lk(m_);
+		nb_writer++;
+		cv.wait(lk, [&] { return nb_reader <= 0 && !is_modify; });
+		is_modify = true;
+	}
+
+	void end_writer()
+	{
+		std::unique_lock<std::mutex> lk(m_);
+		nb_writer--;
+		is_modify = false;
+		cv.notify_all();
 	}
 };
 
