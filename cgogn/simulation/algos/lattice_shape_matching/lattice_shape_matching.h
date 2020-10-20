@@ -188,9 +188,12 @@ public:
 
 	void update_topo(const MAP& m, const std::vector<Vertex>&)
 	{
-		std::cout << "________________________________________________________________" << std::endl;
+		parallel_foreach_cell(m, [&](Vertex v) -> bool {
+			value<double>(m, this->masse_.get(), v) = 0;
+			return true;
+		});
 		foreach_cell(m, [&](Volume v) -> bool {
-			double vol = geometry::volume(m, v, vertex_init_position_.get());
+			double vol = geometry::volume(m, v, vertex_init_position_.get()) * 100000;
 			std::vector<Vertex> inc_vertices;
 			foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
 				inc_vertices.push_back(w);
@@ -220,6 +223,7 @@ public:
 			return true;
 		});
 		parallel_foreach_cell(m, [&](Vertex v) -> bool {
+			std::cout << "masse : " << value<double>(m, this->masse_.get(), v) << std::endl;
 			value<double>(m, modify_masse_vertex_.get(), v) =
 				value<double>(m, this->masse_.get(), v) /
 				(double)value<std::vector<Vertex>>(m, vertex_region_.get(), v).size();
@@ -243,8 +247,6 @@ public:
 					value<double>(m, modify_masse_vertex_.get(), v2) * value<Vec3>(m, vertex_init_position_.get(), v2);
 			}
 			value<Vec3>(m, init_cm_region_.get(), v) /= value<double>(m, masse_region_.get(), v);
-			std::cout << "value<Vec3>(m, init_cm_region_.get(), v)" << std::endl;
-			std::cout << value<Vec3>(m, init_cm_region_.get(), v) << std::endl;
 			return true;
 		});
 	}
@@ -375,8 +377,9 @@ public:
 			value<Mat3d>(m, A_.get(), v) -= value<double>(m, masse_region_.get(), v) *
 											value<Vec3>(m, cm_region_.get(), v) *
 											value<Vec3>(m, init_cm_region_.get(), v).transpose();
-			polarDecompositionStable(value<Mat3d>(m, A_.get(), v), 1.0e-6, value<Mat3d>(m, A_.get(), v));
-
+			Mat3d Result;
+			polarDecompositionStable(value<Mat3d>(m, A_.get(), v), 1.0e-6, Result);
+			value<Mat3d>(m, A_.get(), v) = Result;
 			value<Vec3>(m, translate_.get(), v) =
 				value<Vec3>(m, cm_region_.get(), v) -
 				value<Mat3d>(m, A_.get(), v) * value<Vec3>(m, init_cm_region_.get(), v);

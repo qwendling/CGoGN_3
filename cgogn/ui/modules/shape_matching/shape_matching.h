@@ -389,7 +389,17 @@ protected:
 	void step()
 	{
 		Parameters& p = parameters_[selected_mesh_];
-		simu_solver.compute_time_step(*selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(), 0.005);
+		for (int i = 0; i < 1; i++)
+		{
+			if (apply_gravity)
+			{
+				parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
+					value<Vec3>(*selected_mesh_, p.vertex_forces_, v) += Vec3(0, -9.81, 0);
+					return true;
+				});
+			}
+			simu_solver.compute_time_step(*selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(), 0.005);
+		}
 		need_update_ = true;
 	}
 
