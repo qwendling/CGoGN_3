@@ -39,4 +39,4 @@
 #  endif
 #endif
 
-#endif
+#endif /* CGOGN_CORE_EXPORT_H */

@@ -39,4 +39,4 @@
 #  endif
 #endif
 
-#endif
+#endif /* CGOGN_GEOMETRY_EXPORT_H */

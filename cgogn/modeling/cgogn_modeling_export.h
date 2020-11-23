@@ -39,4 +39,4 @@
 #  endif
 #endif
 
-#endif
+#endif /* CGOGN_MODELING_EXPORT_H */

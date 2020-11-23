@@ -335,15 +335,11 @@ protected:
 		Parameters& p = parameters_[mecanical_mesh_];
 
 		launch_thread([this, &p]() {
+			typename MR_MESH::CMAP& map = static_cast<typename MR_MESH::CMAP&>(*mecanical_mesh_);
 			while (this->running_)
 			{
-				if (meca_update_)
-				{
-					need_update_ = true;
-					cv_m.lock();
-					cgogn_message_assert(!need_update_, "sync render - anim failed");
-				}
 
+				map.start_writer();
 				if (p.have_selected_vertex_)
 				{
 					Vec3 pos = value<Vec3>(*mecanical_mesh_, p.vertex_position_.get(), p.selected_vertex_);
@@ -378,7 +374,7 @@ protected:
 						return true;
 					});
 				}
-
+				map.end_writer();
 				// std::this_thread::sleep_for(std::chrono::milliseconds(5));
 			}
 		});

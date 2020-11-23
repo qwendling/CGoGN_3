@@ -153,8 +153,9 @@ int main(int argc, char** argv)
 	mrsr.set_vertex_position(*v1, *cph2, nullptr);
 	mrsr.set_vertex_position(*v2, *cph1, nullptr);
 	mrsr.set_vertex_position(*v2, *cph2, position);
-	mrsr.set_vertex_position(*v3, *cph1, position);
-	mrsr.set_vertex_position(*v3, *cph2, position);
+	mrsr.set_vertex_position(*v3, *cph1, nullptr);
+	mrsr.set_vertex_position(*v3, *cph2, nullptr);
+	mrsr.set_vertex_position(*v3, *cph3, position);
 	/*mrsr.set_vertex_position(*v4, *cph1, position);
 	mrsr.set_vertex_position(*v4, *cph2, position);*/
 
