@@ -77,9 +77,9 @@ struct CGOGN_CORE_EXPORT CMapBase
 	// Threads management (Readers/writers)
 	/*************************************************************************/
 
-	std::condition_variable cv;
-	std::mutex m_;
-	int nb_reader;
+	mutable std::condition_variable cv;
+	mutable std::mutex m_;
+	mutable int nb_reader;
 	int nb_writer;
 	bool is_modify;
 
@@ -111,14 +111,14 @@ struct CGOGN_CORE_EXPORT CMapBase
 		return Dart(darts_.next_index(d.index));
 	}
 
-	void start_reader()
+	void start_reader() const
 	{
 		std::unique_lock<std::mutex> lk(m_);
 		cv.wait(lk, [&] { return nb_writer <= 0; });
 		nb_reader++;
 	}
 
-	void end_reader()
+	void end_reader() const
 	{
 		std::unique_lock<std::mutex> lk(m_);
 		nb_reader--;

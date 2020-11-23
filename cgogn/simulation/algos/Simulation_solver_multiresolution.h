@@ -397,7 +397,8 @@ public:
 		if (!this->constraint_)
 			return;
 
-		ThreadPool* pool = thread_pool();
+		std::condition_variable cv;
+		std::mutex cv_m;
 		std::clock_t start;
 		double duration;
 		start = std::clock();
@@ -405,6 +406,7 @@ public:
 		////	         coarse_solve				/////
 		/////////////////////////////////////////////////
 
+		bool solve_coarse_is_finish = false;
 		auto solve_coarse = [&]() {
 			parallel_foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
 				value<Vec3>(*mecanical_mesh_, this->forces_coarse_.get(), v) =
@@ -426,14 +428,17 @@ public:
 				return;
 			pc_->propagate(*coarse_meca_mesh_, *mecanical_mesh_, pos_coarse_.get(), nullptr, this->forces_coarse_.get(),
 						   masse, relative_pos_.get(), parents_.get(), time_step);
+			solve_coarse_is_finish = true;
+			cv.notify_all();
 		};
-
-		auto future_solve_coarse = pool->enqueue(solve_coarse);
+		solve_coarse();
+		// launch_thread(solve_coarse);
 
 		/////////////////////////////////////////////////
 		////	         current_solve				/////
 		/////////////////////////////////////////////////
 
+		bool solve_current_is_finish = false;
 		auto solve_current = [&]() {
 			parallel_foreach_cell(*fine_meca_mesh_, [&](Vertex v) -> bool {
 				value<Vec3>(*fine_meca_mesh_, this->forces_current_.get(), v) =
@@ -457,14 +462,18 @@ public:
 				return;
 			pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, pos_current_.get(), nullptr, this->forces_current_.get(),
 						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(), time_step);
+			solve_current_is_finish = true;
+			cv.notify_all();
 		};
 
-		auto future_solve_current = pool->enqueue(solve_current);
+		solve_current();
+		// launch_thread(solve_current);
 
 		/////////////////////////////////////////////////
 		////	         fine_solve				/////
 		/////////////////////////////////////////////////
 
+		bool solve_fine_is_finish = false;
 		auto solve_fine = [&]() {
 			sc_fine_->solve_constraint(*fine_meca_mesh_, vertex_position, this->forces_ext_.get(), time_step);
 			parallel_foreach_cell(*fine_meca_mesh_, [&](Vertex v) -> bool {
@@ -484,16 +493,23 @@ public:
 				return;
 			pc_->propagate(*fine_meca_mesh_, m_geom, vertex_position, this->speed_.get(), this->forces_ext_.get(),
 						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(), time_step);
+			solve_fine_is_finish = true;
+			cv.notify_all();
 		};
 
-		auto future_solve_fine = pool->enqueue(solve_fine);
+		solve_fine();
+		// launch_thread(solve_fine);
 
 		/////////////////////////////////////////////////
 		////	         error_criteria				/////
 		/////////////////////////////////////////////////
 
+		bool volume_current_is_finish = false;
 		auto volume_current = [&]() {
-			future_solve_coarse.wait();
+			/*{
+				std::unique_lock<std::mutex> lk(cv_m);
+				cv.wait(lk, [&] { return solve_coarse_is_finish; });
+			}*/
 			auto fn = [&](tree_volume* t) -> bool {
 				value<double>(*mecanical_mesh_, this->diff_volume_coarse_current_.get(), Volume(t->volume_dart)) =
 					geometry::volume(*mecanical_mesh_, Volume(t->volume_dart), pos_coarse_.get());
@@ -503,11 +519,19 @@ public:
 			{
 				tp->for_each_child(fn);
 			}
+			volume_current_is_finish = true;
+			// cv.notify_all();
 		};
-		auto future_volume_current = pool->enqueue(volume_current);
 
+		volume_current();
+		// launch_thread(volume_current);
+
+		bool volume_fine_is_finish = false;
 		auto volume_fine = [&]() {
-			future_solve_current.wait();
+			/*{
+				std::unique_lock<std::mutex> lk(cv_m);
+				cv.wait(lk, [&] { return solve_current_is_finish; });
+			}*/
 			auto fn = [&](tree_volume* t) -> bool {
 				value<double>(*fine_meca_mesh_, this->diff_volume_current_fine_.get(), Volume(t->volume_dart)) =
 					geometry::volume(*fine_meca_mesh_, Volume(t->volume_dart), pos_current_.get());
@@ -517,12 +541,18 @@ public:
 			{
 				tp->for_each_child(fn);
 			}
+			volume_fine_is_finish = true;
+			// cv.notify_all();
 		};
-		auto future_volume_fine = pool->enqueue(volume_fine);
+		volume_fine();
+		// launch_thread(volume_fine);
 
+		bool error_coarse_current_is_finish = false;
 		auto error_coarse_current = [&]() {
-			future_volume_current.wait();
-			future_solve_current.wait();
+			/*{
+				std::unique_lock<std::mutex> lk(cv_m);
+				cv.wait(lk, [&] { return solve_current_is_finish && volume_current_is_finish; });
+			}*/
 			auto fn = [&](tree_volume* t) -> bool {
 				Volume v = Volume(t->volume_dart);
 				double vol = geometry::volume(*mecanical_mesh_, v, vertex_position);
@@ -561,13 +591,19 @@ public:
 				}
 				value<double>(*coarse_meca_mesh_, this->diff_volume_coarse_current_.get(), v) /= i;
 			}
+			error_coarse_current_is_finish = true;
+			// cv.notify_all();
 		};
 
-		auto future_error_cc = pool->enqueue(error_coarse_current);
+		error_coarse_current();
+		// launch_thread(error_coarse_current);
 
+		bool error_current_fine_is_finish = false;
 		auto error_current_fine = [&]() {
-			future_volume_fine.wait();
-			future_solve_fine.wait();
+			/*{
+				std::unique_lock<std::mutex> lk(cv_m);
+				cv.wait(lk, [&] { return volume_fine_is_finish && solve_fine_is_finish; });
+			}*/
 			auto fn2 = [&](tree_volume* t) -> bool {
 				Volume v = Volume(t->volume_dart);
 				double vol = geometry::volume(*fine_meca_mesh_, v, vertex_position);
@@ -612,16 +648,23 @@ public:
 			{
 				fn(tp);
 			}
+			error_current_fine_is_finish = true;
+			// cv.notify_all();
 		};
 
-		auto future_error_cf = pool->enqueue(error_current_fine);
+		error_current_fine();
+		// launch_thread(error_current_fine);
 
 		parallel_foreach_cell(mecanical_mesh_->m_, [&](Vertex v) -> bool {
 			value<Vec3>(m_geom, this->forces_ext_.get(), v) = Vec3(0, 0, 0);
 			return true;
 		});
-		future_error_cc.wait();
-		future_error_cf.wait();
+
+		/*{
+			std::unique_lock<std::mutex> lk(cv_m);
+			cv.wait(lk, [&] { return error_current_fine_is_finish && error_coarse_current_is_finish; });
+		}*/
+
 		modif_topo = update_topo(vertex_position) || modif_topo;
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << "time step : " << duration << std::endl;

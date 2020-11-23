@@ -338,8 +338,15 @@ protected:
 			typename MR_MESH::CMAP& map = static_cast<typename MR_MESH::CMAP&>(*mecanical_mesh_);
 			while (this->running_)
 			{
+				if (meca_update_)
+				{
+					need_update_ = true;
+					cv_m.lock();
+					cgogn_message_assert(!need_update_, "sync render - anim failed");
+				}
 
 				map.start_writer();
+
 				if (p.have_selected_vertex_)
 				{
 					Vec3 pos = value<Vec3>(*mecanical_mesh_, p.vertex_position_.get(), p.selected_vertex_);
@@ -375,10 +382,10 @@ protected:
 					});
 				}
 				map.end_writer();
+
 				// std::this_thread::sleep_for(std::chrono::milliseconds(5));
 			}
 		});
-
 		launch_thread([this, &p]() {
 			cv_m.try_lock();
 			while (this->running_)
@@ -444,10 +451,15 @@ protected:
 
 	void draw(View* view) override
 	{
+
 		for (auto& [m, p] : parameters_)
 		{
-			MeshData<MR_MESH>* md = mesh_provider_->mesh_data(m);
 
+			MeshData<MR_MESH>* md = mesh_provider_->mesh_data(m);
+			if (md == nullptr)
+				continue;
+			const typename MR_MESH::CMAP& map = static_cast<const typename MR_MESH::CMAP&>(*md->mesh_);
+			map.start_reader();
 			const rendering::GLMat4& proj_matrix = view->projection_matrix();
 			const rendering::GLMat4& view_matrix = view->modelview_matrix();
 
@@ -471,6 +483,7 @@ protected:
 				p.frame_manipulator_.set_size(size);
 				p.frame_manipulator_.draw(true, true, proj_matrix, view_matrix);
 			}
+			map.end_reader();
 		}
 	}
 
@@ -620,8 +633,11 @@ protected:
 				}
 				if (need_update_)
 				{
+					const typename MR_MESH::CMAP& map = static_cast<const typename MR_MESH::CMAP&>(*md->mesh_);
+					map.start_reader();
 					p.update_move_vertex_vbo();
 					mesh_provider_->foreach_mesh([&](MR_MESH* m, const std::string&) {
+						std::cout << "hello" << std::endl;
 						mesh_provider_->emit_attribute_changed(m, p.vertex_position_.get());
 						mesh_provider_->emit_attribute_changed(m, simu_solver.diff_volume_current_fine_.get());
 						mesh_provider_->emit_attribute_changed(m, simu_solver.diff_volume_coarse_current_.get());
@@ -632,10 +648,10 @@ protected:
 							mesh_provider_->emit_connectivity_changed(m);
 						}
 					});
+					map.end_reader();
 					need_update_ = false;
 					meca_update_ = false;
 					modif_topo_ = false;
-					// cv.notify_all();
 					cv_m.unlock();
 				}
 				simulation::shape_matching_constraint_solver<MR_MESH>* sm1 =

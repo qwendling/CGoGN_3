@@ -75,7 +75,9 @@ Vec3 normal(const MESH& m, typename mesh_traits<MESH>::Face2 f,
 			const typename mesh_traits<MESH>::template Attribute<Vec3>* vertex_position)
 {
 	using Vertex = typename mesh_traits<MESH>::Vertex;
+
 	std::vector<Vertex> vertices = incident_vertices(m, f);
+	assert(vertices.size() > 0);
 	if (uint32(vertices.size()) == 3)
 	{
 		Vec3 n = normal(value<Vec3>(m, vertex_position, vertices[0]), value<Vec3>(m, vertex_position, vertices[1]),
