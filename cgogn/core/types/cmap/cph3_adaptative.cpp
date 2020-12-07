@@ -454,6 +454,18 @@ bool CPH3_adaptative::volume_is_subdivided(Dart d) const
 	return true;
 }
 
+std::vector<Dart> CPH3_adaptative::get_dart_volume_level(Dart d) const
+{
+	std::vector<Dart> result;
+	uint32 l = volume_level(d);
+	foreach_dart_of_orbit(*this, Volume(d), [this, &result, l](Dart dd) -> bool {
+		if (dart_level(dd) == l)
+			result.push_back(dd);
+		return true;
+	});
+	return result;
+}
+
 /***************************************************
  *            ADAPTATIVE RESOLUTION                *
  ***************************************************/
