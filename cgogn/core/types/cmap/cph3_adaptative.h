@@ -143,8 +143,12 @@ struct CPH3_adaptative : public CPH3
 	uint32 volume_level(Dart d) const;
 	Dart volume_oldest_dart(Dart d) const;
 	Dart volume_youngest_dart(Dart d) const;
+	Dart volume_origin(Dart d) const;
 	bool volume_is_subdivided(Dart d) const;
 	std::vector<Dart> get_dart_volume_level(Dart d) const;
+	std::vector<Dart> get_volume_hierarchical_darts(Dart d) const;
+	void change_volume_level(Dart d, int32 l);
+	bool raise_volume_level(CMAP::Volume v);
 
 	/***************************************************
 	 *            ADAPTATIVE RESOLUTION                *

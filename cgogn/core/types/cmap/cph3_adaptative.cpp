@@ -3,6 +3,7 @@
 #include <cgogn/core/functions/traversals/face.h>
 #include <cgogn/core/functions/traversals/vertex.h>
 #include <cgogn/core/types/cmap/phi.h>
+#include <queue>
 
 namespace cgogn
 {
@@ -342,6 +343,21 @@ uint32 CPH3_adaptative::volume_level(Dart d) const
 	return dart_level(volume_youngest_dart(d));
 }
 
+Dart CPH3_adaptative::volume_origin(Dart d) const
+{
+	cgogn_message_assert(dart_is_visible(d), "Access to a dart not visible at this level");
+	Dart p = d;
+	uint32 pLevel = dart_level(p);
+	CPH3 m2(CPH3(*this));
+	do
+	{
+		m2.current_level_ = pLevel;
+		p = m2.volume_oldest_dart(p);
+		pLevel = dart_level(p);
+	} while (pLevel > 0);
+	return p;
+}
+
 Dart CPH3_adaptative::volume_oldest_dart(Dart d) const
 {
 	cgogn_message_assert(dart_is_visible(d), "Access to a dart not visible at this level");
@@ -464,6 +480,94 @@ std::vector<Dart> CPH3_adaptative::get_dart_volume_level(Dart d) const
 		return true;
 	});
 	return result;
+}
+
+std::vector<Dart> CPH3_adaptative::get_volume_hierarchical_darts(Dart d) const
+{
+	CPH3 m(CPH3(*this));
+	std::vector<Dart> result;
+	m.current_level_ = 0;
+	std::queue<Dart> q;
+	q.push(d);
+	uint32 nb_current = 1;
+	uint32 nb_next = 0;
+	while (nb_current > 0)
+	{
+		nb_current--;
+		bool b = false;
+		foreach_dart_of_orbit(m, Volume(d), [&](Dart dd) -> bool {
+			if (dart_level(dd) == m.current_level_)
+			{
+				result.push_back(dd);
+				b = true;
+			}
+			return true;
+		});
+		if (b)
+		{
+			foreach_incident_vertex(m, Volume(d), [&](Vertex v) -> bool {
+				nb_next++;
+				q.push(v.dart);
+				return true;
+			});
+		}
+
+		if (nb_current == 0)
+		{
+			nb_current = nb_next;
+			nb_next = 0;
+			m.current_level_++;
+		}
+	}
+	return result;
+}
+
+void CPH3_adaptative::change_volume_level(Dart d, int32 l)
+{
+	// need to adapt the activation function
+}
+
+bool CPH3_adaptative::raise_volume_level(CMAP::Volume v)
+{
+	if (!volume_is_subdivided(v.dart))
+	{
+		return false;
+	}
+	Dart d = volume_oldest_dart(v.dart);
+	uint32 vl = volume_level(v.dart);
+	CPH3 m2(CPH3(*this));
+	m2.current_level_ = volume_level(v.dart);
+	std::vector<Vertex> vect_vertices;
+	foreach_incident_vertex(m2, CPH3_adaptative::CMAP::Volume(d), [&](CPH3_adaptative::CMAP::Vertex w) -> bool {
+		vect_vertices.push_back(w);
+		return true;
+	});
+
+	m2.current_level_++;
+	std::vector<Dart> ld1;
+	std::vector<Dart> ld2;
+	for (Vertex w : vect_vertices)
+	{
+		foreach_dart_of_orbit(m2, Volume(w.dart), [&](Dart d) -> bool {
+			foreach_dart_of_orbit(m2, Edge(d), [&](Dart dd) -> bool {
+				ld1.push_back(dd);
+				return true;
+			});
+			ld2.push_back(d);
+			ld2.push_back(phi3(m2, d));
+			return true;
+		});
+	}
+	clock_++;
+	for (Dart d : ld1)
+	{
+		(*dart_level_)[d.index] = std::min(vl + 1, dart_level(get_representative(d)));
+	}
+	for (Dart d : ld2)
+	{
+		(*dart_level_)[d.index] = std::min(vl, dart_level(get_representative(d)));
+	}
+	return true;
 }
 
 /***************************************************

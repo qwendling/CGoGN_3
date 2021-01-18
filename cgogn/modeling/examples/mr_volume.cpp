@@ -111,12 +111,13 @@ int main(int argc, char** argv)
 	cgogn::index_cells<Mesh::Face>(*m);
 
 	mrsr.set_vertex_position(*v1, *cph1, position);
+	mrsr.set_vertex_position(*v1, *cph2, nullptr);
 	// mrsr.set_vertex_position(*v1, *cph2, position);
 	// mrsr.set_vertex_position(*v2, *cph1, position);
 	mrsr.set_vertex_position(*v2, *cph2, position);
 
 	vmrm.subdivide(*cph2, position.get());
-	vmrm.subdivide(*cph2, position.get());
+	// vmrm.subdivide(*cph2, position.get());
 	std::srand(std::time(nullptr));
 
 	vs.f_keypress = [&](cgogn::ui::View* view, MRMesh* selected_mesh, std::int32_t k,
@@ -376,6 +377,14 @@ int main(int argc, char** argv)
 			}
 
 			vmrm.changed_connectivity(*selected_mesh, position.get());
+		}
+		break;
+		case GLFW_KEY_P: {
+			if (selected_vertices != nullptr)
+			{
+				selected_vertices->foreach_cell([&](Vertex v) { cph2->raise_volume_level(Volume(v.dart)); });
+				vmrm.changed_connectivity(*selected_mesh, position.get());
+			}
 		}
 		break;
 		}
