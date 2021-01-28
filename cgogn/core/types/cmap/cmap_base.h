@@ -53,17 +53,17 @@ struct CGOGN_CORE_EXPORT CMapBase
 	/*************************************************************************/
 	// Map attributes container
 	/*************************************************************************/
-	std::unordered_map<std::string, std::any> attributes_;
+	std::shared_ptr<std::unordered_map<std::string, std::any>> attributes_;
 
 	/*************************************************************************/
 	// Dart attributes container
 	/*************************************************************************/
-	mutable AttributeContainer darts_;
+	mutable std::shared_ptr<AttributeContainer> darts_;
 
 	// shortcuts to topological relations attributes
-	std::vector<std::shared_ptr<Attribute<Dart>>> relations_;
+	std::shared_ptr<std::vector<std::shared_ptr<Attribute<Dart>>>> relations_;
 	// shortcuts to cells indices attributes
-	std::array<std::shared_ptr<Attribute<uint32>>, NB_ORBITS> cells_indices_;
+	std::shared_ptr<std::array<std::shared_ptr<Attribute<uint32>>, NB_ORBITS>> cells_indices_;
 
 	// shortcut to boundary marker attribute
 	MarkAttribute* boundary_marker_;
@@ -71,7 +71,7 @@ struct CGOGN_CORE_EXPORT CMapBase
 	/*************************************************************************/
 	// Cells attributes containers
 	/*************************************************************************/
-	mutable std::array<AttributeContainer, NB_ORBITS> attribute_containers_;
+	mutable std::shared_ptr<std::array<AttributeContainer, NB_ORBITS>> attribute_containers_;
 
 	/*************************************************************************/
 	// Threads management (Readers/writers)
@@ -89,26 +89,26 @@ struct CGOGN_CORE_EXPORT CMapBase
 	template <typename T>
 	T& get_attribute(const std::string& name)
 	{
-		auto [it, inserted] = attributes_.try_emplace(name, T());
+		auto [it, inserted] = attributes_->try_emplace(name, T());
 		return std::any_cast<T&>(it->second);
 	}
 
 	inline std::shared_ptr<Attribute<Dart>> add_relation(const std::string& name)
 	{
-		return relations_.emplace_back(darts_.add_attribute<Dart>(name));
+		return relations_->emplace_back(darts_->add_attribute<Dart>(name));
 	}
 
 	inline Dart begin() const
 	{
-		return Dart(darts_.first_index());
+		return Dart(darts_->first_index());
 	}
 	inline Dart end() const
 	{
-		return Dart(darts_.last_index());
+		return Dart(darts_->last_index());
 	}
 	inline Dart next(Dart d) const
 	{
-		return Dart(darts_.next_index(d.index));
+		return Dart(darts_->next_index(d.index));
 	}
 
 	void start_reader() const

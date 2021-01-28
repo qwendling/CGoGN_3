@@ -55,7 +55,7 @@ std::shared_ptr<typename mesh_traits<MESH>::template Attribute<T>> add_attribute
 	if (!is_indexed<CELL>(m))
 		index_cells<CELL>(m);
 	CMapBase& mb = static_cast<CMapBase&>(m);
-	return mb.attribute_containers_[CELL::ORBIT].template add_attribute<T>(name);
+	return (*mb.attribute_containers_)[CELL::ORBIT].template add_attribute<T>(name);
 }
 
 /*****************************************************************************/
@@ -73,7 +73,7 @@ std::shared_ptr<typename mesh_traits<MESH>::template Attribute<T>> add_attribute
 template <typename T, typename CELL>
 std::shared_ptr<CMapBase::Attribute<T>> get_attribute(const CMapBase& m, const std::string& name)
 {
-	return m.attribute_containers_[CELL::ORBIT].template get_attribute<T>(name);
+	return (*m.attribute_containers_)[CELL::ORBIT].template get_attribute<T>(name);
 }
 
 /*****************************************************************************/
@@ -93,13 +93,13 @@ std::shared_ptr<CMapBase::Attribute<T>> get_attribute(const CMapBase& m, const s
 template <typename CELL>
 void remove_attribute(CMapBase& m, std::shared_ptr<CMapBase::AttributeGen> attribute)
 {
-	m.attribute_containers_[CELL::ORBIT].remove_attribute(attribute);
+	(*m.attribute_containers_)[CELL::ORBIT].remove_attribute(attribute);
 }
 
 template <typename CELL>
 void remove_attribute(CMapBase& m, CMapBase::AttributeGen* attribute)
 {
-	m.attribute_containers_[CELL::ORBIT].remove_attribute(attribute);
+	(*m.attribute_containers_)[CELL::ORBIT].remove_attribute(attribute);
 }
 
 /*****************************************************************************/
@@ -120,7 +120,7 @@ void foreach_attribute(const CMapBase& m, const FUNC& f)
 	using AttributeGen = CMapBase::AttributeGen;
 	static_assert(is_func_parameter_same<FUNC, const std::shared_ptr<AttributeT>&>::value,
 				  "Wrong function attribute parameter type");
-	for (const std::shared_ptr<AttributeGen>& a : m.attribute_containers_[CELL::ORBIT])
+	for (const std::shared_ptr<AttributeGen>& a : (*m.attribute_containers_)[CELL::ORBIT])
 	{
 		std::shared_ptr<AttributeT> at = std::dynamic_pointer_cast<AttributeT>(a);
 		if (at)

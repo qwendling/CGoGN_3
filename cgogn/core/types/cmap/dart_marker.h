@@ -45,7 +45,7 @@ namespace cgogn
 
 inline typename CMapBase::MarkAttribute* get_dart_mark_attribute(const CMapBase& m)
 {
-	return m.darts_.get_mark_attribute();
+	return m.darts_->get_mark_attribute();
 }
 
 /*****************************************************************************/
@@ -61,7 +61,7 @@ inline typename CMapBase::MarkAttribute* get_dart_mark_attribute(const CMapBase&
 
 inline void release_dart_mark_attribute(const CMapBase& m, CMapBase::MarkAttribute* attribute)
 {
-	return m.darts_.release_mark_attribute(attribute);
+	return m.darts_->release_mark_attribute(attribute);
 }
 
 /*****************************************************************************/

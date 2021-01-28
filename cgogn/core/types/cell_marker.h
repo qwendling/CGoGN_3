@@ -52,7 +52,7 @@ auto get_mark_attribute(const MESH& m)
 	if (!is_indexed<CELL>(m))
 		index_cells<CELL>(const_cast<MESH&>(m));
 	const CMapBase& mb = static_cast<const CMapBase&>(m);
-	return mb.attribute_containers_[CELL::ORBIT].get_mark_attribute();
+	return (*mb.attribute_containers_)[CELL::ORBIT].get_mark_attribute();
 }
 
 /*****************************************************************************/
@@ -69,7 +69,7 @@ auto get_mark_attribute(const MESH& m)
 template <typename CELL>
 void release_mark_attribute(const CMapBase& m, CMapBase::MarkAttribute* attribute)
 {
-	return m.attribute_containers_[CELL::ORBIT].release_mark_attribute(attribute);
+	return (*m.attribute_containers_)[CELL::ORBIT].release_mark_attribute(attribute);
 }
 
 /*****************************************************************************/

@@ -28,7 +28,16 @@ namespace cgogn
 
 CMapBase::CMapBase() : nb_reader(0), nb_writer(0), is_modify(false)
 {
-	boundary_marker_ = darts_.get_mark_attribute();
+	darts_ = std::shared_ptr<AttributeContainer>(new AttributeContainer());
+	attributes_ =
+		std::shared_ptr<std::unordered_map<std::string, std::any>>(new std::unordered_map<std::string, std::any>());
+	boundary_marker_ = darts_->get_mark_attribute();
+	relations_ = std::shared_ptr<std::vector<std::shared_ptr<Attribute<Dart>>>>(
+		new std::vector<std::shared_ptr<Attribute<Dart>>>());
+	cells_indices_ = std::shared_ptr<std::array<std::shared_ptr<Attribute<uint32>>, NB_ORBITS>>(
+		new std::array<std::shared_ptr<Attribute<uint32>>, NB_ORBITS>());
+	attribute_containers_ =
+		std::shared_ptr<std::array<AttributeContainer, NB_ORBITS>>(new std::array<AttributeContainer, NB_ORBITS>());
 }
 
 CMapBase::~CMapBase()

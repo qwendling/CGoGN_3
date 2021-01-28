@@ -36,6 +36,8 @@ target_sources(${PROJECT_NAME}
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/cph3.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/cph3_adaptative.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/cph3_adaptative.h"
+		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/explicit_MR.cpp"
+		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/explicit_MR.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/dart_marker.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/dart.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/graph.h"

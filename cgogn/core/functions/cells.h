@@ -50,7 +50,7 @@ bool is_indexed(const CMapBase& m)
 {
 	static const Orbit orbit = CELL::ORBIT;
 	static_assert(orbit < NB_ORBITS, "Unknown orbit parameter");
-	return m.cells_indices_[orbit] != nullptr;
+	return (*m.cells_indices_)[orbit] != nullptr;
 }
 
 /*****************************************************************************/
@@ -70,7 +70,7 @@ uint32 maximum_index(const CMapBase& m)
 	static const Orbit orbit = CELL::ORBIT;
 	static_assert(orbit < NB_ORBITS, "Unknown orbit parameter");
 	cgogn_message_assert(is_indexed<CELL>(m), "Trying to access a cell index of an unindexed cell type");
-	return m.attribute_containers_[CELL::ORBIT].maximum_index();
+	return (*m.attribute_containers_)[CELL::ORBIT].maximum_index();
 }
 
 /*****************************************************************************/
@@ -90,7 +90,7 @@ uint32 index_of(const CMapBase& m, CELL c)
 	static const Orbit orbit = CELL::ORBIT;
 	static_assert(orbit < NB_ORBITS, "Unknown orbit parameter");
 	cgogn_message_assert(is_indexed<CELL>(m), "Trying to access the cell index of an unindexed cell type");
-	return (*m.cells_indices_[orbit])[c.dart.index];
+	return (*(*m.cells_indices_)[orbit])[c.dart.index];
 }
 
 //////////
@@ -126,7 +126,7 @@ inline auto index_of(const MRMAP& m, CELL c) -> std::enable_if_t<std::is_convert
 template <typename CELL>
 uint32 new_index(const CMapBase& m)
 {
-	return m.attribute_containers_[CELL::ORBIT].new_index();
+	return (*m.attribute_containers_)[CELL::ORBIT].new_index();
 }
 
 /*****************************************************************************/
@@ -149,8 +149,8 @@ inline void init_cells_indexing(CMapBase& m)
 	{
 		std::ostringstream oss;
 		oss << "__index_" << orbit_name(orbit);
-		m.cells_indices_[orbit] = m.darts_.add_attribute<uint32>(oss.str());
-		m.cells_indices_[orbit]->fill(INVALID_INDEX);
+		(*m.cells_indices_)[orbit] = m.darts_->add_attribute<uint32>(oss.str());
+		(*m.cells_indices_)[orbit]->fill(INVALID_INDEX);
 	}
 }
 

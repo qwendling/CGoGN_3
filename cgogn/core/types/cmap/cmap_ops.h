@@ -47,11 +47,11 @@ namespace cgogn
 
 inline Dart add_dart(CMapBase& m)
 {
-	uint32 index = m.darts_.new_index();
+	uint32 index = m.darts_->new_index();
 	Dart d(index);
-	for (auto rel : m.relations_)
+	for (auto rel : *m.relations_)
 		(*rel)[d.index] = d;
-	for (auto emb : m.cells_indices_)
+	for (auto emb : *m.cells_indices_)
 		if (emb)
 			(*emb)[d.index] = INVALID_INDEX;
 	return d;
@@ -91,16 +91,16 @@ inline Dart add_dart(CPH3& m)
 
 inline void remove_dart(CMapBase& m, Dart d)
 {
-	for (uint32 orbit = 0; orbit < uint32(m.attribute_containers_.size()); ++orbit)
+	for (uint32 orbit = 0; orbit < uint32(m.attribute_containers_->size()); ++orbit)
 	{
-		if (m.cells_indices_[orbit])
+		if ((*m.cells_indices_)[orbit])
 		{
-			uint32 index = (*m.cells_indices_[orbit])[d.index];
+			uint32 index = (*(*m.cells_indices_)[orbit])[d.index];
 			if (index != INVALID_INDEX)
-				m.attribute_containers_[orbit].unref_index(index);
+				(*m.attribute_containers_)[orbit].unref_index(index);
 		}
 	}
-	m.darts_.release_index(d.index);
+	m.darts_->release_index(d.index);
 }
 
 /*****************************************************************************/
@@ -135,12 +135,12 @@ void set_index(CMapBase& m, Dart d, uint32 index)
 {
 	static const Orbit orbit = CELL::ORBIT;
 	static_assert(orbit < NB_ORBITS, "Unknown orbit parameter");
-	const uint32 old = (*m.cells_indices_[orbit])[d.index];
+	const uint32 old = (*(*m.cells_indices_)[orbit])[d.index];
 	// ref_index() is done before unref_index() to avoid deleting the index if old == index
-	m.attribute_containers_[orbit].ref_index(index); // ref the new index
+	(*m.attribute_containers_)[orbit].ref_index(index); // ref the new index
 	if (old != INVALID_INDEX)
-		m.attribute_containers_[orbit].unref_index(old); // unref the old index
-	(*m.cells_indices_[orbit])[d.index] = index;		 // affect the index to the dart
+		(*m.attribute_containers_)[orbit].unref_index(old); // unref the old index
+	(*(*m.cells_indices_)[orbit])[d.index] = index;			// affect the index to the dart
 }
 
 /*****************************************************************************/
