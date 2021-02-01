@@ -26,6 +26,7 @@
 
 #include <cgogn/core/cgogn_core_export.h>
 
+#include <cgogn/core/types/cmap/EMR_Map3.h>
 #include <cgogn/core/types/cmap/cmap3.h>
 #include <cgogn/core/types/cmap/cph3.h>
 #include <cgogn/core/types/cmap/cph3_adaptative.h>
@@ -117,6 +118,24 @@ struct mesh_traits<CMap3>
 	using Attribute = CMapBase::Attribute<T>;
 	using AttributeGen = CMapBase::AttributeGen;
 	using MarkAttribute = CMapBase::MarkAttribute;
+};
+
+template <>
+struct mesh_traits<EMR_Map1> : public mesh_traits<CMap1>
+{
+	static constexpr const char* name = "EMR_Map1";
+};
+
+template <>
+struct mesh_traits<EMR_Map2> : public mesh_traits<CMap2>
+{
+	static constexpr const char* name = "EMR_Map2";
+};
+
+template <>
+struct mesh_traits<EMR_Map3> : public mesh_traits<CMap3>
+{
+	static constexpr const char* name = "EMR_Map3";
 };
 
 template <>
