@@ -78,6 +78,17 @@ inline Dart add_dart(CPH3& m)
 	return d;
 }
 
+/////////////
+// EMR_Map //
+/////////////
+
+inline Dart add_dart(EMR_Map3& m)
+{
+	Dart d = add_dart(static_cast<EMR_Map3::MAP&>(m));
+
+	m.set_dart_level(d, m.current_level_);
+	return d;
+}
 /*****************************************************************************/
 
 // template <typename CMAP>

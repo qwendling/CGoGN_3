@@ -94,6 +94,15 @@ Dart phi2(const CPH3_adaptative& m, Dart d);
 Dart phi3(const CPH3_adaptative& m, Dart d);
 
 /////////////
+// EMRMap3 //
+/////////////
+
+Dart phi1(const EMR_Map3& m, Dart d);
+Dart phi_1(const EMR_Map3& m, Dart d);
+Dart phi2(const EMR_Map3& m, Dart d);
+Dart phi3(const EMR_Map3& m, Dart d);
+
+/////////////
 // GENERIC //
 /////////////
 

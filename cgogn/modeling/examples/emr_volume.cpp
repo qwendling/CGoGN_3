@@ -36,12 +36,12 @@
 #include <cgogn/modeling/algos/subdivision.h>
 #include <cgogn/ui/modules/mesh_provider/mesh_provider.h>
 #include <cgogn/ui/modules/surface_render/surface_render.h>
-#include <cgogn/ui/modules/volume_mr_modeling/volume_mr_modeling.h>
+#include <cgogn/ui/modules/volume_emr_modeling/volume_emr_modeling.h>
 #include <cgogn/ui/modules/volume_render/volume_render.h>
 #include <cgogn/ui/modules/volume_selection/volume_selection.h>
 
 using MRMesh = cgogn::EMR_Map3;
-using Mesh = MRMesh::MAP;
+using Mesh = cgogn::CMap3;
 
 template <typename T>
 using Attribute = typename cgogn::mesh_traits<Mesh>::Attribute<T>;
@@ -69,56 +69,50 @@ int main(int argc, char** argv)
 	app.set_window_title("MR Volume");
 	app.set_window_size(1000, 800);
 
-	cgogn::ui::MeshProvider<MRMesh> mp(app);
+	cgogn::ui::MeshProvider<Mesh> mp(app);
 	cgogn::ui::MeshProvider<MRMesh> mrmp(app);
-	cgogn::ui::VolumeRender<MRMesh> mrsr(app);
-	cgogn::ui::VolumeSelection<MRMesh> vs(app);
+	cgogn::ui::VolumeRender<MRMesh> vr(app);
 
-	cgogn::ui::VolumeMRModeling vmrm(app);
+	cgogn::ui::VolumeEMRModeling vmrm(app);
 
 	app.init_modules();
 
 	cgogn::ui::View* v1 = app.current_view();
+	v1->link_module(&mp);
 	v1->link_module(&mrmp);
-	v1->link_module(&mrsr);
-	v1->link_module(&vs);
+	v1->link_module(&vr);
 
-	cgogn::ui::View* v2 = app.add_view();
-	v2->link_module(&mrmp);
-	v2->link_module(&mrsr);
-	v2->link_module(&vs);
-
-	MRMesh* m = mp.load_volume_from_file(filename);
+	Mesh* m = mp.load_volume_from_file(filename);
 	if (!m)
 	{
 		std::cout << "File could not be loaded" << std::endl;
 		return 1;
 	}
 
-	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*m, "position");
-	vmrm.selected_vertex_parents_ = cgogn::add_attribute<std::array<Vertex, 3>, Vertex>(*m, "parents");
-	vmrm.selected_vertex_relative_position_ = cgogn::add_attribute<Vec3, Vertex>(*m, "relative_position");
+	MRMesh* mrm = vmrm.create_mrmesh(*m, mp.mesh_name(m));
 
-	vs.selected_mesh_ = m;
-	auto md = mrmp.mesh_data(m);
+	mrm->add_resolution();
+	mrm->change_resolution_level(1);
+	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*mrm, "position");
+
+	auto md = mrmp.mesh_data(mrm);
 	md->template add_cells_set<Edge>();
 
-	cgogn::index_cells<Mesh::Volume>(*m);
-	cgogn::index_cells<Mesh::Edge>(*m);
-	cgogn::index_cells<Mesh::Face>(*m);
+	mrmp.set_mesh_bb_vertex_position(mrm, position);
 
-	mrsr.set_vertex_position(*v1, *m, position);
-	mrsr.set_vertex_position(*v1, *m, nullptr);
-	// mrsr.set_vertex_position(*v1, *cph2, position);
-	// mrsr.set_vertex_position(*v2, *cph1, position);
-	mrsr.set_vertex_position(*v2, *m, position);
+	cgogn::index_cells<Mesh::Volume>(*mrm);
+	cgogn::index_cells<Mesh::Edge>(*mrm);
+	cgogn::index_cells<Mesh::Face>(*mrm);
+
+	vr.set_vertex_position(*v1, *mrm, position);
 
 	std::srand(std::time(nullptr));
 
-	vs.f_keypress = [&](cgogn::ui::View* view, MRMesh* selected_mesh, std::int32_t k,
-						cgogn::ui::CellsSet<MRMesh, Vertex>* selected_vertices,
-						cgogn::ui::CellsSet<MRMesh, Edge>* selected_edges) {
-	};
+	cgogn::foreach_cell(*m, [&](Vertex v) -> bool {
+		std::cout << cgogn::value<Vec3>(*mrm, position, v) << std::endl;
+		std::cout << "_____________________" << std::endl;
+		return true;
+	});
 
 	return app.launch();
 }

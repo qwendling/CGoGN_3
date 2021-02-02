@@ -27,6 +27,23 @@
 namespace cgogn
 {
 
+Dart phi1(const EMR_Map3& m, Dart d)
+{
+	return (*((*m.MR_phi1_)[m.current_level_]))[d.index];
+}
+Dart phi_1(const EMR_Map3& m, Dart d)
+{
+	return (*((*m.MR_phi_1_)[m.current_level_]))[d.index];
+}
+Dart phi2(const EMR_Map3& m, Dart d)
+{
+	return (*((*m.MR_phi2_)[m.current_level_]))[d.index];
+}
+Dart phi3(const EMR_Map3& m, Dart d)
+{
+	return (*((*m.MR_phi3_)[m.current_level_]))[d.index];
+}
+
 Dart phi2bis(const CPH3& m, Dart d)
 {
 	const CPH3::CMAP& map = static_cast<const CPH3::CMAP&>(m);
