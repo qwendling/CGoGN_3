@@ -121,6 +121,24 @@ struct mesh_traits<CMap3>
 };
 
 template <>
+struct mesh_traits<EMR_Map1_T<CMap1>> : public mesh_traits<CMap1>
+{
+	static constexpr const char* name = "EMR_Map1_T";
+};
+
+template <>
+struct mesh_traits<EMR_Map2_T<CMap2>> : public mesh_traits<CMap2>
+{
+	static constexpr const char* name = "EMR_Map2_T";
+};
+
+template <>
+struct mesh_traits<EMR_Map3_T<CMap3>> : public mesh_traits<CMap3>
+{
+	static constexpr const char* name = "EMR_Map3_T";
+};
+
+template <>
 struct mesh_traits<EMR_Map1> : public mesh_traits<CMap1>
 {
 	static constexpr const char* name = "EMR_Map1";
@@ -169,15 +187,17 @@ struct mesh_traits<Graph>
 	using MarkAttribute = CMapBase::MarkAttribute;
 };
 
-template<typename MESH>
-constexpr uint8 dim_of(const MESH&) { return mesh_traits<MESH>::dimension; }
+template <typename MESH>
+constexpr uint8 dim_of(const MESH&)
+{
+	return mesh_traits<MESH>::dimension;
+}
 
-template<typename MESH>
+template <typename MESH>
 constexpr bool is_dimension_of(const MESH&, uint8 dim)
 {
 	return mesh_traits<MESH>::dimension == dim;
 }
-
 
 } // namespace cgogn
 

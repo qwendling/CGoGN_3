@@ -41,14 +41,14 @@
 #include <cgogn/ui/modules/volume_selection/volume_selection.h>
 
 using MRMesh = cgogn::EMR_Map3;
-using Mesh = cgogn::CMap3;
+using Mesh = MRMesh::MAP;
 
 template <typename T>
-using Attribute = typename cgogn::mesh_traits<Mesh>::Attribute<T>;
-using Vertex = typename cgogn::mesh_traits<Mesh>::Vertex;
-using Edge = typename cgogn::mesh_traits<Mesh>::Edge;
-using Face = typename cgogn::mesh_traits<Mesh>::Face;
-using Volume = typename cgogn::mesh_traits<Mesh>::Volume;
+using Attribute = typename cgogn::mesh_traits<MRMesh>::Attribute<T>;
+using Vertex = typename cgogn::mesh_traits<MRMesh>::Vertex;
+using Edge = typename cgogn::mesh_traits<MRMesh>::Edge;
+using Face = typename cgogn::mesh_traits<MRMesh>::Face;
+using Volume = typename cgogn::mesh_traits<MRMesh>::Volume;
 
 using Vec3 = cgogn::geometry::Vec3;
 
@@ -91,7 +91,7 @@ int main(int argc, char** argv)
 
 	MRMesh* mrm = vmrm.create_mrmesh(*m, mp.mesh_name(m));
 
-	mrm->add_resolution();
+	m->add_resolution();
 	mrm->change_resolution_level(1);
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*mrm, "position");
 

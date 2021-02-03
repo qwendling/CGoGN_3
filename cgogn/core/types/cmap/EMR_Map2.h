@@ -15,14 +15,20 @@ struct CGOGN_CORE_EXPORT EMR_Map2_T : public EMR_Map1_T<CMAP>
 
 	std::shared_ptr<std::vector<std::shared_ptr<Attribute<Dart>>>> MR_phi2_;
 
-	EMR_Map2_T(CMAP& m) : EMR_Map1_T<CMAP>(m)
+	EMR_Map2_T() : EMR_Map1_T<CMAP>()
 	{
 		MR_phi2_ = this->MR_relation_->emplace_back(new std::vector<std::shared_ptr<Attribute<Dart>>>());
-		MR_phi2_->push_back(this->m_.phi2_);
+		MR_phi2_->push_back(this->phi2_);
 	}
 };
 
-using EMR_Map2 = EMR_Map2_T<CMap2>;
+struct EMR_Map2 : EMR_MapBase<EMR_Map2_T<CMap2>>
+{
+
+	EMR_Map2(EMR_Map2_T<CMap2>& m) : EMR_MapBase<EMR_Map2_T<CMap2>>(m)
+	{
+	}
+};
 
 } // namespace cgogn
 

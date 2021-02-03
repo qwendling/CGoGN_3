@@ -11,6 +11,19 @@ struct CGOGN_CORE_EXPORT EMR_Map3_T : public EMR_Map2_T<CMAP>
 {
 	template <typename T>
 	using Attribute = typename CMAP::template Attribute<T>;
+
+	std::shared_ptr<std::vector<std::shared_ptr<Attribute<Dart>>>> MR_phi3_;
+
+	EMR_Map3_T() : EMR_Map2_T<CMAP>()
+	{
+		MR_phi3_ = this->MR_relation_->emplace_back(new std::vector<std::shared_ptr<Attribute<Dart>>>());
+		MR_phi3_->push_back(this->phi3_);
+	}
+};
+
+struct EMR_Map3 : EMR_MapBase<EMR_Map3_T<CMap3>>
+{
+
 	using Vertex = Cell<PHI21_PHI31>;
 	using Vertex2 = Cell<PHI21>;
 	using HalfEdge = Cell<DART>;
@@ -20,12 +33,8 @@ struct CGOGN_CORE_EXPORT EMR_Map3_T : public EMR_Map2_T<CMAP>
 	using Face2 = Cell<PHI1>;
 	using Volume = Cell<PHI1_PHI2>;
 
-	std::shared_ptr<std::vector<std::shared_ptr<Attribute<Dart>>>> MR_phi3_;
-
-	EMR_Map3_T(CMAP& m) : EMR_Map2_T<CMAP>(m)
+	EMR_Map3(EMR_Map3_T<CMap3>& m) : EMR_MapBase<EMR_Map3_T<CMap3>>(m)
 	{
-		MR_phi3_ = this->MR_relation_->emplace_back(new std::vector<std::shared_ptr<Attribute<Dart>>>());
-		MR_phi3_->push_back(this->m_.phi3_);
 	}
 
 	/***************************************************
@@ -46,7 +55,6 @@ struct CGOGN_CORE_EXPORT EMR_Map3_T : public EMR_Map2_T<CMAP>
 	Dart volume_youngest_dart(Dart d) const;
 };
 
-using EMR_Map3 = EMR_Map3_T<CMap3>;
 } // namespace cgogn
 
 #endif

@@ -21,7 +21,7 @@ namespace cgogn
 {
 
 template <typename CMAP>
-struct CGOGN_CORE_EXPORT EMR_MapBase_T
+struct CGOGN_CORE_EXPORT EMR_MapBase_T : public CMAP
 {
 
 	using MAP = CMAP;
@@ -33,35 +33,16 @@ struct CGOGN_CORE_EXPORT EMR_MapBase_T
 	std::shared_ptr<Attribute<uint32>> dart_level_;
 	std::shared_ptr<std::vector<std::shared_ptr<std::vector<std::shared_ptr<Attribute<Dart>>>>>> MR_relation_;
 
-	uint32 current_level_;
-
-	CMAP& m_;
-
-	EMR_MapBase_T(CMAP& m) : m_(m), current_level_(0)
+	EMR_MapBase_T() : CMAP()
 	{
 		MR_relation_ = std::shared_ptr<std::vector<std::shared_ptr<std::vector<std::shared_ptr<Attribute<Dart>>>>>>(
 			new std::vector<std::shared_ptr<std::vector<std::shared_ptr<Attribute<Dart>>>>>());
-		dart_level_ = m_.darts_->template get_attribute<uint32>("dart_level");
+		dart_level_ = CMAP::darts_->template get_attribute<uint32>("dart_level");
 		if (!dart_level_)
-			dart_level_ = m_.darts_->template add_attribute<uint32>("dart_level");
+			dart_level_ = CMAP::darts_->template add_attribute<uint32>("dart_level");
 	}
 	virtual ~EMR_MapBase_T()
 	{
-	}
-
-	operator MAP&()
-	{
-		return m_;
-	}
-	operator const MAP&() const
-	{
-		return m_;
-	}
-
-	void change_resolution_level(uint32 new_level)
-	{
-		cgogn_message_assert(0 <= new_level && new_level < this->max_level(), "Access to an undefined level");
-		current_level_ = new_level;
 	}
 
 	uint32 max_level() const
@@ -74,7 +55,7 @@ struct CGOGN_CORE_EXPORT EMR_MapBase_T
 		uint32 max = max_level();
 		for (auto& r : *MR_relation_)
 		{
-			auto new_rel = m_.add_relation((*r)[0]->name() + "_" + std::to_string(max));
+			auto new_rel = CMAP::add_relation((*r)[0]->name() + "_" + std::to_string(max));
 			r->push_back(new_rel);
 			new_rel->copy((*r)[max - 1].get());
 		}
@@ -88,12 +69,41 @@ struct CGOGN_CORE_EXPORT EMR_MapBase_T
 	{
 		(*dart_level_)[d.index] = l;
 	}
+};
+
+template <typename EMR>
+struct EMR_MapBase
+{
+
+	using MAP = EMR;
+	using MarkAttribute = typename MAP::MarkAttribute;
+	EMR& m_;
+	uint32 current_level_;
+
+	EMR_MapBase(EMR& m) : m_(m), current_level_(0)
+	{
+	}
+
+	operator EMR&()
+	{
+		return m_;
+	}
+	operator const EMR&() const
+	{
+		return m_;
+	}
+
+	void change_resolution_level(uint32 new_level)
+	{
+		cgogn_message_assert(0 <= new_level && new_level < m_.max_level(), "Access to an undefined level");
+		current_level_ = new_level;
+	}
 
 	inline Dart begin() const
 	{
 		Dart d(m_.darts_->first_index());
 		uint32 lastidx = m_.darts_->last_index();
-		while (dart_level(d) > current_level_ && d.index < lastidx)
+		while (m_.dart_level(d) > current_level_ && d.index < lastidx)
 			d = Dart(m_.darts_->next_index(d.index));
 		return d;
 	}
@@ -109,7 +119,7 @@ struct CGOGN_CORE_EXPORT EMR_MapBase_T
 		do
 		{
 			d = Dart(m_.darts_->next_index(d.index));
-		} while (dart_level(d) > current_level_ && d.index < lastidx);
+		} while (m_.dart_level(d) > current_level_ && d.index < lastidx);
 		return d;
 	}
 };
