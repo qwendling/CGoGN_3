@@ -23,6 +23,13 @@ struct CGOGN_CORE_EXPORT EMR_Map1_T : public EMR_MapBase_T<CMAP>
 		MR_phi1_->push_back(this->phi1_);
 		MR_phi_1_->push_back(this->phi_1_);
 	}
+
+	virtual void add_resolution()
+	{
+		EMR_MapBase_T<CMAP>::add_resolution();
+		this->phi1_ = (*MR_phi1_)[this->maximum_level_];
+		this->phi_1_ = (*MR_phi_1_)[this->maximum_level_];
+	}
 };
 
 struct EMR_Map1 : EMR_MapBase<EMR_Map1_T<CMap1>>

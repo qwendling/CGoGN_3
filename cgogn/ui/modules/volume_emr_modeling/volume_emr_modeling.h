@@ -65,7 +65,7 @@ public:
 	{
 	}
 
-	MRMesh* create_mrmesh(MRMesh::MAP& m, const std::string& name)
+	MRMesh* create_mrmesh(MRMesh::BASE& m, const std::string& name)
 	{
 		MRMesh* result = new MRMesh(m);
 		std::string emr_name;
@@ -85,8 +85,22 @@ public:
 		emr_provider_->emit_connectivity_changed(&m);
 		emr_provider_->emit_attribute_changed(&m, vertex_position);
 
-		cmap3_provider_->emit_connectivity_changed(&static_cast<MRMesh::MAP&>(m));
-		cmap3_provider_->emit_attribute_changed(&static_cast<MRMesh::MAP&>(m), vertex_position);
+		cmap3_provider_->emit_connectivity_changed(&m.m_);
+		cmap3_provider_->emit_attribute_changed(&m.m_, vertex_position);
+	}
+
+	void subdivide(MRMesh& m, Attribute<Vec3>* vertex_position, Attribute<Vec3>* vertex_attr2 = nullptr,
+				   Attribute<Vec3>* vertex_attr3 = nullptr)
+	{
+		uint32 cur = m.current_level_;
+		m.current_level_ = m.maximum_level_;
+
+		modeling::butterflyMultiresolution(m, 0.34f, {vertex_position, vertex_attr2, vertex_attr3},
+										   selected_vertex_parents_.get(), selected_vertex_relative_position_.get());
+
+		m.current_level_ = cur;
+
+		changed_connectivity(m, vertex_position);
 	}
 
 protected:
@@ -95,8 +109,8 @@ protected:
 		emr_provider_ = static_cast<ui::MeshProvider<MRMesh>*>(
 			app_.module("MeshProvider (" + std::string{mesh_traits<MRMesh>::name} + ")"));
 
-		cmap3_provider_ = static_cast<ui::MeshProvider<MRMesh::MAP>*>(
-			app_.module("MeshProvider (" + std::string{mesh_traits<MRMesh::MAP>::name} + ")"));
+		cmap3_provider_ = static_cast<ui::MeshProvider<MRMesh::BASE>*>(
+			app_.module("MeshProvider (" + std::string{mesh_traits<MRMesh::BASE>::name} + ")"));
 	}
 
 	void interface() override
@@ -104,7 +118,7 @@ protected:
 
 		if (ImGui::ListBoxHeader("CMap3"))
 		{
-			cmap3_provider_->foreach_mesh([this](MRMesh::MAP* m, const std::string& name) {
+			cmap3_provider_->foreach_mesh([this](MRMesh::BASE* m, const std::string& name) {
 				if (ImGui::Selectable(name.c_str(), m == selected_cmap3_))
 				{
 					selected_cmap3_ = m;
@@ -137,6 +151,12 @@ protected:
 			float X_button_width = ImGui::CalcTextSize("X").x + ImGui::GetStyle().FramePadding.x * 2;
 
 			uint32 min = 0;
+			if (ImGui::SliderScalar("Level", ImGuiDataType_U32, &selected_cph3_->current_level_, &min,
+									&selected_cph3_->maximum_level_))
+			{
+				emr_provider_->emit_connectivity_changed(selected_cph3_);
+				emr_provider_->emit_attribute_changed(selected_cph3_, selected_vertex_position_.get());
+			}
 
 			std::string selected_vertex_position_name_ =
 				selected_vertex_position_ ? selected_vertex_position_->name() : "-- select --";
@@ -249,7 +269,7 @@ public:
 
 private:
 	MRMesh* selected_cph3_;
-	MRMesh::MAP* selected_cmap3_;
+	MRMesh::BASE* selected_cmap3_;
 	std::string selected_cmap3_name_;
 
 	std::shared_ptr<Attribute<Vec3>> selected_vertex_position_;
@@ -257,7 +277,7 @@ private:
 	std::shared_ptr<Attribute<Vec3>> selected_vertex_attr3_;
 
 	MeshProvider<MRMesh>* emr_provider_;
-	MeshProvider<MRMesh::MAP>* cmap3_provider_;
+	MeshProvider<MRMesh::BASE>* cmap3_provider_;
 };
 
 } // namespace ui

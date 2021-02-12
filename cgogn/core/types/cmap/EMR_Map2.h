@@ -20,6 +20,12 @@ struct CGOGN_CORE_EXPORT EMR_Map2_T : public EMR_Map1_T<CMAP>
 		MR_phi2_ = this->MR_relation_->emplace_back(new std::vector<std::shared_ptr<Attribute<Dart>>>());
 		MR_phi2_->push_back(this->phi2_);
 	}
+
+	virtual void add_resolution()
+	{
+		EMR_Map1_T<CMAP>::add_resolution();
+		this->phi2_ = (*MR_phi2_)[this->maximum_level_];
+	}
 };
 
 struct EMR_Map2 : EMR_MapBase<EMR_Map2_T<CMap2>>

@@ -84,6 +84,11 @@ struct CGOGN_CORE_EXPORT CMapBase
 	bool is_modify;
 
 	CMapBase();
+	CMapBase(std::shared_ptr<std::unordered_map<std::string, std::any>>& attributes,
+			 std::shared_ptr<AttributeContainer>& darts,
+			 std::shared_ptr<std::vector<std::shared_ptr<Attribute<Dart>>>>& relations,
+			 std::shared_ptr<std::array<std::shared_ptr<Attribute<uint32>>, NB_ORBITS>>& cells_indices,
+			 std::shared_ptr<std::array<AttributeContainer, NB_ORBITS>>& attribute_containers);
 	~CMapBase();
 
 	template <typename T>
@@ -91,6 +96,12 @@ struct CGOGN_CORE_EXPORT CMapBase
 	{
 		auto [it, inserted] = attributes_->try_emplace(name, T());
 		return std::any_cast<T&>(it->second);
+	}
+
+	CMapBase& get_copy()
+	{
+		CMapBase* result = new CMapBase(attributes_, darts_, relations_, cells_indices_, attribute_containers_);
+		return *result;
 	}
 
 	inline std::shared_ptr<Attribute<Dart>> add_relation(const std::string& name)

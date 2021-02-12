@@ -262,7 +262,7 @@ CPH3::CMAP::Vertex cut_edge(CPH3& m, CPH3::CMAP::Edge e, bool set_indices)
 				{
 					it = phi1(map, it);
 				} while (m.dart_level(it) < m.current_level_ - 1 && it != d);
-				
+
 				copy_index<CPH3::CMAP::Face>(map, phi1(map, d), it);
 				it = phi2(map, d);
 				do
@@ -319,6 +319,95 @@ CPH3_adaptative::CMAP::Vertex cut_edge(CPH3_adaptative& m, CPH3_adaptative::CMAP
 		m.set_representative(phi2(map, d), m.get_representative(phi<12>(map, d)));
 		d = phi<23>(map, d);
 	} while (d != e.dart);
+
+	return v;
+}
+
+//////////////
+// EMR_Map3 //
+//////////////
+
+EMR_Map3::MAP::Vertex cut_edge(EMR_Map3& m, EMR_Map3::MAP::Edge e, bool set_indices)
+{
+	EMR_Map3::MAP* map = m.get_map();
+
+	EMR_Map3::MAP::Vertex v = cut_edge(*map, e, false);
+
+	Dart d = e.dart;
+	do
+	{
+		m.set_dart_level(phi1(m, d), m.current_level_);
+		m.set_dart_level(phi2(m, d), m.current_level_);
+		d = phi<23>(m, d);
+	} while (d != e.dart);
+	if (set_indices)
+	{
+		if (is_indexed<EMR_Map3::MAP::Vertex>(m))
+			set_index(m, v, new_index<EMR_Map3::MAP::Vertex>(m));
+		foreach_dart_of_orbit(m, v, [&](Dart dd) -> bool {
+			std::cout << index_of(m, EMR_Map3::MAP::Vertex(dd)) << std::endl;
+			return true;
+		});
+		if (is_indexed<EMR_Map3::MAP::Edge>(m))
+		{
+			uint32 ne = new_index<EMR_Map3::MAP::Edge>(m);
+			foreach_dart_of_orbit(m, e, [&](Dart d) -> bool {
+				if (m.dart_level(d) == m.current_level_)
+					set_index<EMR_Map3::MAP::Edge>(m, d, ne);
+				return true;
+			});
+			ne = new_index<EMR_Map3::MAP::Edge>(m);
+			foreach_dart_of_orbit(m, EMR_Map3::MAP::Edge(phi1(m, e.dart)), [&](Dart d) -> bool {
+				if (m.dart_level(d) == m.current_level_)
+					set_index<EMR_Map3::MAP::Edge>(m, d, ne);
+				return true;
+			});
+		}
+		if (is_indexed<EMR_Map3::MAP::Face>(m))
+		{
+			d = e.dart;
+			do
+			{
+				Dart it = phi1(m, d);
+				do
+				{
+					it = phi1(m, it);
+				} while (m.dart_level(it) < m.current_level_ - 1 && it != d);
+
+				copy_index<EMR_Map3::MAP::Face>(m, phi1(m, d), it);
+				it = phi2(m, d);
+				do
+				{
+					it = phi1(m, it);
+				} while (m.dart_level(it) < m.current_level_ - 1 && it != phi2(m, phi1(m, d)));
+				copy_index<EMR_Map3::MAP::Face>(m, phi2(m, d), it);
+				d = phi<23>(m, d);
+			} while (d != e.dart);
+		}
+		if (is_indexed<EMR_Map3::MAP::Volume>(m))
+		{
+			d = e.dart;
+			do
+			{
+				if (!is_boundary(m, d))
+				{
+					Dart it = phi1(m, d);
+					do
+					{
+						it = phi1(m, it);
+					} while (m.dart_level(it) < m.current_level_ - 1 && it != d);
+					copy_index<EMR_Map3::MAP::Volume>(m, phi1(m, d), it);
+					it = phi2(m, d);
+					do
+					{
+						it = phi1(m, it);
+					} while (m.dart_level(it) < m.current_level_ - 1 && it != phi2(m, phi1(m, d)));
+					copy_index<EMR_Map3::MAP::Volume>(m, phi2(m, d), it);
+				}
+				d = phi<23>(m, d);
+			} while (d != e.dart);
+		}
+	}
 
 	return v;
 }

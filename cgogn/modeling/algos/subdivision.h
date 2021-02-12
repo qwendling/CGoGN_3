@@ -907,7 +907,7 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
 		edge_points.pop();
 		after_cut_edge(v);
 	});
-	subdivideListFaces(m, faces, [&](Vertex v) {
+	/*subdivideListFaces(m, faces, [&](Vertex v) {
 		for (auto a : attrs)
 		{
 			value<Vec3>(m, a, v) = face_points.front().front();
@@ -924,7 +924,7 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
 		}
 		volume_points.pop();
 		after_cut_volume(v);
-	});
+	});*/
 }
 
 template <typename MRMESH>

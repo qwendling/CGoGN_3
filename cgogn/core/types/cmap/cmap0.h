@@ -43,6 +43,12 @@ struct CGOGN_CORE_EXPORT CMap0 : public CMapBase
 	CMap0()
 	{
 	}
+	CMap0(std::shared_ptr<std::unordered_map<std::string, std::any>>& attributes,
+		  std::shared_ptr<AttributeContainer>& darts,
+		  std::shared_ptr<std::vector<std::shared_ptr<Attribute<Dart>>>>& relations,
+		  std::shared_ptr<std::array<std::shared_ptr<Attribute<uint32>>, NB_ORBITS>>& cells_indices,
+		  std::shared_ptr<std::array<AttributeContainer, NB_ORBITS>>& attribute_containers)
+		: CMapBase(attributes, darts, relations, cells_indices, attribute_containers){};
 };
 
 } // namespace cgogn

@@ -41,7 +41,7 @@
 #include <cgogn/ui/modules/volume_selection/volume_selection.h>
 
 using MRMesh = cgogn::EMR_Map3;
-using Mesh = MRMesh::MAP;
+using Mesh = MRMesh::BASE;
 
 template <typename T>
 using Attribute = typename cgogn::mesh_traits<MRMesh>::Attribute<T>;
@@ -94,6 +94,8 @@ int main(int argc, char** argv)
 	m->add_resolution();
 	mrm->change_resolution_level(1);
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*mrm, "position");
+
+	vmrm.subdivide(*mrm, position.get());
 
 	auto md = mrmp.mesh_data(mrm);
 	md->template add_cells_set<Edge>();

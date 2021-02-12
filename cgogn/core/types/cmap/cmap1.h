@@ -49,6 +49,14 @@ struct CGOGN_CORE_EXPORT CMap1 : public CMap0
 		phi1_ = add_relation("phi1");
 		phi_1_ = add_relation("phi_1");
 	}
+
+	CMap1(std::shared_ptr<std::unordered_map<std::string, std::any>>& attributes,
+		  std::shared_ptr<AttributeContainer>& darts,
+		  std::shared_ptr<std::vector<std::shared_ptr<Attribute<Dart>>>>& relations,
+		  std::shared_ptr<std::array<std::shared_ptr<Attribute<uint32>>, NB_ORBITS>>& cells_indices,
+		  std::shared_ptr<std::array<AttributeContainer, NB_ORBITS>>& attribute_containers,
+		  std::shared_ptr<Attribute<Dart>>& phi1, std::shared_ptr<Attribute<Dart>>& phi_1)
+		: CMap0(attributes, darts, relations, cells_indices, attribute_containers), phi1_(phi1), phi_1_(phi_1){};
 };
 
 } // namespace cgogn

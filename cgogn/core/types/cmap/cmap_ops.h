@@ -85,7 +85,7 @@ inline Dart add_dart(CPH3& m)
 inline Dart add_dart(EMR_Map3& m)
 {
 
-	EMR_Map3::MAP& emr = m.m_;
+	EMR_Map3::BASE& emr = m.m_;
 	Dart d = add_dart(emr);
 
 	emr.set_dart_level(d, m.current_level_);

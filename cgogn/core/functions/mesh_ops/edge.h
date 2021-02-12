@@ -73,7 +73,14 @@ CPH3::CMAP::Vertex CGOGN_CORE_EXPORT cut_edge(CPH3& m, CPH3::CMAP::Edge e, bool 
 // CPH3_adaptative //
 /////////////////////
 
-CPH3_adaptative::CMAP::Vertex CGOGN_CORE_EXPORT cut_edge(CPH3_adaptative& m, CPH3_adaptative::CMAP::Edge e, bool set_indices = true);
+CPH3_adaptative::CMAP::Vertex CGOGN_CORE_EXPORT cut_edge(CPH3_adaptative& m, CPH3_adaptative::CMAP::Edge e,
+														 bool set_indices = true);
+
+//////////////
+// EMR_Map3 //
+//////////////
+
+EMR_Map3::MAP::Vertex CGOGN_CORE_EXPORT cut_edge(EMR_Map3& m, EMR_Map3::MAP::Edge e, bool set_indices = true);
 
 /*****************************************************************************/
 

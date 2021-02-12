@@ -29,18 +29,22 @@ namespace cgogn
 
 Dart phi1(const EMR_Map3& m, Dart d)
 {
+	cgogn_message_assert(m.m_.dart_level(d) <= m.current_level_, "Access to a dart introduced after current level");
 	return (*((*m.m_.MR_phi1_)[m.current_level_]))[d.index];
 }
 Dart phi_1(const EMR_Map3& m, Dart d)
 {
+	cgogn_message_assert(m.m_.dart_level(d) <= m.current_level_, "Access to a dart introduced after current level");
 	return (*((*m.m_.MR_phi_1_)[m.current_level_]))[d.index];
 }
 Dart phi2(const EMR_Map3& m, Dart d)
 {
+	cgogn_message_assert(m.m_.dart_level(d) <= m.current_level_, "Access to a dart introduced after current level");
 	return (*((*m.m_.MR_phi2_)[m.current_level_]))[d.index];
 }
 Dart phi3(const EMR_Map3& m, Dart d)
 {
+	cgogn_message_assert(m.m_.dart_level(d) <= m.current_level_, "Access to a dart introduced after current level");
 	return (*((*m.m_.MR_phi3_)[m.current_level_]))[d.index];
 }
 

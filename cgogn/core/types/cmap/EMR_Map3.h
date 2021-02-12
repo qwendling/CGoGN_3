@@ -19,11 +19,18 @@ struct CGOGN_CORE_EXPORT EMR_Map3_T : public EMR_Map2_T<CMAP>
 		MR_phi3_ = this->MR_relation_->emplace_back(new std::vector<std::shared_ptr<Attribute<Dart>>>());
 		MR_phi3_->push_back(this->phi3_);
 	}
+
+	virtual void add_resolution()
+	{
+		EMR_Map2_T<CMAP>::add_resolution();
+		this->phi3_ = (*MR_phi3_)[this->maximum_level_];
+	}
 };
 
 struct EMR_Map3 : EMR_MapBase<EMR_Map3_T<CMap3>>
 {
 
+	using MAP = CMap3;
 	using Vertex = Cell<PHI21_PHI31>;
 	using Vertex2 = Cell<PHI21>;
 	using HalfEdge = Cell<DART>;
@@ -37,22 +44,40 @@ struct EMR_Map3 : EMR_MapBase<EMR_Map3_T<CMap3>>
 	{
 	}
 
+	CMap3* get_map()
+	{
+		CMap3* result = static_cast<CMap3&>(this->m_).get_copy();
+		result->phi1_ = (*m_.MR_phi1_)[current_level_];
+		result->phi_1_ = (*m_.MR_phi_1_)[current_level_];
+		result->phi2_ = (*m_.MR_phi2_)[current_level_];
+		result->phi3_ = (*m_.MR_phi3_)[current_level_];
+		return result;
+	}
+
 	/***************************************************
 	 *                  EDGE INFO                      *
 	 ***************************************************/
 
 	Dart edge_youngest_dart(Dart d) const;
+	bool edge_is_subdivided(Dart d) const;
+	uint32 edge_level(Dart d) const;
 
 	/***************************************************
 	 *                  FACE INFO                      *
 	 ***************************************************/
 
 	Dart face_youngest_dart(Dart d) const;
+	Dart face_oldest_dart(Dart d) const;
+	bool face_is_subdivided(Dart d) const;
+	uint32 face_level(Dart d) const;
 
 	/***************************************************
 	 *                 VOLUME INFO                     *
 	 ***************************************************/
 	Dart volume_youngest_dart(Dart d) const;
+	Dart volume_oldest_dart(Dart d) const;
+	bool volume_is_subdivided(Dart d) const;
+	uint32 volume_level(Dart d) const;
 };
 
 } // namespace cgogn
