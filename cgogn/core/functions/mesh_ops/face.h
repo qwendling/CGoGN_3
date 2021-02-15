@@ -79,7 +79,6 @@ void CGOGN_CORE_EXPORT remove_face(CMap1& m, CMap1::Face f, bool set_indices = t
 
 void CGOGN_CORE_EXPORT merge_incident_faces(CMap2& m, CMap2::Edge e, bool set_indices = true);
 
-
 /*****************************************************************************/
 
 // template <typename MESH>
@@ -114,6 +113,13 @@ CPH3::CMAP::Edge CGOGN_CORE_EXPORT cut_face(CPH3& m, CPH3::CMAP::Vertex v1, CPH3
 
 CPH3_adaptative::CMAP::Edge CGOGN_CORE_EXPORT cut_face(CPH3_adaptative& m, CPH3_adaptative::CMAP::Vertex v1,
 													   CPH3_adaptative::CMAP::Vertex v2, bool set_indices = true);
+
+//////////////
+// EMR_Map3 //
+//////////////
+
+EMR_Map3::Edge CGOGN_CORE_EXPORT cut_face(EMR_Map3& m, EMR_Map3::Vertex v1, EMR_Map3::Vertex v2,
+										  bool set_indices = true);
 
 /*****************************************************************************/
 

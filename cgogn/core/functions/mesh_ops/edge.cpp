@@ -344,10 +344,10 @@ EMR_Map3::MAP::Vertex cut_edge(EMR_Map3& m, EMR_Map3::MAP::Edge e, bool set_indi
 	{
 		if (is_indexed<EMR_Map3::MAP::Vertex>(m))
 			set_index(m, v, new_index<EMR_Map3::MAP::Vertex>(m));
-		foreach_dart_of_orbit(m, v, [&](Dart dd) -> bool {
+		/*foreach_dart_of_orbit(m, v, [&](Dart dd) -> bool {
 			std::cout << index_of(m, EMR_Map3::MAP::Vertex(dd)) << std::endl;
 			return true;
-		});
+		});*/
 		if (is_indexed<EMR_Map3::MAP::Edge>(m))
 		{
 			uint32 ne = new_index<EMR_Map3::MAP::Edge>(m);
@@ -374,19 +374,20 @@ EMR_Map3::MAP::Vertex cut_edge(EMR_Map3& m, EMR_Map3::MAP::Edge e, bool set_indi
 					it = phi1(m, it);
 				} while (m.dart_level(it) < m.current_level_ - 1 && it != d);
 
-				copy_index<EMR_Map3::MAP::Face>(m, phi1(m, d), it);
+				copy_index<EMR_Map3::MAP::Face>(*map, phi1(m, d), it);
 				it = phi2(m, d);
 				do
 				{
 					it = phi1(m, it);
 				} while (m.dart_level(it) < m.current_level_ - 1 && it != phi2(m, phi1(m, d)));
-				copy_index<EMR_Map3::MAP::Face>(m, phi2(m, d), it);
+				copy_index<EMR_Map3::MAP::Face>(*map, phi2(m, d), it);
 				d = phi<23>(m, d);
 			} while (d != e.dart);
 		}
 		if (is_indexed<EMR_Map3::MAP::Volume>(m))
 		{
 			d = e.dart;
+
 			do
 			{
 				if (!is_boundary(m, d))
@@ -396,18 +397,24 @@ EMR_Map3::MAP::Vertex cut_edge(EMR_Map3& m, EMR_Map3::MAP::Edge e, bool set_indi
 					{
 						it = phi1(m, it);
 					} while (m.dart_level(it) < m.current_level_ - 1 && it != d);
-					copy_index<EMR_Map3::MAP::Volume>(m, phi1(m, d), it);
-					it = phi2(m, d);
+					copy_index<EMR_Map3::MAP::Volume>(*map, phi1(m, d), it);
+					/*it = phi2(m, d);
 					do
 					{
 						it = phi1(m, it);
-					} while (m.dart_level(it) < m.current_level_ - 1 && it != phi2(m, phi1(m, d)));
-					copy_index<EMR_Map3::MAP::Volume>(m, phi2(m, d), it);
+					} while (m.dart_level(it) < m.current_level_ - 1 && it != phi2(m, phi1(m, d)));*/
+					copy_index<EMR_Map3::MAP::Volume>(*map, phi2(m, d), it);
 				}
+				std::cout << index_of(m, EMR_Map3::MAP::Volume(phi1(m, d))) << std::endl;
+				std::cout << index_of(m, EMR_Map3::MAP::Volume(phi2(m, d))) << std::endl;
 				d = phi<23>(m, d);
 			} while (d != e.dart);
+
+			// check integrity
 		}
 	}
+
+	cgogn_message_assert(m.check_integrity(), "check_integrity failed");
 
 	return v;
 }

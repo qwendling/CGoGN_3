@@ -4,6 +4,43 @@
 namespace cgogn
 {
 
+bool EMR_Map3::check_integrity() const
+{
+	for (Dart d = this->begin(), end = this->end(); d != end; d = this->next(d))
+	{
+		int limit = INT_MAX;
+		int i = 0;
+		Dart it = phi1(*this, d);
+		bool is_permutation = false;
+		while (i < limit && !is_permutation)
+		{
+			is_permutation = it == d;
+			it = phi1(*this, it);
+		}
+		if (!is_permutation)
+		{
+			std::cerr << "phi1 must be a permutation" << std::endl;
+			return false;
+		}
+		if (phi2(*this, phi2(*this, d)) != d)
+		{
+			std::cerr << "phi2 must be an involution" << std::endl;
+			return false;
+		}
+		if (phi3(*this, phi3(*this, d)) != d)
+		{
+			std::cerr << "phi3 must be an involution" << std::endl;
+			return false;
+		}
+		if (phi1(*this, phi3(*this, phi1(*this, phi3(*this, d)))) != d)
+		{
+			std::cerr << "phi1(phi3(d)) must be an involution" << std::endl;
+			return false;
+		}
+	}
+	return true;
+}
+
 /***************************************************
  *                  EDGE INFO                      *
  ***************************************************/
@@ -50,7 +87,7 @@ Dart EMR_Map3::face_youngest_dart(Dart d) const
 	{
 		if (m_.dart_level(it) > m_.dart_level(result))
 			result = it;
-		it = phi1(*this, d);
+		it = phi1(*this, it);
 	}
 
 	return result;
@@ -65,7 +102,7 @@ Dart EMR_Map3::face_oldest_dart(Dart d) const
 	{
 		if (m_.dart_level(it) < m_.dart_level(result))
 			result = it;
-		it = phi1(*this, d);
+		it = phi1(*this, it);
 	}
 
 	return result;

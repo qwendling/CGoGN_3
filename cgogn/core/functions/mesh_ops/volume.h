@@ -89,6 +89,12 @@ CPH3::CMAP::Face cut_volume(CPH3& m, const std::vector<Dart>& path, bool set_ind
 /////////////////////
 CPH3_adaptative::CMAP::Face cut_volume(CPH3_adaptative& m, const std::vector<Dart>& path, bool set_indices = true);
 
+//////////////
+// EMR_Map3 //
+//////////////
+
+EMR_Map3::Face cut_volume(EMR_Map3& m, const std::vector<Dart>& path, bool set_indices = true);
+
 /*****************************************************************************/
 
 // template <typename MESH>

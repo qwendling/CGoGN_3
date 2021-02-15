@@ -59,15 +59,17 @@ struct CGOGN_CORE_EXPORT CMap3 : public CMap2
 		  std::shared_ptr<AttributeContainer>& darts,
 		  std::shared_ptr<std::vector<std::shared_ptr<Attribute<Dart>>>>& relations,
 		  std::shared_ptr<std::array<std::shared_ptr<Attribute<uint32>>, NB_ORBITS>>& cells_indices,
+		  MarkAttribute* boundary_marker,
 		  std::shared_ptr<std::array<AttributeContainer, NB_ORBITS>>& attribute_containers,
 		  std::shared_ptr<Attribute<Dart>>& phi1, std::shared_ptr<Attribute<Dart>>& phi_1,
 		  std::shared_ptr<Attribute<Dart>>& phi2, std::shared_ptr<Attribute<Dart>>& phi3)
-		: CMap2(attributes, darts, relations, cells_indices, attribute_containers, phi1, phi_1, phi2), phi3_(phi3){};
+		: CMap2(attributes, darts, relations, cells_indices, boundary_marker, attribute_containers, phi1, phi_1, phi2),
+		  phi3_(phi3){};
 
 	CMap3* get_copy()
 	{
-		CMap3* result = new CMap3(attributes_, darts_, relations_, cells_indices_, attribute_containers_, phi1_, phi_1_,
-								  phi2_, phi3_);
+		CMap3* result = new CMap3(attributes_, darts_, relations_, cells_indices_, boundary_marker_,
+								  attribute_containers_, phi1_, phi_1_, phi2_, phi3_);
 		return result;
 	}
 };

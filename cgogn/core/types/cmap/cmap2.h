@@ -54,10 +54,12 @@ struct CGOGN_CORE_EXPORT CMap2 : public CMap1
 		  std::shared_ptr<AttributeContainer>& darts,
 		  std::shared_ptr<std::vector<std::shared_ptr<Attribute<Dart>>>>& relations,
 		  std::shared_ptr<std::array<std::shared_ptr<Attribute<uint32>>, NB_ORBITS>>& cells_indices,
+		  MarkAttribute* boundary_marker,
 		  std::shared_ptr<std::array<AttributeContainer, NB_ORBITS>>& attribute_containers,
 		  std::shared_ptr<Attribute<Dart>>& phi1, std::shared_ptr<Attribute<Dart>>& phi_1,
 		  std::shared_ptr<Attribute<Dart>>& phi2)
-		: CMap1(attributes, darts, relations, cells_indices, attribute_containers, phi1, phi_1), phi2_(phi2){};
+		: CMap1(attributes, darts, relations, cells_indices, boundary_marker, attribute_containers, phi1, phi_1),
+		  phi2_(phi2){};
 };
 
 } // namespace cgogn

@@ -44,11 +44,12 @@ CMapBase::CMapBase(std::shared_ptr<std::unordered_map<std::string, std::any>>& a
 				   std::shared_ptr<AttributeContainer>& darts,
 				   std::shared_ptr<std::vector<std::shared_ptr<Attribute<Dart>>>>& relations,
 				   std::shared_ptr<std::array<std::shared_ptr<Attribute<uint32>>, NB_ORBITS>>& cells_indices,
+				   MarkAttribute* boundary_marker,
 				   std::shared_ptr<std::array<AttributeContainer, NB_ORBITS>>& attribute_containers)
 	: attributes_(attributes), darts_(darts), relations_(relations), cells_indices_(cells_indices),
-	  attribute_containers_(attribute_containers), nb_reader(0), nb_writer(0), is_modify(false)
+	  boundary_marker_(boundary_marker), attribute_containers_(attribute_containers), nb_reader(0), nb_writer(0),
+	  is_modify(false)
 {
-	boundary_marker_ = darts_->get_mark_attribute();
 }
 
 CMapBase::~CMapBase()

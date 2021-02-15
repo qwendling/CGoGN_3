@@ -88,6 +88,7 @@ struct CGOGN_CORE_EXPORT CMapBase
 			 std::shared_ptr<AttributeContainer>& darts,
 			 std::shared_ptr<std::vector<std::shared_ptr<Attribute<Dart>>>>& relations,
 			 std::shared_ptr<std::array<std::shared_ptr<Attribute<uint32>>, NB_ORBITS>>& cells_indices,
+			 MarkAttribute* boundary_marker_,
 			 std::shared_ptr<std::array<AttributeContainer, NB_ORBITS>>& attribute_containers);
 	~CMapBase();
 
@@ -100,7 +101,8 @@ struct CGOGN_CORE_EXPORT CMapBase
 
 	CMapBase& get_copy()
 	{
-		CMapBase* result = new CMapBase(attributes_, darts_, relations_, cells_indices_, attribute_containers_);
+		CMapBase* result =
+			new CMapBase(attributes_, darts_, relations_, cells_indices_, boundary_marker_, attribute_containers_);
 		return *result;
 	}
 

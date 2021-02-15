@@ -111,7 +111,7 @@ struct EMR_MapBase
 	{
 		Dart d(m_.darts_->first_index());
 		uint32 lastidx = m_.darts_->last_index();
-		while (m_.dart_level(d) > current_level_ && d.index < lastidx)
+		while (d.index < lastidx && m_.dart_level(d) > current_level_)
 			d = Dart(m_.darts_->next_index(d.index));
 		return d;
 	}
@@ -127,7 +127,7 @@ struct EMR_MapBase
 		do
 		{
 			d = Dart(m_.darts_->next_index(d.index));
-		} while (m_.dart_level(d) > current_level_ && d.index < lastidx);
+		} while (d.index < lastidx && m_.dart_level(d) > current_level_);
 		return d;
 	}
 };

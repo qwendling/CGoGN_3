@@ -54,6 +54,8 @@ struct EMR_Map3 : EMR_MapBase<EMR_Map3_T<CMap3>>
 		return result;
 	}
 
+	bool check_integrity() const;
+
 	/***************************************************
 	 *                  EDGE INFO                      *
 	 ***************************************************/

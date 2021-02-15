@@ -112,6 +112,24 @@ inline auto index_of(const MRMAP& m, CELL c) -> std::enable_if_t<std::is_convert
 	return index_of(static_cast<const CPH3::CMAP&>(m), c);
 }
 
+/////////////
+// EMRMAP3 //
+/////////////
+
+template <typename CELL>
+inline auto index_of(const EMR_Map3& m, CELL c)
+{
+	static const Orbit orbit = CELL::ORBIT;
+
+	if constexpr (orbit == EMR_Map3::MAP::Edge::ORBIT)
+		c.dart = m.edge_youngest_dart(c.dart);
+	if constexpr (orbit == EMR_Map3::MAP::Face::ORBIT)
+		c.dart = m.face_youngest_dart(c.dart);
+	if constexpr (orbit == EMR_Map3::MAP::Volume::ORBIT)
+		c.dart = m.volume_youngest_dart(c.dart);
+
+	return index_of(static_cast<const EMR_Map3::MAP&>(m), c);
+}
 /*****************************************************************************/
 
 // template <typename CELL, typename MESH>
