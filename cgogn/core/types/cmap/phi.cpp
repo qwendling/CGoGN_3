@@ -48,6 +48,49 @@ Dart phi3(const EMR_Map3& m, Dart d)
 	return (*((*m.m_.MR_phi3_)[m.current_level_]))[d.index];
 }
 
+Dart phi1(const EMR_Map3_Adaptative& m, Dart d)
+{
+	uint32 visibility = m.get_dart_visibility(d);
+	cgogn_message_assert(visibility <= m.current_level_, "Access to a dart visible at a higher level");
+	EMR_Map3 emr = EMR_Map3(m);
+	emr.current_level_ = std::max(m.current_level_, visibility);
+	Dart result = phi1(emr, d);
+	if (m.get_dart_visibility(result) > m.current_level_)
+	{
+		emr.current_level_--;
+		Dart tmp = phi1(emr, d);
+		emr.current_level_++;
+		result = phi_1(emr, tmp);
+		cgogn_message_assert(m.get_dart_visibility(result) <= m.current_level_, "phi1 cannot be found");
+	}
+	return result;
+}
+Dart phi_1(const EMR_Map3_Adaptative& m, Dart d)
+{
+	return phi3(m, phi1(m, phi3(m, d)));
+}
+Dart phi2(const EMR_Map3_Adaptative& m, Dart d)
+{
+	uint32 visibility = m.get_dart_visibility(d);
+	cgogn_message_assert(visibility <= m.current_level_, "Access to a dart visible at a higher level");
+	EMR_Map3 emr = EMR_Map3(m);
+	emr.current_level_ = std::max(m.current_level_, visibility);
+	Dart result = phi2(emr, d);
+	while (m.get_dart_visibility(result) > m.current_level_)
+	{
+		result = phi2(emr, phi3(emr, result));
+	}
+	return result;
+}
+Dart phi3(const EMR_Map3_Adaptative& m, Dart d)
+{
+	uint32 visibility = m.get_dart_visibility(d);
+	cgogn_message_assert(visibility <= m.current_level_, "Access to a dart visible at a higher level");
+	EMR_Map3 emr = EMR_Map3(m);
+	emr.current_level_ = std::max(m.current_level_, visibility);
+	return phi3(emr, d);
+}
+
 Dart phi2bis(const CPH3& m, Dart d)
 {
 	const CPH3::CMAP& map = static_cast<const CPH3::CMAP&>(m);

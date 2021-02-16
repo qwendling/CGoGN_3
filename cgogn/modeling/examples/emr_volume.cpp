@@ -96,6 +96,9 @@ int main(int argc, char** argv)
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*mrm, "position");
 
 	vmrm.subdivide(*mrm, position.get());
+	m->add_resolution();
+	mrm->change_resolution_level(2);
+	vmrm.subdivide(*mrm, position.get());
 
 	auto md = mrmp.mesh_data(mrm);
 	md->template add_cells_set<Edge>();

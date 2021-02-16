@@ -27,6 +27,7 @@
 #include <cgogn/core/cgogn_core_export.h>
 
 #include <cgogn/core/types/cmap/EMR_Map3.h>
+#include <cgogn/core/types/cmap/EMR_Map3_Adaptative.h>
 #include <cgogn/core/types/cmap/cmap3.h>
 #include <cgogn/core/types/cmap/cph3.h>
 #include <cgogn/core/types/cmap/cph3_adaptative.h>
@@ -154,6 +155,12 @@ template <>
 struct mesh_traits<EMR_Map3> : public mesh_traits<CMap3>
 {
 	static constexpr const char* name = "EMR_Map3";
+};
+
+template <>
+struct mesh_traits<EMR_Map3_Adaptative> : public mesh_traits<CMap3>
+{
+	static constexpr const char* name = "EMR_Map3_Adaptative";
 };
 
 template <>

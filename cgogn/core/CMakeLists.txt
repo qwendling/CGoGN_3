@@ -36,6 +36,8 @@ target_sources(${PROJECT_NAME}
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/cph3.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/cph3_adaptative.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/cph3_adaptative.h"
+		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/EMR_Map3_Adaptative.cpp"
+		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/EMR_Map3_Adaptative.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/EMR_Map3.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/EMR_Map3.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/EMR_Map2.cpp"
