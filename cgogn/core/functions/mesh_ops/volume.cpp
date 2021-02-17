@@ -370,6 +370,67 @@ EMR_Map3::Face cut_volume(EMR_Map3& m, const std::vector<Dart>& path, bool set_i
 	return result;
 }
 
+/////////////////////////
+// EMR_Map3_Adaptative //
+/////////////////////////
+
+EMR_Map3_Adaptative::Face cut_volume(EMR_Map3_Adaptative& m, const std::vector<Dart>& path, bool set_indices)
+{
+	EMR_Map3_Adaptative::MAP& map = static_cast<EMR_Map3_Adaptative::MAP&>(m);
+
+	EMR_Map3_Adaptative::MAP::Face result = cut_volume(map, path, false);
+
+	Dart f0 = result.dart;
+	Dart f1 = phi3(m, f0);
+
+	foreach_dart_of_orbit(m, result, [&](Dart d) -> bool {
+		m.set_dart_level(d, m.current_level_);
+		m.set_dart_visibility(d, m.current_level_);
+		return true;
+	});
+
+	if (set_indices)
+	{
+		if (is_indexed<EMR_Map3_Adaptative::MAP::Vertex>(m))
+		{
+			foreach_dart_of_orbit(m, EMR_Map3_Adaptative::MAP::Face(f0), [&](Dart d) -> bool {
+				copy_index<EMR_Map3_Adaptative::MAP::Vertex>(map, d, phi<21>(m, d));
+				return true;
+			});
+		}
+		if (is_indexed<EMR_Map3_Adaptative::MAP::Edge>(m))
+		{
+			foreach_dart_of_orbit(m, EMR_Map3_Adaptative::MAP::Face2(f0), [&](Dart d) -> bool {
+				copy_index<EMR_Map3_Adaptative::MAP::Edge>(map, d, phi2(m, d));
+				copy_index<EMR_Map3_Adaptative::MAP::Edge>(map, phi3(m, d), d);
+				return true;
+			});
+		}
+		if (is_indexed<EMR_Map3_Adaptative::MAP::Face>(m))
+			set_index(m, EMR_Map3_Adaptative::MAP::Face(f0), new_index<EMR_Map3_Adaptative::MAP::Face>(m));
+		if (is_indexed<EMR_Map3_Adaptative::MAP::Volume>(m))
+		{
+
+			uint32 ved1 = new_index<EMR_Map3_Adaptative::MAP::Volume>(m);
+			uint32 ved2 = new_index<EMR_Map3_Adaptative::MAP::Volume>(m);
+			foreach_dart_of_orbit(m, EMR_Map3_Adaptative::MAP::Volume(f0), [&](Dart d) -> bool {
+				if (m.dart_level(d) == m.current_level_)
+					set_index<EMR_Map3_Adaptative::MAP::Volume>(m, d, ved1);
+				return true;
+			});
+			foreach_dart_of_orbit(m, EMR_Map3_Adaptative::MAP::Volume(f1), [&](Dart d) -> bool {
+				if (m.dart_level(d) == m.current_level_)
+					set_index<EMR_Map3_Adaptative::MAP::Volume>(m, d, ved2);
+				return true;
+			});
+		}
+	}
+
+	cgogn_message_assert(m.check_integrity(), "check_integrity failed");
+
+	return result;
+}
+
 /*****************************************************************************/
 
 // template <typename MESH>

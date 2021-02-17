@@ -40,7 +40,7 @@
 #include <cgogn/ui/modules/volume_render/volume_render.h>
 #include <cgogn/ui/modules/volume_selection/volume_selection.h>
 
-using MRMesh = cgogn::EMR_Map3;
+using MRMesh = cgogn::EMR_Map3_Adaptative;
 using Mesh = MRMesh::BASE;
 
 template <typename T>
@@ -73,7 +73,7 @@ int main(int argc, char** argv)
 	cgogn::ui::MeshProvider<MRMesh> mrmp(app);
 	cgogn::ui::VolumeRender<MRMesh> vr(app);
 
-	cgogn::ui::VolumeEMRModeling vmrm(app);
+	cgogn::ui::VolumeEMRModeling<MRMesh> vmrm(app);
 
 	app.init_modules();
 

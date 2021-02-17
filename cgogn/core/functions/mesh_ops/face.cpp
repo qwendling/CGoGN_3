@@ -449,6 +449,76 @@ EMR_Map3::Edge cut_face(EMR_Map3& m, EMR_Map3::Vertex v1, EMR_Map3::Vertex v2, b
 	return result;
 }
 
+/////////////////////////
+// EMR_Map3_Adaptative //
+/////////////////////////
+
+EMR_Map3_Adaptative::Edge cut_face(EMR_Map3_Adaptative& m, EMR_Map3_Adaptative::Vertex v1,
+								   EMR_Map3_Adaptative::Vertex v2, bool set_indices)
+{
+	EMR_Map3_Adaptative::MAP& map = static_cast<EMR_Map3_Adaptative::MAP&>(m);
+
+	Dart d = v1.dart;
+	Dart e = v2.dart;
+
+	Dart dd = phi<31>(m, v1.dart);
+	Dart ee = phi<31>(m, e);
+
+	EMR_Map3_Adaptative::MAP::Edge result = cut_face(map, v1, v2, false);
+
+	foreach_dart_of_orbit(m, result, [&](Dart d) -> bool {
+		m.set_dart_level(d, m.current_level_);
+		m.set_dart_visibility(d, m.current_level_);
+		return true;
+	});
+
+	if (set_indices)
+	{
+		if (is_indexed<EMR_Map3_Adaptative::MAP::Vertex>(m))
+		{
+			copy_index<EMR_Map3_Adaptative::MAP::Vertex>(map, phi_1(m, e), v1.dart);
+			copy_index<EMR_Map3_Adaptative::MAP::Vertex>(map, phi_1(m, ee), v1.dart);
+			copy_index<EMR_Map3_Adaptative::MAP::Vertex>(map, phi_1(m, d), e);
+			copy_index<EMR_Map3_Adaptative::MAP::Vertex>(map, phi_1(m, dd), e);
+		}
+		if (is_indexed<EMR_Map3_Adaptative::MAP::Edge>(m))
+			set_index(m, EMR_Map3_Adaptative::MAP::Edge(phi_1(m, v1.dart)),
+					  new_index<EMR_Map3_Adaptative::MAP::Edge>(m));
+		if (is_indexed<EMR_Map3_Adaptative::MAP::Face>(m))
+		{
+			uint32 nf1 = new_index<EMR_Map3_Adaptative::MAP::Face>(m);
+			uint32 nf2 = new_index<EMR_Map3_Adaptative::MAP::Face>(m);
+			foreach_dart_of_orbit(m, EMR_Map3_Adaptative::MAP::Face(d), [&](Dart df) -> bool {
+				if (m.current_level_ == m.dart_level(df))
+					set_index<EMR_Map3_Adaptative::MAP::Face>(m, df, nf1);
+				return true;
+			});
+			foreach_dart_of_orbit(m, EMR_Map3_Adaptative::MAP::Face(e), [&](Dart df) -> bool {
+				if (m.current_level_ == m.dart_level(df))
+					set_index<EMR_Map3_Adaptative::MAP::Face>(m, df, nf2);
+				return true;
+			});
+		}
+		if (is_indexed<EMR_Map3_Adaptative::MAP::Volume>(m))
+		{
+			if (!is_boundary(m, d))
+			{
+				copy_index<EMR_Map3_Adaptative::MAP::Volume>(map, phi_1(m, d), d);
+				copy_index<EMR_Map3_Adaptative::MAP::Volume>(map, phi_1(m, e), d);
+			}
+			if (!is_boundary(m, dd))
+			{
+				copy_index<EMR_Map3_Adaptative::MAP::Volume>(map, phi_1(m, dd), dd);
+				copy_index<EMR_Map3_Adaptative::MAP::Volume>(map, phi_1(m, ee), dd);
+			}
+		}
+	}
+
+	cgogn_message_assert(m.check_integrity(), "check_integrity failed");
+
+	return result;
+}
+
 /*****************************************************************************/
 
 // template <typename MESH>

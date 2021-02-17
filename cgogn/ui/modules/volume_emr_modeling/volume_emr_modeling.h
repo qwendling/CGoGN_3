@@ -41,9 +41,10 @@ namespace cgogn
 namespace ui
 {
 
+template <typename EMR>
 class VolumeEMRModeling : public Module
 {
-	using MRMesh = EMR_Map3;
+	using MRMesh = EMR;
 
 	template <typename T>
 	using Attribute = typename mesh_traits<MRMesh>::template Attribute<T>;
@@ -65,7 +66,7 @@ public:
 	{
 	}
 
-	MRMesh* create_mrmesh(MRMesh::BASE& m, const std::string& name)
+	MRMesh* create_mrmesh(typename MRMesh::BASE& m, const std::string& name)
 	{
 		MRMesh* result = new MRMesh(m);
 		std::string emr_name;
@@ -109,8 +110,8 @@ protected:
 		emr_provider_ = static_cast<ui::MeshProvider<MRMesh>*>(
 			app_.module("MeshProvider (" + std::string{mesh_traits<MRMesh>::name} + ")"));
 
-		cmap3_provider_ = static_cast<ui::MeshProvider<MRMesh::BASE>*>(
-			app_.module("MeshProvider (" + std::string{mesh_traits<MRMesh::BASE>::name} + ")"));
+		cmap3_provider_ = static_cast<ui::MeshProvider<typename MRMesh::BASE>*>(
+			app_.module("MeshProvider (" + std::string{mesh_traits<typename MRMesh::BASE>::name} + ")"));
 	}
 
 	void interface() override
@@ -118,7 +119,7 @@ protected:
 
 		if (ImGui::ListBoxHeader("CMap3"))
 		{
-			cmap3_provider_->foreach_mesh([this](MRMesh::BASE* m, const std::string& name) {
+			cmap3_provider_->foreach_mesh([this](typename MRMesh::BASE* m, const std::string& name) {
 				if (ImGui::Selectable(name.c_str(), m == selected_cmap3_))
 				{
 					selected_cmap3_ = m;
@@ -269,7 +270,7 @@ public:
 
 private:
 	MRMesh* selected_cph3_;
-	MRMesh::BASE* selected_cmap3_;
+	typename MRMesh::BASE* selected_cmap3_;
 	std::string selected_cmap3_name_;
 
 	std::shared_ptr<Attribute<Vec3>> selected_vertex_position_;
@@ -277,7 +278,7 @@ private:
 	std::shared_ptr<Attribute<Vec3>> selected_vertex_attr3_;
 
 	MeshProvider<MRMesh>* emr_provider_;
-	MeshProvider<MRMesh::BASE>* cmap3_provider_;
+	MeshProvider<typename MRMesh::BASE>* cmap3_provider_;
 };
 
 } // namespace ui

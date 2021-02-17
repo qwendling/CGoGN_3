@@ -82,6 +82,13 @@ CPH3_adaptative::CMAP::Vertex CGOGN_CORE_EXPORT cut_edge(CPH3_adaptative& m, CPH
 
 EMR_Map3::MAP::Vertex CGOGN_CORE_EXPORT cut_edge(EMR_Map3& m, EMR_Map3::MAP::Edge e, bool set_indices = true);
 
+/////////////////////////
+// EMR_Map3_Adaptative //
+/////////////////////////
+
+EMR_Map3_Adaptative::MAP::Vertex CGOGN_CORE_EXPORT cut_edge(EMR_Map3_Adaptative& m, EMR_Map3_Adaptative::MAP::Edge e,
+															bool set_indices = true);
+
 /*****************************************************************************/
 
 // template <typename MESH>
