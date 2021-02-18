@@ -16,6 +16,12 @@ bool EMR_Map3::check_integrity() const
 		{
 			is_permutation = it == d;
 			it = phi1(*this, it);
+			i++;
+		}
+		if (i == 0)
+		{
+			std::cerr << "phi1 have a fix point : " << d.index << std::endl;
+			return false;
 		}
 		if (!is_permutation)
 		{
@@ -104,7 +110,6 @@ Dart EMR_Map3::face_oldest_dart(Dart d) const
 			result = it;
 		it = phi1(*this, it);
 	}
-
 	return result;
 }
 
@@ -125,7 +130,7 @@ bool EMR_Map3::face_is_subdivided(Dart d) const
 		}
 		it2 = phi1(m2, it2);
 	}
-	return it == d;
+	return it != d;
 }
 
 uint32 EMR_Map3::face_level(Dart d) const
@@ -136,9 +141,13 @@ uint32 EMR_Map3::face_level(Dart d) const
 	Dart old = face_oldest_dart(d);
 	EMR_Map3 m2(m_);
 	m2.current_level_ = current_level_ - 1;
-	while (m2.current_level_ > 0 && !m2.face_is_subdivided(old))
+	while (m2.current_level_ > dart_level(old) && !m2.face_is_subdivided(old))
 	{
 		m2.current_level_--;
+	}
+	if (m2.current_level_ == dart_level(old) && !m2.face_is_subdivided(old))
+	{
+		return m2.current_level_;
 	}
 	return m2.current_level_ + 1;
 }
@@ -202,7 +211,7 @@ bool EMR_Map3::volume_is_subdivided(Dart d) const
 		j++;
 	}
 
-	return i >= v1.size();
+	return i < v1.size();
 }
 
 uint32 EMR_Map3::volume_level(Dart d) const
@@ -213,9 +222,13 @@ uint32 EMR_Map3::volume_level(Dart d) const
 	Dart old = volume_oldest_dart(d);
 	EMR_Map3 m2(m_);
 	m2.current_level_ = current_level_ - 1;
-	while (m2.current_level_ > 0 && !m2.volume_is_subdivided(old))
+	while (m2.current_level_ > dart_level(old) && !m2.volume_is_subdivided(old))
 	{
 		m2.current_level_--;
+	}
+	if (m2.current_level_ == dart_level(old) && !m2.volume_is_subdivided(old))
+	{
+		return m2.current_level_;
 	}
 	return m2.current_level_ + 1;
 }

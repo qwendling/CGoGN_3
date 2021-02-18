@@ -40,7 +40,7 @@
 #include <cgogn/ui/modules/volume_render/volume_render.h>
 #include <cgogn/ui/modules/volume_selection/volume_selection.h>
 
-using MRMesh = cgogn::EMR_Map3_Adaptative;
+using MRMesh = cgogn::EMR_Map3;
 using Mesh = MRMesh::BASE;
 
 template <typename T>
@@ -96,9 +96,9 @@ int main(int argc, char** argv)
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*mrm, "position");
 
 	vmrm.subdivide(*mrm, position.get());
-	m->add_resolution();
+	/*m->add_resolution();
 	mrm->change_resolution_level(2);
-	vmrm.subdivide(*mrm, position.get());
+	vmrm.subdivide(*mrm, position.get());*/
 
 	auto md = mrmp.mesh_data(mrm);
 	md->template add_cells_set<Edge>();
@@ -113,11 +113,19 @@ int main(int argc, char** argv)
 
 	std::srand(std::time(nullptr));
 
-	cgogn::foreach_cell(*m, [&](Vertex v) -> bool {
-		std::cout << cgogn::value<Vec3>(*mrm, position, v) << std::endl;
-		std::cout << "_____________________" << std::endl;
+	std::vector<int> bucket;
+	for (uint i = 0; i <= mrm->maximum_level_; i++)
+	{
+		bucket.push_back(0);
+	}
+	cgogn::foreach_cell(*mrm, [&](Face f) -> bool {
+		bucket[mrm->face_level(f.dart)]++;
 		return true;
 	});
+	for (auto i : bucket)
+	{
+		std::cout << i << std::endl;
+	}
 
 	return app.launch();
 }
