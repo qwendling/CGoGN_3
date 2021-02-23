@@ -48,10 +48,10 @@ struct EMR_Map3_Adaptative : EMR_Map3
 	 *                  FACE INFO                      *
 	 ***************************************************/
 
-	/*Dart face_youngest_dart(Dart d) const;
+	// Dart face_youngest_dart(Dart d) const;
 	Dart face_oldest_dart(Dart d) const;
-	bool face_is_subdivided(Dart d) const;
-	uint32 face_level(Dart d) const;*/
+	// bool face_is_subdivided(Dart d) const;
+	uint32 face_level(Dart d) const;
 
 	/***************************************************
 	 *                 VOLUME INFO                     *

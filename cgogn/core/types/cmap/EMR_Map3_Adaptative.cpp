@@ -62,7 +62,7 @@ bool EMR_Map3_Adaptative::edge_is_subdivided(Dart d) const
 	}
 
 	return it;
-}
+}*/
 
 Dart EMR_Map3_Adaptative::face_oldest_dart(Dart d) const
 {
@@ -79,7 +79,7 @@ Dart EMR_Map3_Adaptative::face_oldest_dart(Dart d) const
 	return result;
 }
 
-bool EMR_Map3_Adaptative::face_is_subdivided(Dart d) const
+/*bool EMR_Map3_Adaptative::face_is_subdivided(Dart d) const
 {
 	cgogn_message_assert(get_dart_visibility(d) <= current_level_, "Access to a dart introduced after current level");
 	if (current_level_ == maximum_level_)
@@ -87,27 +87,29 @@ bool EMR_Map3_Adaptative::face_is_subdivided(Dart d) const
 	EMR_Map3 m2(m_);
 	m2.current_level_ = face_level(d);
 	return m2.face_is_subdivided(d);
-}
+}*/
 
 uint32 EMR_Map3_Adaptative::face_level(Dart d) const
 {
 	cgogn_message_assert(get_dart_visibility(d) <= current_level_, "Access to a dart introduced after current level");
-	uint32 d_lu = get_dart_lookup(d);
+	if (current_level_ == 0)
+		return 0;
+	uint32 min_e_lvl = INT_MAX;
 	Dart it = phi1(*this, d);
-	Dart it2 = d;
+	Dart it2 = it;
 	while (it != d)
 	{
-		if (d_lu < get_dart_lookup(it))
+		uint32 tmp = edge_level(it);
+		if (tmp < min_e_lvl)
 		{
-			d_lu = get_dart_lookup(it);
+			min_e_lvl = tmp;
 			it2 = it;
 		}
 		it = phi1(*this, it);
 	}
 	EMR_Map3 m2(m_);
-	m2.current_level_ = d_lu;
-
+	m2.current_level_ = min_e_lvl;
 	return m2.face_level(it2);
-}*/
+}
 
 } // namespace cgogn
