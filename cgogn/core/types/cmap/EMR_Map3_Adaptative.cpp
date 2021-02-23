@@ -13,16 +13,6 @@ void EMR_Map3_Adaptative::set_dart_visibility(Dart d, uint32 v)
 	(*dart_visibility_)[d.index] = v;
 }
 
-uint32 EMR_Map3_Adaptative::get_dart_lookup(Dart d) const
-{
-	return std::max(this->dart_level(d), (*dart_lookup_)[d.index]);
-}
-
-void EMR_Map3_Adaptative::set_dart_lookup(Dart d, uint32 v)
-{
-	(*dart_lookup_)[d.index] = v;
-}
-
 /***************************************************
  *                  EDGE INFO                      *
  ***************************************************/
@@ -64,16 +54,14 @@ bool EMR_Map3_Adaptative::edge_is_subdivided(Dart d) const
 /*Dart EMR_Map3_Adaptative::face_youngest_dart(Dart d) const
 {
 	cgogn_message_assert(get_dart_visibility(d) <= current_level_, "Access to a dart introduced after current level");
-	Dart it = phi1(*this, d);
-	Dart result = d;
-	while (it != d)
+	uint32 f_level = face_level(d);
+	Dart it = d;
+	while (dart_level(it) != f_level)
 	{
-		if (m_.dart_level(it) > m_.dart_level(result))
-			result = it;
 		it = phi1(*this, it);
 	}
 
-	return result;
+	return it;
 }
 
 Dart EMR_Map3_Adaptative::face_oldest_dart(Dart d) const
@@ -96,36 +84,22 @@ bool EMR_Map3_Adaptative::face_is_subdivided(Dart d) const
 	cgogn_message_assert(get_dart_visibility(d) <= current_level_, "Access to a dart introduced after current level");
 	if (current_level_ == maximum_level_)
 		return false;
-	EMR_Map3_Adaptative m2(m_);
-	m2.current_level_ = current_level_ + 1;
-	Dart it = phi1(*this, d);
-	Dart it2 = phi1(m2, d);
-	while (it != d && it2 != d)
-	{
-		if (it == it2)
-		{
-			it = phi1(*this, it);
-		}
-		it2 = phi1(m2, it2);
-	}
-	return it == d;
-}*/
+	EMR_Map3 m2(m_);
+	m2.current_level_ = face_level(d);
+	return m2.face_is_subdivided(d);
+}
 
 uint32 EMR_Map3_Adaptative::face_level(Dart d) const
 {
 	cgogn_message_assert(get_dart_visibility(d) <= current_level_, "Access to a dart introduced after current level");
 	uint32 d_lu = get_dart_lookup(d);
-	if (d_lu == 0)
-		return 0;
 	Dart it = phi1(*this, d);
 	Dart it2 = d;
 	while (it != d)
 	{
-		if (d_lu > get_dart_lookup(it))
+		if (d_lu < get_dart_lookup(it))
 		{
 			d_lu = get_dart_lookup(it);
-			if (d_lu == 0)
-				return 0;
 			it2 = it;
 		}
 		it = phi1(*this, it);
@@ -134,6 +108,6 @@ uint32 EMR_Map3_Adaptative::face_level(Dart d) const
 	m2.current_level_ = d_lu;
 
 	return m2.face_level(it2);
-}
+}*/
 
 } // namespace cgogn

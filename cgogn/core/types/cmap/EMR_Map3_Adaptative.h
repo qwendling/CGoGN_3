@@ -22,16 +22,12 @@ struct EMR_Map3_Adaptative : EMR_Map3
 	using Attribute = typename CMap3::template Attribute<T>;
 
 	std::shared_ptr<Attribute<uint32>> dart_visibility_;
-	std::shared_ptr<Attribute<uint32>> dart_lookup_;
 
 	EMR_Map3_Adaptative(EMR_Map3_T<CMap3>& m) : EMR_Map3(m)
 	{
 		dart_visibility_ = m_.darts_->get_attribute<uint32>("dart_visibility");
 		if (!dart_visibility_)
 			dart_visibility_ = m_.darts_->add_attribute<uint32>("dart_visibility");
-		dart_lookup_ = m_.darts_->get_attribute<uint32>("dart_lookup");
-		if (!dart_lookup_)
-			dart_lookup_ = m_.darts_->add_attribute<uint32>("dart_lookup");
 	}
 
 	uint32 get_dart_lookup(Dart d) const;
@@ -54,8 +50,8 @@ struct EMR_Map3_Adaptative : EMR_Map3
 
 	/*Dart face_youngest_dart(Dart d) const;
 	Dart face_oldest_dart(Dart d) const;
-	bool face_is_subdivided(Dart d) const;*/
-	uint32 face_level(Dart d) const;
+	bool face_is_subdivided(Dart d) const;
+	uint32 face_level(Dart d) const;*/
 
 	/***************************************************
 	 *                 VOLUME INFO                     *

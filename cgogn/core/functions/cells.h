@@ -116,8 +116,8 @@ inline auto index_of(const MRMAP& m, CELL c) -> std::enable_if_t<std::is_convert
 // EMRMAP3 //
 /////////////
 
-template <typename CELL>
-inline auto index_of(const EMR_Map3& m, CELL c)
+template <typename MRMAP, typename CELL>
+inline auto index_of(const MRMAP& m, CELL c) -> std::enable_if_t<std::is_convertible_v<MRMAP&, EMR_Map3&>, uint32>
 {
 	static const Orbit orbit = CELL::ORBIT;
 
