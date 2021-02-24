@@ -98,7 +98,7 @@ int main(int argc, char** argv)
 	vmrm.subdivide(*mrm, position.get());
 	m->add_resolution();
 	mrm->change_resolution_level(2);
-	// vmrm.subdivide(*mrm, position.get());
+	vmrm.subdivide(*mrm, position.get());
 
 	auto md = mrmp.mesh_data(mrm);
 	md->template add_cells_set<Edge>();
