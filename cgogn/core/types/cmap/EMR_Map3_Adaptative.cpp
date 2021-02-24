@@ -182,16 +182,42 @@ uint32 EMR_Map3_Adaptative::volume_level(Dart d) const
 		return 0;
 	Dart old = volume_oldest_dart(d);
 	EMR_Map3 m2(m_);
-	m2.current_level_ = current_level_ - 1;
-	while (m2.current_level_ > dart_level(old) && !m2.volume_is_subdivided(old))
+	m2.current_level_ = current_level_;
+	if (current_level_ == maximum_level_)
+		return m2.volume_level(d);
+
+	std::vector<Dart> v1, v2;
+	foreach_dart_of_orbit(*this, Volume(old), [&](Dart it) -> bool {
+		v1.push_back(it);
+		return true;
+	});
+
+	auto fn_sort = [](Dart d, Dart dd) -> bool { return d.index > dd.index; };
+	std::sort(v1.begin(), v1.end(), fn_sort);
+
+	uint32 result = UINT_MAX;
+	uint32 i = 0, j = 0;
+	do
 	{
-		m2.current_level_--;
-	}
-	if (m2.current_level_ == dart_level(old) && !m2.volume_is_subdivided(old))
-	{
-		return m2.current_level_;
-	}
-	return m2.current_level_ + 1;
+		foreach_dart_of_orbit(m2, Volume(old), [&](Dart it) -> bool {
+			v2.push_back(it);
+			return true;
+		});
+		std::sort(v2.begin(), v2.end(), fn_sort);
+		while (i < v1.size() && j < v2.size())
+		{
+			if (v1[i] == v2[j])
+			{
+				j++;
+			}
+			i++;
+		}
+		if (j == v2.size())
+			result = m2.volume_level(old);
+		m2.current_level_++;
+	} while (j != v2.size());
+
+	return result;
 }
 
 } // namespace cgogn

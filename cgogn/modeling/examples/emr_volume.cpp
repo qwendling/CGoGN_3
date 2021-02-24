@@ -40,7 +40,7 @@
 #include <cgogn/ui/modules/volume_render/volume_render.h>
 #include <cgogn/ui/modules/volume_selection/volume_selection.h>
 
-using MRMesh = cgogn::EMR_Map3_Adaptative;
+using MRMesh = cgogn::EMR_Map3;
 using Mesh = MRMesh::BASE;
 
 template <typename T>
@@ -98,7 +98,7 @@ int main(int argc, char** argv)
 	vmrm.subdivide(*mrm, position.get());
 	m->add_resolution();
 	mrm->change_resolution_level(2);
-	vmrm.subdivide(*mrm, position.get());
+	// vmrm.subdivide(*mrm, position.get());
 
 	auto md = mrmp.mesh_data(mrm);
 	md->template add_cells_set<Edge>();
@@ -118,8 +118,8 @@ int main(int argc, char** argv)
 	{
 		bucket.push_back(0);
 	}
-	cgogn::foreach_cell(*mrm, [&](Face f) -> bool {
-		bucket[mrm->face_level(f.dart)]++;
+	cgogn::foreach_cell(*mrm, [&](Volume f) -> bool {
+		bucket[mrm->volume_level(f.dart)]++;
 		return true;
 	});
 	for (auto i : bucket)
