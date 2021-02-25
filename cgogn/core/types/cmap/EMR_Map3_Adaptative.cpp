@@ -13,6 +13,30 @@ void EMR_Map3_Adaptative::set_dart_visibility(Dart d, uint32 v)
 	(*dart_visibility_)[d.index] = v;
 }
 
+Dart EMR_Map3_Adaptative::begin() const
+{
+	Dart d(m_.darts_->first_index());
+	uint32 lastidx = m_.darts_->last_index();
+	while (d.index < lastidx && get_dart_visibility(d) > current_level_)
+		d = Dart(m_.darts_->next_index(d.index));
+	return d;
+}
+
+Dart EMR_Map3_Adaptative::end() const
+{
+	return Dart(m_.darts_->last_index());
+}
+
+Dart EMR_Map3_Adaptative::next(Dart d) const
+{
+	uint32 lastidx = m_.darts_->last_index();
+	do
+	{
+		d = Dart(m_.darts_->next_index(d.index));
+	} while (d.index < lastidx && get_dart_visibility(d) > current_level_);
+	return d;
+}
+
 /***************************************************
  *                  EDGE INFO                      *
  ***************************************************/
@@ -177,7 +201,7 @@ bool EMR_Map3_Adaptative::volume_is_subdivided(Dart d) const
 
 uint32 EMR_Map3_Adaptative::volume_level(Dart d) const
 {
-	cgogn_message_assert(m_.dart_level(d) <= current_level_, "Access to a dart introduced after current level");
+	cgogn_message_assert(get_dart_visibility(d) <= current_level_, "Access to a dart introduced after current level");
 	if (current_level_ == 0)
 		return 0;
 	Dart old = volume_oldest_dart(d);
@@ -218,6 +242,50 @@ uint32 EMR_Map3_Adaptative::volume_level(Dart d) const
 	} while (j != v2.size());
 
 	return result;
+}
+
+/***************************************************
+ *            ADAPTATIVE SUBDIVISION               *
+ ***************************************************/
+
+void EMR_Map3_Adaptative::activate_edge_subdivision(Edge e)
+{
+	if (!edge_is_subdivided(e.dart))
+		return;
+
+	Edge e2 = Edge(phi2(*this, e.dart));
+	EMR_Map3 m2(m_);
+	m2.current_level_ = edge_level(e.dart) + 1;
+	foreach_dart_of_orbit(m2, e, [&](Dart d) -> bool {
+		set_dart_visibility(d, current_level_);
+		return true;
+	});
+	foreach_dart_of_orbit(m2, e2, [&](Dart d) -> bool {
+		set_dart_visibility(d, current_level_);
+		return true;
+	});
+	return;
+}
+void EMR_Map3_Adaptative::activate_face_subdivision(Face f)
+{
+	return;
+}
+bool EMR_Map3_Adaptative::activate_volume_subdivision(Volume v)
+{
+	return false;
+}
+
+bool EMR_Map3_Adaptative::disable_edge_subdivision(Edge e, bool disable_neighbor)
+{
+	return false;
+}
+bool EMR_Map3_Adaptative::disable_face_subdivision(Face f, bool disable_edge, bool disable_subface)
+{
+	return false;
+}
+bool EMR_Map3_Adaptative::disable_volume_subdivision(Volume v, bool disable_face)
+{
+	return false;
 }
 
 } // namespace cgogn

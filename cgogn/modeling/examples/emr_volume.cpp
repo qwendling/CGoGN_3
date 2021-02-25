@@ -40,7 +40,7 @@
 #include <cgogn/ui/modules/volume_render/volume_render.h>
 #include <cgogn/ui/modules/volume_selection/volume_selection.h>
 
-using MRMesh = cgogn::EMR_Map3;
+using MRMesh = cgogn::EMR_Map3_Adaptative;
 using Mesh = MRMesh::BASE;
 
 template <typename T>
@@ -72,6 +72,7 @@ int main(int argc, char** argv)
 	cgogn::ui::MeshProvider<Mesh> mp(app);
 	cgogn::ui::MeshProvider<MRMesh> mrmp(app);
 	cgogn::ui::VolumeRender<MRMesh> vr(app);
+	cgogn::ui::VolumeSelection<MRMesh> vs(app);
 
 	cgogn::ui::VolumeEMRModeling<MRMesh> vmrm(app);
 
@@ -81,6 +82,7 @@ int main(int argc, char** argv)
 	v1->link_module(&mp);
 	v1->link_module(&mrmp);
 	v1->link_module(&vr);
+	v1->link_module(&vs);
 
 	Mesh* m = mp.load_volume_from_file(filename);
 	if (!m)
@@ -90,6 +92,7 @@ int main(int argc, char** argv)
 	}
 
 	MRMesh* mrm = vmrm.create_mrmesh(*m, mp.mesh_name(m));
+	vs.selected_mesh_ = mrm;
 
 	m->add_resolution();
 	mrm->change_resolution_level(1);
@@ -113,19 +116,50 @@ int main(int argc, char** argv)
 
 	std::srand(std::time(nullptr));
 
-	std::vector<int> bucket;
-	for (uint i = 0; i <= mrm->maximum_level_; i++)
-	{
-		bucket.push_back(0);
-	}
-	cgogn::foreach_cell(*mrm, [&](Volume f) -> bool {
-		bucket[mrm->volume_level(f.dart)]++;
-		return true;
-	});
-	for (auto i : bucket)
-	{
-		std::cout << i << std::endl;
-	}
+	vs.f_keypress = [&](cgogn::ui::View* view, MRMesh* selected_mesh, std::int32_t k,
+						cgogn::ui::CellsSet<MRMesh, Vertex>* selected_vertices,
+						cgogn::ui::CellsSet<MRMesh, Edge>* selected_edges) {
+		switch (k)
+		{
+		case GLFW_KEY_E:
+			if (selected_vertices != nullptr)
+			{
+				selected_vertices->foreach_cell([&](Vertex v) {
+					cgogn::foreach_incident_edge(*m, v, [&](Edge e) -> bool {
+						if (view->shift_pressed())
+						{
+							selected_mesh->disable_edge_subdivision(e, true);
+						}
+						else
+						{
+							selected_mesh->activate_edge_subdivision(e);
+						}
+						return true;
+					});
+				});
+				vmrm.changed_connectivity(*selected_mesh, position.get());
+			}
+			std::cout << "hello" << std::endl;
+
+			break;
+		case GLFW_KEY_C:
+			std::vector<int> bucket;
+			for (uint i = 0; i <= mrm->maximum_level_; i++)
+			{
+				bucket.push_back(0);
+			}
+			cgogn::foreach_cell(*mrm, [&](Volume f) -> bool {
+				bucket[mrm->volume_level(f.dart)]++;
+				return true;
+			});
+			for (auto i : bucket)
+			{
+				std::cout << i << std::endl;
+			}
+
+			break;
+		}
+	};
 
 	return app.launch();
 }

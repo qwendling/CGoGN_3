@@ -30,11 +30,14 @@ struct EMR_Map3_Adaptative : EMR_Map3
 			dart_visibility_ = m_.darts_->add_attribute<uint32>("dart_visibility");
 	}
 
-	uint32 get_dart_lookup(Dart d) const;
-	void set_dart_lookup(Dart d, uint32 v);
-
 	uint32 get_dart_visibility(Dart d) const;
 	void set_dart_visibility(Dart d, uint32 v);
+
+	Dart begin() const;
+
+	Dart end() const;
+
+	Dart next(Dart d) const;
 
 	/***************************************************
 	 *                  EDGE INFO                      *
@@ -60,6 +63,18 @@ struct EMR_Map3_Adaptative : EMR_Map3
 	Dart volume_oldest_dart(Dart d) const;
 	bool volume_is_subdivided(Dart d) const;
 	uint32 volume_level(Dart d) const;
+
+	/***************************************************
+	 *            ADAPTATIVE SUBDIVISION               *
+	 ***************************************************/
+
+	void activate_edge_subdivision(Edge e);
+	void activate_face_subdivision(Face f);
+	bool activate_volume_subdivision(Volume v);
+
+	bool disable_edge_subdivision(Edge e, bool disable_neighbor = false);
+	bool disable_face_subdivision(Face f, bool disable_edge = false, bool disable_subface = false);
+	bool disable_volume_subdivision(Volume v, bool disable_face = false);
 };
 
 } // namespace cgogn

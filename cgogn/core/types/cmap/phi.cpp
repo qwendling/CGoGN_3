@@ -89,7 +89,7 @@ Dart phi2(const EMR_Map3_Adaptative& m, Dart d)
 {
 	cgogn_message_assert(m.get_dart_visibility(d) <= m.current_level_, "Access to a dart visible at a higher level");
 	EMR_Map3 emr = EMR_Map3(m);
-	emr.current_level_ = m.current_level_;
+	emr.current_level_ = std::max(m.current_level_, m.dart_level(d));
 	Dart result = phi2(emr, d);
 	bool is_found = true;
 	while (emr.current_level_ != m.maximum_level_ && is_found)
