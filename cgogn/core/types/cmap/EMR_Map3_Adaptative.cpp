@@ -268,7 +268,40 @@ void EMR_Map3_Adaptative::activate_edge_subdivision(Edge e)
 }
 void EMR_Map3_Adaptative::activate_face_subdivision(Face f)
 {
-	return;
+	if (!face_is_subdivided(f.dart))
+	{
+		return;
+	}
+
+	Dart d = face_oldest_dart(f.dart);
+	EMR_Map3 m2(m_);
+	m2.current_level_ = face_level(f.dart);
+	std::vector<Dart> vect_edges;
+	Dart it = d;
+	do
+	{
+		vect_edges.push_back(it);
+		it = phi1(m2, it);
+	} while (it != d);
+	m2.current_level_++;
+
+	for (auto e : vect_edges)
+	{
+		if (edge_level(e) < m2.current_level_)
+			activate_edge_subdivision(Edge(e));
+		Dart it2 = phi1(m2, e);
+		while (get_dart_visibility(it2) > current_level_)
+		{
+			set_dart_visibility(it2, current_level_);
+			set_dart_visibility(phi3(m2, it2), current_level_);
+			it2 = phi1(m2, it2);
+			std::cout << e.index << std::endl;
+		}
+		/*foreach_dart_of_orbit(m2, Edge(phi1(m2, e)), [&](Dart dd) -> bool {
+			set_dart_visibility(dd, current_level_);
+			return true;
+		});*/
+	}
 }
 bool EMR_Map3_Adaptative::activate_volume_subdivision(Volume v)
 {

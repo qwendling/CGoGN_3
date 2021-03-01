@@ -435,7 +435,7 @@ EMR_Map3_Adaptative::MAP::Vertex CGOGN_CORE_EXPORT cut_edge(EMR_Map3_Adaptative&
 		m.set_dart_level(phi2(*map, d), m.current_level_);
 		m.set_dart_visibility(phi1(*map, d), m.current_level_);
 		m.set_dart_visibility(phi2(*map, d), m.current_level_);
-		d = phi<23>(m, d);
+		d = phi<23>(*map, d);
 	} while (d != e.dart);
 	if (set_indices)
 	{
