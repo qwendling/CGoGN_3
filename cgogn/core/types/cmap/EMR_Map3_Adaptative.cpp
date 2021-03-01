@@ -116,7 +116,7 @@ bool EMR_Map3_Adaptative::face_is_subdivided(Dart d) const
 uint32 EMR_Map3_Adaptative::face_level(Dart d) const
 {
 	cgogn_message_assert(get_dart_visibility(d) <= current_level_, "Access to a dart introduced after current level");
-	if (current_level_ == 0)
+	if (edge_level(d) == 0)
 		return 0;
 	uint32 min_e_lvl = INT_MAX;
 	Dart it = phi1(*this, d);
@@ -202,7 +202,7 @@ bool EMR_Map3_Adaptative::volume_is_subdivided(Dart d) const
 uint32 EMR_Map3_Adaptative::volume_level(Dart d) const
 {
 	cgogn_message_assert(get_dart_visibility(d) <= current_level_, "Access to a dart introduced after current level");
-	if (current_level_ == 0)
+	if (edge_level(d) == 0)
 		return 0;
 	Dart old = volume_oldest_dart(d);
 	EMR_Map3 m2(m_);
@@ -257,11 +257,13 @@ void EMR_Map3_Adaptative::activate_edge_subdivision(Edge e)
 	EMR_Map3 m2(m_);
 	m2.current_level_ = edge_level(e.dart) + 1;
 	foreach_dart_of_orbit(m2, e, [&](Dart d) -> bool {
-		set_dart_visibility(d, current_level_);
+		if (get_dart_visibility(phi3(m2, d)) <= current_level_)
+			set_dart_visibility(d, current_level_);
 		return true;
 	});
 	foreach_dart_of_orbit(m2, e2, [&](Dart d) -> bool {
-		set_dart_visibility(d, current_level_);
+		if (get_dart_visibility(phi3(m2, d)) <= current_level_)
+			set_dart_visibility(d, current_level_);
 		return true;
 	});
 	return;
@@ -295,7 +297,6 @@ void EMR_Map3_Adaptative::activate_face_subdivision(Face f)
 			set_dart_visibility(it2, current_level_);
 			set_dart_visibility(phi3(m2, it2), current_level_);
 			it2 = phi1(m2, it2);
-			std::cout << e.index << std::endl;
 		}
 		/*foreach_dart_of_orbit(m2, Edge(phi1(m2, e)), [&](Dart dd) -> bool {
 			set_dart_visibility(dd, current_level_);

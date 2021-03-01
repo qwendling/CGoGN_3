@@ -52,35 +52,6 @@ Dart phi1(const EMR_Map3_Adaptative& m, Dart d)
 {
 	cgogn_message_assert(m.get_dart_visibility(d) <= m.current_level_, "Access to a dart visible at a higher level");
 	EMR_Map3 emr = EMR_Map3(m);
-
-	/*emr.current_level_ = m.dart_level(d);
-	Dart result = phi1(emr, d);
-	bool is_found = true;
-	while (emr.current_level_ != m.maximum_level_ && is_found)
-	{
-		is_found = false;
-		emr.current_level_++;
-		Dart tmp = phi1(emr, d);
-		if (m.get_dart_visibility(tmp) > m.current_level_)
-		{
-			tmp = phi_1(emr, result);
-			if (m.get_dart_visibility(tmp) <= m.current_level_)
-			{
-				if (tmp != result)
-					is_found = true;
-			}
-		}
-		else
-		{
-			if (tmp != result)
-				is_found = true;
-		}
-		if (is_found)
-			result = tmp;
-	}
-	cgogn_message_assert(m.get_dart_visibility(result) <= m.current_level_, "Problem phi1");
-	return result;*/
-
 	Dart d3 = phi3(m, d);
 	uint32 l_d3 = m.dart_level(d3);
 	uint32 l_d = m.dart_level(d);
@@ -119,28 +90,6 @@ Dart phi2(const EMR_Map3_Adaptative& m, Dart d)
 {
 	cgogn_message_assert(m.get_dart_visibility(d) <= m.current_level_, "Access to a dart visible at a higher level");
 	EMR_Map3 emr = EMR_Map3(m);
-	/*emr.current_level_ = std::max(m.current_level_, m.dart_level(d));
-	Dart result = phi2(emr, d);
-	bool is_found = true;
-	while (emr.current_level_ != m.maximum_level_ && is_found)
-	{
-		is_found = false;
-		emr.current_level_++;
-		Dart tmp = phi3(emr, d);
-		Dart it = tmp;
-		do
-		{
-			it = phi2(emr, phi3(emr, it));
-		} while (it != tmp && m.get_dart_visibility(it) > m.current_level_);
-		if (m.get_dart_visibility(it) <= m.current_level_ && tmp != result)
-		{
-			result = it;
-			is_found = true;
-		}
-	}
-	cgogn_message_assert(m.get_dart_visibility(result) <= m.current_level_, "Problem phi2");
-	return result;*/
-
 	Dart d3 = phi3(m, d);
 	emr.current_level_ = std::max(m.dart_level(d), m.dart_level(d3));
 	Dart result = phi2(emr, d);

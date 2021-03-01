@@ -169,10 +169,39 @@ int main(int argc, char** argv)
 			{
 				bucket.push_back(0);
 			}
+			cgogn::foreach_cell(*mrm, [&](Edge f) -> bool {
+				bucket[mrm->edge_level(f.dart)]++;
+				return true;
+			});
+			std::cout << "Edge level : " << std::endl;
+			for (auto i : bucket)
+			{
+				std::cout << i << std::endl;
+			}
+
+			for (uint i = 0; i <= mrm->maximum_level_; i++)
+			{
+				bucket[i] = 0;
+			}
+			cgogn::foreach_cell(*mrm, [&](Face f) -> bool {
+				bucket[mrm->face_level(f.dart)]++;
+				return true;
+			});
+			std::cout << "Face level : " << std::endl;
+			for (auto i : bucket)
+			{
+				std::cout << i << std::endl;
+			}
+
+			for (uint i = 0; i <= mrm->maximum_level_; i++)
+			{
+				bucket[i] = 0;
+			}
 			cgogn::foreach_cell(*mrm, [&](Volume f) -> bool {
 				bucket[mrm->volume_level(f.dart)]++;
 				return true;
 			});
+			std::cout << "Volume level : " << std::endl;
 			for (auto i : bucket)
 			{
 				std::cout << i << std::endl;
