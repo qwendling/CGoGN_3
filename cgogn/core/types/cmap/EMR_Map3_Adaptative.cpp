@@ -321,6 +321,42 @@ bool EMR_Map3_Adaptative::activate_volume_subdivision(Volume v)
 	});
 
 	m2.current_level_++;
+	uint32 tmp = m2.current_level_;
+	std::vector<Dart> intern_darts;
+	for (Vertex w : vect_vertices)
+	{
+		foreach_dart_of_orbit(m2, Volume(w.dart), [&](Dart d) -> bool {
+			if (get_dart_visibility(d) > current_level_)
+			{
+				Dart d2 = phi2(m2, d);
+				if (get_dart_visibility(d2) <= current_level_)
+				{
+					uint32 e_level = edge_level(d2);
+					uint32 tmp = m2.current_level_;
+					std::vector<Dart> vec_dart;
+					vec_dart.push_back(d2);
+					while (m2.current_level_ <= e_level)
+					{
+						uint32 size_vec = vec_dart.size();
+						for (uint32 i = 0; i < size_vec; i++)
+						{
+							vec_dart.push_back(phi2(m2, vec_dart[i]));
+							intern_darts.push_back(phi2(m2, vec_dart[i]));
+						}
+						m2.current_level_++;
+					}
+					m2.current_level_ = tmp;
+				}
+			}
+			return true;
+		});
+	}
+	for (auto id : intern_darts)
+	{
+		set_dart_visibility(id, current_level_);
+	}
+	m2.current_level_ = tmp;
+
 	for (Vertex w : vect_vertices)
 	{
 		foreach_dart_of_orbit(m2, Volume(w.dart), [&](Dart d) -> bool {
