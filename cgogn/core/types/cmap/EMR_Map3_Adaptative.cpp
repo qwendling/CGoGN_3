@@ -1,4 +1,5 @@
 #include "EMR_Map3_Adaptative.h"
+#include <cgogn/core/functions/traversals/vertex.h>
 #include <cgogn/core/types/cmap/orbit_traversal.h>
 
 namespace cgogn
@@ -206,7 +207,7 @@ uint32 EMR_Map3_Adaptative::volume_level(Dart d) const
 		return 0;
 	Dart old = volume_oldest_dart(d);
 	EMR_Map3 m2(m_);
-	m2.current_level_ = current_level_;
+	m2.current_level_ = std::max(current_level_, dart_level(old));
 	if (current_level_ == maximum_level_)
 		return m2.volume_level(d);
 
@@ -223,6 +224,9 @@ uint32 EMR_Map3_Adaptative::volume_level(Dart d) const
 	uint32 i = 0, j = 0;
 	do
 	{
+		i = 0;
+		j = 0;
+		v2.clear();
 		foreach_dart_of_orbit(m2, Volume(old), [&](Dart it) -> bool {
 			v2.push_back(it);
 			return true;
@@ -298,15 +302,47 @@ void EMR_Map3_Adaptative::activate_face_subdivision(Face f)
 			set_dart_visibility(phi3(m2, it2), current_level_);
 			it2 = phi1(m2, it2);
 		}
-		/*foreach_dart_of_orbit(m2, Edge(phi1(m2, e)), [&](Dart dd) -> bool {
-			set_dart_visibility(dd, current_level_);
-			return true;
-		});*/
 	}
 }
 bool EMR_Map3_Adaptative::activate_volume_subdivision(Volume v)
 {
-	return false;
+	if (!volume_is_subdivided(v.dart))
+	{
+		return false;
+	}
+	Dart d = volume_oldest_dart(v.dart);
+	uint32 v_level = volume_level(v.dart);
+	EMR_Map3 m2(m_);
+	m2.current_level_ = v_level;
+	std::vector<Vertex> vect_vertices;
+	foreach_incident_vertex(m2, Volume(d), [&](Vertex w) -> bool {
+		vect_vertices.push_back(w);
+		return true;
+	});
+
+	m2.current_level_++;
+	for (Vertex w : vect_vertices)
+	{
+		foreach_dart_of_orbit(m2, Volume(w.dart), [&](Dart d) -> bool {
+			if (get_dart_visibility(d) <= current_level_)
+			{
+				foreach_dart_of_orbit(m2, Edge(d), [&](Dart dd) -> bool {
+					if (get_dart_visibility(dd) <= current_level_)
+					{
+						set_dart_visibility(phi3(m2, dd), current_level_);
+					}
+					return true;
+				});
+			}
+			else
+			{
+				set_dart_visibility(d, current_level_);
+				set_dart_visibility(phi3(m2, d), current_level_);
+			}
+			return true;
+		});
+	}
+	return true;
 }
 
 bool EMR_Map3_Adaptative::disable_edge_subdivision(Edge e, bool disable_neighbor)

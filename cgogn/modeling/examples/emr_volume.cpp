@@ -139,6 +139,7 @@ int main(int argc, char** argv)
 				});
 				vmrm.changed_connectivity(*selected_mesh, position.get());
 			}
+			cgogn_message_assert(mrm->check_integrity(), "check_integrity failed");
 			std::cout << "hello" << std::endl;
 
 			break;
@@ -160,6 +161,29 @@ int main(int argc, char** argv)
 				});
 				vmrm.changed_connectivity(*selected_mesh, position.get());
 			}
+			cgogn_message_assert(mrm->check_integrity(), "check_integrity failed");
+			std::cout << "hello" << std::endl;
+
+			break;
+		case GLFW_KEY_V:
+			if (selected_vertices != nullptr)
+			{
+				selected_vertices->foreach_cell([&](Vertex v) {
+					cgogn::foreach_incident_volume(*m, v, [&](Volume f) -> bool {
+						if (view->shift_pressed())
+						{
+							selected_mesh->disable_volume_subdivision(f, true);
+						}
+						else
+						{
+							selected_mesh->activate_volume_subdivision(f);
+						}
+						return true;
+					});
+				});
+				vmrm.changed_connectivity(*selected_mesh, position.get());
+			}
+			cgogn_message_assert(mrm->check_integrity(), "check_integrity failed");
 			std::cout << "hello" << std::endl;
 
 			break;
