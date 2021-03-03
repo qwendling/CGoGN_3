@@ -116,8 +116,17 @@ int main(int argc, char** argv)
 	// mrsr.set_vertex_position(*v2, *cph1, position);
 	mrsr.set_vertex_position(*v2, *cph2, position);
 
+	std::clock_t start;
+	double duration;
+
+	start = std::clock();
+
 	vmrm.subdivide(*cph2, position.get());
-	// vmrm.subdivide(*cph2, position.get());
+	vmrm.subdivide(*cph2, position.get());
+
+	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+	std::cout << "temps subdivide  : " << duration << std::endl;
+
 	std::srand(std::time(nullptr));
 
 	vs.f_keypress = [&](cgogn::ui::View* view, MRMesh* selected_mesh, std::int32_t k,
@@ -346,38 +355,28 @@ int main(int argc, char** argv)
 			}
 			break;
 		case GLFW_KEY_R: {
-			for (int i = 0; i < 100; i++)
-			{
-				Volume volume_to_cut;
-				cgogn::foreach_cell(*selected_mesh, [&](Volume v) -> bool {
-					volume_to_cut = v;
-					if ((rand() / (double)RAND_MAX) * 100 < 10)
-					{
-						if (view->shift_pressed())
-						{
-							if (selected_mesh->volume_level(v.dart))
-								return false;
-						}
-						else
-						{
-							if (selected_mesh->volume_is_subdivided(v.dart))
-								return false;
-						}
-					}
-					return true;
-				});
-				if (view->shift_pressed())
-				{
-					selected_mesh->disable_volume_subdivision(volume_to_cut, true);
-				}
-				else
-				{
-					selected_mesh->activate_volume_subdivision(volume_to_cut);
-				}
-			}
+			std::vector<Volume> vec_volume;
 
+			cgogn::foreach_cell(*selected_mesh, [&](Volume v) -> bool {
+				if ((rand() / (double)RAND_MAX) * 100 < 10)
+				{
+					vec_volume.push_back(v);
+				}
+				return true;
+			});
+			std::clock_t start;
+			double duration;
+
+			start = std::clock();
+			for (auto v : vec_volume)
+			{
+				selected_mesh->activate_volume_subdivision(v);
+			}
+			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << "temps activate " << vec_volume.size() << " volume : " << duration << std::endl;
 			vmrm.changed_connectivity(*selected_mesh, position.get());
 		}
+
 		break;
 		case GLFW_KEY_P: {
 			if (selected_vertices != nullptr)

@@ -95,10 +95,15 @@ public:
 	{
 		uint32 cur = m.current_level_;
 		m.current_level_ = m.maximum_level_;
+		std::clock_t start;
+		double duration;
 
+		start = std::clock();
 		modeling::butterflyMultiresolution(m, 0.34f, {vertex_position, vertex_attr2, vertex_attr3},
 										   selected_vertex_parents_.get(), selected_vertex_relative_position_.get());
 
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << "temps subdivide: " << duration << std::endl;
 		m.current_level_ = cur;
 
 		changed_connectivity(m, vertex_position);

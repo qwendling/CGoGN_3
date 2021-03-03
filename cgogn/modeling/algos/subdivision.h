@@ -907,6 +907,7 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
 		edge_points.pop();
 		after_cut_edge(v);
 	});
+
 	subdivideListFaces(m, faces, [&](Vertex v) {
 		for (auto a : attrs)
 		{
@@ -916,6 +917,7 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
 		face_points.pop();
 		after_cut_face(v);
 	});
+
 	subdivideListVolumes(m, volumes, [&](Vertex v) {
 		for (auto a : attrs)
 		{

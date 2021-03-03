@@ -51,6 +51,15 @@ Dart EMR_Map3_Adaptative::edge_youngest_dart(Dart d) const
 	return it;
 }
 
+Dart EMR_Map3_Adaptative::edge_oldest_dart(Dart d) const
+{
+	cgogn_message_assert(get_dart_visibility(d) <= current_level_, "Access to a dart introduced after current level");
+	Dart it = phi2(*this, d);
+	if (m_.dart_level(d) < m_.dart_level(it))
+		return d;
+	return it;
+}
+
 uint32 EMR_Map3_Adaptative::edge_level(Dart d) const
 {
 	cgogn_message_assert(get_dart_visibility(d) <= current_level_, "Access to a dart introduced after current level");
@@ -381,9 +390,34 @@ bool EMR_Map3_Adaptative::activate_volume_subdivision(Volume v)
 	return true;
 }
 
-bool EMR_Map3_Adaptative::disable_edge_subdivision(Edge e, bool disable_neighbor)
+bool EMR_Map3_Adaptative::disable_edge_subdivision(Edge e)
 {
-	return false;
+	uint32 e_level = edge_level(e.dart);
+	if (e_level <= current_level_)
+		return false;
+	Dart old = edge_oldest_dart(e.dart);
+	if (dart_level(old) == e_level)
+		return false;
+	EMR_Map3 m2(m_);
+	m2.current_level_ = e_level - 1;
+	Dart d2 = phi2(m2, old);
+	while (edge_level(d2) != e_level)
+		disable_edge_subdivision(Edge(d2));
+	m2.current_level_ = e_level;
+	Dart it, it2;
+	it = old;
+	it2 = d2;
+	do
+	{
+		Dart tmp = phi2(m2, it);
+		Dart tmp2 = phi2(m2, it2);
+		set_dart_visibility(tmp, UINT_MAX);
+		set_dart_visibility(tmp2, UINT_MAX);
+		it = phi3(m2, tmp);
+		it2 = phi3(m2, tmp2);
+	} while (it != old);
+
+	return true;
 }
 bool EMR_Map3_Adaptative::disable_face_subdivision(Face f, bool disable_edge, bool disable_subface)
 {

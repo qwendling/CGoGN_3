@@ -44,6 +44,7 @@ struct EMR_Map3_Adaptative : EMR_Map3
 	 ***************************************************/
 
 	Dart edge_youngest_dart(Dart d) const;
+	Dart edge_oldest_dart(Dart d) const;
 	bool edge_is_subdivided(Dart d) const;
 	uint32 edge_level(Dart d) const;
 
@@ -72,7 +73,7 @@ struct EMR_Map3_Adaptative : EMR_Map3
 	void activate_face_subdivision(Face f);
 	bool activate_volume_subdivision(Volume v);
 
-	bool disable_edge_subdivision(Edge e, bool disable_neighbor = false);
+	bool disable_edge_subdivision(Edge e);
 	bool disable_face_subdivision(Face f, bool disable_edge = false, bool disable_subface = false);
 	bool disable_volume_subdivision(Volume v, bool disable_face = false);
 };

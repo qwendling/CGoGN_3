@@ -66,7 +66,7 @@ int main(int argc, char** argv)
 	cgogn::thread_start();
 
 	cgogn::ui::App app;
-	app.set_window_title("MR Volume");
+	app.set_window_title("EMR Volume");
 	app.set_window_size(1000, 800);
 
 	cgogn::ui::MeshProvider<Mesh> mp(app);
@@ -95,12 +95,10 @@ int main(int argc, char** argv)
 	vs.selected_mesh_ = mrm;
 
 	m->add_resolution();
-	mrm->change_resolution_level(1);
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*mrm, "position");
 
 	vmrm.subdivide(*mrm, position.get());
 	m->add_resolution();
-	mrm->change_resolution_level(2);
 	vmrm.subdivide(*mrm, position.get());
 
 	auto md = mrmp.mesh_data(mrm);
@@ -128,7 +126,7 @@ int main(int argc, char** argv)
 					cgogn::foreach_incident_edge(*m, v, [&](Edge e) -> bool {
 						if (view->shift_pressed())
 						{
-							selected_mesh->disable_edge_subdivision(e, true);
+							selected_mesh->disable_edge_subdivision(e);
 						}
 						else
 						{
@@ -187,6 +185,66 @@ int main(int argc, char** argv)
 			std::cout << "hello" << std::endl;
 
 			break;
+		case GLFW_KEY_T: {
+			std::vector<Edge> vec_edge;
+
+			cgogn::foreach_cell(*mrm, [&](Edge e) -> bool {
+				if ((rand() / (double)RAND_MAX) * 100 < 10)
+				{
+					vec_edge.push_back(e);
+				}
+				return true;
+			});
+			for (auto e : vec_edge)
+			{
+				mrm->activate_edge_subdivision(e);
+			}
+			vmrm.changed_connectivity(*selected_mesh, position.get());
+		}
+
+		break;
+		case GLFW_KEY_U: {
+			std::vector<Face> vec_face;
+
+			cgogn::foreach_cell(*mrm, [&](Face f) -> bool {
+				if ((rand() / (double)RAND_MAX) * 100 < 10)
+				{
+					vec_face.push_back(f);
+				}
+				return true;
+			});
+			for (auto f : vec_face)
+			{
+				mrm->activate_face_subdivision(f);
+			}
+			vmrm.changed_connectivity(*selected_mesh, position.get());
+		}
+
+		break;
+		case GLFW_KEY_R: {
+			std::vector<Volume> vec_volume;
+
+			cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
+				if ((rand() / (double)RAND_MAX) * 100 < 10)
+				{
+					vec_volume.push_back(v);
+				}
+				return true;
+			});
+			std::clock_t start;
+			double duration;
+
+			start = std::clock();
+			for (auto v : vec_volume)
+			{
+				mrm->activate_volume_subdivision(v);
+			}
+			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << "temps activate " << vec_volume.size() << " volume : " << duration << std::endl;
+			vmrm.changed_connectivity(*selected_mesh, position.get());
+		}
+
+		break;
 		case GLFW_KEY_C:
 			std::vector<int> bucket;
 			for (uint i = 0; i <= mrm->maximum_level_; i++)
