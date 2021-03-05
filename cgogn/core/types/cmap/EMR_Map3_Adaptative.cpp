@@ -88,14 +88,40 @@ bool EMR_Map3_Adaptative::edge_is_subdivided(Dart d) const
 Dart EMR_Map3_Adaptative::face_youngest_dart(Dart d) const
 {
 	cgogn_message_assert(get_dart_visibility(d) <= current_level_, "Access to a dart introduced after current level");
-	uint32 f_level = face_level(d);
-	Dart it = d;
-	while (dart_level(it) != f_level)
+	if (edge_level(d) == 0)
 	{
-		it = phi1(*this, it);
+		return d;
 	}
+	Dart old = d;
+	DartMarkerStore<EMR_Map3> marker(*this);
+	foreach_dart_of_orbit(*this, Face2(d), [&](Dart it) -> bool {
+		marker.mark(it);
+		if (dart_level(it) < dart_level(old))
+			old = it;
+		return true;
+	});
+	EMR_Map3 m2(m_);
+	m2.current_level_ = dart_level(old);
 
-	return it;
+	bool result = false;
+	do
+	{
+		result = true;
+		Dart result_young = old;
+		foreach_dart_of_orbit(m2, Face2(old), [&](Dart it) -> bool {
+			result = marker.is_marked(it);
+			if (dart_level(it) > dart_level(result_young))
+				result_young = it;
+			return result;
+		});
+		if (result)
+		{
+			return result_young;
+		}
+		m2.current_level_++;
+		cgogn_message_assert(m2.current_level > maximum_level_, "Pb algo volume level");
+	} while (!result);
+	return d;
 }
 
 Dart EMR_Map3_Adaptative::face_oldest_dart(Dart d) const
@@ -126,100 +152,37 @@ bool EMR_Map3_Adaptative::face_is_subdivided(Dart d) const
 uint32 EMR_Map3_Adaptative::face_level(Dart d) const
 {
 	cgogn_message_assert(get_dart_visibility(d) <= current_level_, "Access to a dart introduced after current level");
-	static uint32 nb_call = 0;
-	static double timer = 0;
-	clock_t start = std::clock();
-	nb_call++;
-	if (nb_call % 100000 == 0)
-	{
-
-		// std::cout << "nb call face level : " << nb_call << " mean time : " << timer << std::endl;
-		// timer = 0;
-	}
-#if 1
 	if (edge_level(d) == 0)
 	{
-		timer += (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		return 0;
 	}
-	uint32 min_e_lvl = INT_MAX;
-	Dart it = phi1(*this, d);
-	Dart it2 = it;
-	while (it != d)
-	{
-		uint32 tmp = edge_level(it);
-		if (tmp < min_e_lvl)
-		{
-			min_e_lvl = tmp;
-		}
-		if (dart_level(it) < dart_level(it2))
-			it2 = it;
-		it = phi1(*this, it);
-	}
-	EMR_Map3 m2(m_);
-	m2.current_level_ = min_e_lvl + 1;
-	Dart d1, d2;
-	do
-	{
-		m2.current_level_--;
-		d1 = it2;
-		d2 = it2;
-		do
-		{
-			if (d1 == d2)
-				d2 = phi1(m2, d2);
-			d1 = phi1(*this, d1);
-		} while (d1 != it2 && d2 != it2);
-		if (d2 == it2 && m2.current_level_ > 0)
-		{
-			timer += (std::clock() - start) / (double)CLOCKS_PER_SEC;
-			return m2.face_level(d2);
-		}
-	} while (d2 != it2);
-
-	timer += (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	return m2.current_level_;
-#else
-	DartMarkerStore<EMR_Map3_Adaptative> marker(*this);
-	uint32 min_e_lvl = UINT_MAX;
 	Dart old = d;
-	Dart it = d;
-	do
-	{
-		uint32 tmp = edge_level(it);
-		if (tmp < min_e_lvl)
-		{
-			min_e_lvl = tmp;
-		}
+	DartMarkerStore<EMR_Map3> marker(*this);
+	foreach_dart_of_orbit(*this, Face2(d), [&](Dart it) -> bool {
+		marker.mark(it);
 		if (dart_level(it) < dart_level(old))
 			old = it;
-		marker.mark(it);
-		it = phi1(*this, it);
-	} while (it != d);
+		return true;
+	});
 	EMR_Map3 m2(m_);
+	m2.current_level_ = dart_level(old);
 
-	for (int i = min_e_lvl; i >= 0; i--)
+	bool result = false;
+	do
 	{
-		bool all_find = true;
-		m2.current_level_ = i;
-		it = phi1(m2, old);
-		do
+		result = true;
+		foreach_dart_of_orbit(m2, Face2(old), [&](Dart it) -> bool {
+			result = marker.is_marked(it);
+			return result;
+		});
+		if (result)
 		{
-			if (!marker.is_marked(it))
-			{
-				all_find = false;
-				break;
-			}
-			it = phi1(m2, it);
-		} while (it != old);
-		if (all_find)
-		{
-			break;
+			return m2.current_level_;
 		}
-	}
-	timer += (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	return m2.face_level(old);
-#endif
+		m2.current_level_++;
+		cgogn_message_assert(m2.current_level > maximum_level_, "Pb algo face level");
+	} while (!result);
+	return m2.current_level_;
 }
 
 /***************************************************
