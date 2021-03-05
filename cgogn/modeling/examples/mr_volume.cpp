@@ -121,11 +121,13 @@ int main(int argc, char** argv)
 
 	start = std::clock();
 
+	cph2->current_level_ = 1;
 	vmrm.subdivide(*cph2, position.get());
+	cph2->current_level_ = 2;
 	vmrm.subdivide(*cph2, position.get());
 
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps subdivide  : " << duration << std::endl;
+	// std::cout << "temps subdivide  : " << duration << std::endl;
 
 	std::srand(std::time(nullptr));
 

@@ -186,32 +186,20 @@ bool EMR_Map3::volume_is_subdivided(Dart d) const
 	cgogn_message_assert(m_.dart_level(d) <= current_level_, "Access to a dart introduced after current level");
 	if (current_level_ == maximum_level_)
 		return false;
+
 	EMR_Map3 m2(m_);
 	m2.current_level_ = current_level_ + 1;
-	std::vector<Dart> v1, v2;
-	foreach_dart_of_orbit(*this, Volume(d), [&](Dart it) -> bool {
-		v1.push_back(it);
-		return true;
-	});
+	DartMarkerStore<EMR_Map3> marker(m2);
+	bool result = true;
 	foreach_dart_of_orbit(m2, Volume(d), [&](Dart it) -> bool {
-		v2.push_back(it);
+		marker.mark(it);
 		return true;
 	});
-	auto fn_sort = [](Dart d, Dart dd) -> bool { return d.index > dd.index; };
-	std::sort(v1.begin(), v1.end(), fn_sort);
-	std::sort(v2.begin(), v2.end(), fn_sort);
-
-	uint32 i = 0, j = 0;
-	while (i < v1.size() && j < v2.size())
-	{
-		if (v1[i] == v2[j])
-		{
-			i++;
-		}
-		j++;
-	}
-
-	return i < v1.size();
+	foreach_dart_of_orbit(*this, Volume(d), [&](Dart it) -> bool {
+		result = marker.is_marked(it);
+		return result;
+	});
+	return !result;
 }
 
 uint32 EMR_Map3::volume_level(Dart d) const
@@ -219,7 +207,7 @@ uint32 EMR_Map3::volume_level(Dart d) const
 	cgogn_message_assert(m_.dart_level(d) <= current_level_, "Access to a dart introduced after current level");
 	if (current_level_ == 0)
 		return 0;
-	Dart old = volume_oldest_dart(d);
+	/*Dart old = volume_oldest_dart(d);
 	EMR_Map3 m2(m_);
 	m2.current_level_ = current_level_ - 1;
 	while (m2.current_level_ > dart_level(old) && !m2.volume_is_subdivided(old))
@@ -229,6 +217,26 @@ uint32 EMR_Map3::volume_level(Dart d) const
 	if (m2.current_level_ == dart_level(old) && !m2.volume_is_subdivided(old))
 	{
 		return m2.current_level_;
+	}
+	return m2.current_level_ + 1;*/
+	EMR_Map3 m2(m_);
+	m2.current_level_ = current_level_;
+	DartMarkerStore<EMR_Map3> marker(*this);
+	bool result = true;
+	foreach_dart_of_orbit(*this, Volume(d), [&](Dart it) -> bool {
+		marker.mark(it);
+		return true;
+	});
+	Dart old = volume_oldest_dart(d);
+	while (result)
+	{
+		m2.current_level_--;
+		foreach_dart_of_orbit(m2, Volume(old), [&](Dart it) -> bool {
+			result = marker.is_marked(it);
+			return result;
+		});
+		if (result && m2.current_level_ == 0)
+			return 0;
 	}
 	return m2.current_level_ + 1;
 }

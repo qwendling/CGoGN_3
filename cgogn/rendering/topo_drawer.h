@@ -30,7 +30,6 @@
 #include <cgogn/rendering/shaders/shader_bold_line.h>
 #include <cgogn/rendering/shaders/shader_bold_line_color.h>
 #include <cgogn/rendering/shaders/shader_no_illum.h>
-#include <cgogn/rendering/shaders/shader_round_point_color.h>
 
 #include <cgogn/geometry/algos/centroid.h>
 #include <cgogn/geometry/functions/distance.h>
@@ -109,7 +108,7 @@ public:
 
 		std::unique_ptr<ShaderBoldLineColor::Param> param_bl_;
 		std::unique_ptr<ShaderBoldLine::Param> param_bl2_;
-		std::unique_ptr<ShaderRoundPointColor::Param> param_rp_;
+		// std::unique_ptr<ShaderRoundPointColor::Param> param_rp_;
 		TopoDrawer* topo_drawer_data_;
 
 		Renderer(TopoDrawer* tr);

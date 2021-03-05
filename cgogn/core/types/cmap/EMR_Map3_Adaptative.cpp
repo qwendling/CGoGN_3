@@ -126,8 +126,22 @@ bool EMR_Map3_Adaptative::face_is_subdivided(Dart d) const
 uint32 EMR_Map3_Adaptative::face_level(Dart d) const
 {
 	cgogn_message_assert(get_dart_visibility(d) <= current_level_, "Access to a dart introduced after current level");
+	static uint32 nb_call = 0;
+	static double timer = 0;
+	clock_t start = std::clock();
+	nb_call++;
+	if (nb_call % 100000 == 0)
+	{
+
+		// std::cout << "nb call face level : " << nb_call << " mean time : " << timer << std::endl;
+		// timer = 0;
+	}
+#if 1
 	if (edge_level(d) == 0)
+	{
+		timer += (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		return 0;
+	}
 	uint32 min_e_lvl = INT_MAX;
 	Dart it = phi1(*this, d);
 	Dart it2 = it;
@@ -158,11 +172,54 @@ uint32 EMR_Map3_Adaptative::face_level(Dart d) const
 		} while (d1 != it2 && d2 != it2);
 		if (d2 == it2 && m2.current_level_ > 0)
 		{
+			timer += (std::clock() - start) / (double)CLOCKS_PER_SEC;
 			return m2.face_level(d2);
 		}
 	} while (d2 != it2);
 
+	timer += (std::clock() - start) / (double)CLOCKS_PER_SEC;
 	return m2.current_level_;
+#else
+	DartMarkerStore<EMR_Map3_Adaptative> marker(*this);
+	uint32 min_e_lvl = UINT_MAX;
+	Dart old = d;
+	Dart it = d;
+	do
+	{
+		uint32 tmp = edge_level(it);
+		if (tmp < min_e_lvl)
+		{
+			min_e_lvl = tmp;
+		}
+		if (dart_level(it) < dart_level(old))
+			old = it;
+		marker.mark(it);
+		it = phi1(*this, it);
+	} while (it != d);
+	EMR_Map3 m2(m_);
+
+	for (int i = min_e_lvl; i >= 0; i--)
+	{
+		bool all_find = true;
+		m2.current_level_ = i;
+		it = phi1(m2, old);
+		do
+		{
+			if (!marker.is_marked(it))
+			{
+				all_find = false;
+				break;
+			}
+			it = phi1(m2, it);
+		} while (it != old);
+		if (all_find)
+		{
+			break;
+		}
+	}
+	timer += (std::clock() - start) / (double)CLOCKS_PER_SEC;
+	return m2.face_level(old);
+#endif
 }
 
 /***************************************************
@@ -172,18 +229,41 @@ uint32 EMR_Map3_Adaptative::face_level(Dart d) const
 Dart EMR_Map3_Adaptative::volume_youngest_dart(Dart d) const
 {
 	cgogn_message_assert(get_dart_visibility(d) <= current_level_, "Access to a dart introduced after current level");
-	uint32 v_level = volume_level(d);
-	Dart result;
+
+	if (edge_level(d) == 0)
+	{
+		return d;
+	}
+	Dart old = d;
+	DartMarkerStore<EMR_Map3> marker(*this);
 	foreach_dart_of_orbit(*this, Volume(d), [&](Dart it) -> bool {
-		if (dart_level(it) == v_level)
-		{
-			result = it;
-			return false;
-		}
+		marker.mark(it);
+		if (dart_level(it) < dart_level(old))
+			old = it;
 		return true;
 	});
+	EMR_Map3 m2(m_);
+	m2.current_level_ = dart_level(old);
 
-	return result;
+	bool result = false;
+	do
+	{
+		result = true;
+		Dart result_young = old;
+		foreach_dart_of_orbit(m2, Volume(old), [&](Dart it) -> bool {
+			result = marker.is_marked(it);
+			if (dart_level(it) > dart_level(result_young))
+				result_young = it;
+			return result;
+		});
+		if (result)
+		{
+			return result_young;
+		}
+		m2.current_level_++;
+		cgogn_message_assert(m2.current_level > maximum_level_, "Pb algo volume level");
+	} while (!result);
+	return d;
 }
 
 Dart EMR_Map3_Adaptative::volume_oldest_dart(Dart d) const
@@ -213,48 +293,36 @@ uint32 EMR_Map3_Adaptative::volume_level(Dart d) const
 {
 	cgogn_message_assert(get_dart_visibility(d) <= current_level_, "Access to a dart introduced after current level");
 	if (edge_level(d) == 0)
+	{
 		return 0;
-	Dart old = volume_oldest_dart(d);
-	EMR_Map3 m2(m_);
-	m2.current_level_ = std::max(current_level_, dart_level(old));
-	if (current_level_ == maximum_level_)
-		return m2.volume_level(d);
-
-	std::vector<Dart> v1, v2;
-	foreach_dart_of_orbit(*this, Volume(old), [&](Dart it) -> bool {
-		v1.push_back(it);
+	}
+	Dart old = d;
+	DartMarkerStore<EMR_Map3> marker(*this);
+	foreach_dart_of_orbit(*this, Volume(d), [&](Dart it) -> bool {
+		marker.mark(it);
+		if (dart_level(it) < dart_level(old))
+			old = it;
 		return true;
 	});
+	EMR_Map3 m2(m_);
+	m2.current_level_ = dart_level(old);
 
-	auto fn_sort = [](Dart d, Dart dd) -> bool { return d.index > dd.index; };
-	std::sort(v1.begin(), v1.end(), fn_sort);
-
-	uint32 result = UINT_MAX;
-	uint32 i = 0, j = 0;
+	bool result = false;
 	do
 	{
-		i = 0;
-		j = 0;
-		v2.clear();
+		result = true;
 		foreach_dart_of_orbit(m2, Volume(old), [&](Dart it) -> bool {
-			v2.push_back(it);
-			return true;
+			result = marker.is_marked(it);
+			return result;
 		});
-		std::sort(v2.begin(), v2.end(), fn_sort);
-		while (i < v1.size() && j < v2.size())
+		if (result)
 		{
-			if (v1[i] == v2[j])
-			{
-				j++;
-			}
-			i++;
+			return m2.current_level_;
 		}
-		if (j == v2.size())
-			result = m2.volume_level(old);
 		m2.current_level_++;
-	} while (j != v2.size());
-
-	return result;
+		cgogn_message_assert(m2.current_level > maximum_level_, "Pb algo volume level");
+	} while (!result);
+	return m2.current_level_;
 }
 
 /***************************************************
