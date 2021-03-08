@@ -94,6 +94,8 @@ int main(int argc, char** argv)
 	MRMesh* mrm = vmrm.create_mrmesh(*m, mp.mesh_name(m));
 	vs.selected_mesh_ = mrm;
 	cgogn::index_cells<Mesh::Face>(*mrm);
+	cgogn::index_cells<Mesh::Volume>(*mrm);
+	cgogn::index_cells<Mesh::Edge>(*mrm);
 
 	m->add_resolution();
 	mrm->change_resolution_level(1);
@@ -108,9 +110,6 @@ int main(int argc, char** argv)
 	md->template add_cells_set<Edge>();
 
 	mrmp.set_mesh_bb_vertex_position(mrm, position);
-
-	cgogn::index_cells<Mesh::Volume>(*mrm);
-	cgogn::index_cells<Mesh::Edge>(*mrm);
 
 	vr.set_vertex_position(*v1, *mrm, position);
 
@@ -241,9 +240,9 @@ int main(int argc, char** argv)
 			{
 				mrm->activate_volume_subdivision(v);
 			}
+			vmrm.changed_connectivity(*selected_mesh, position.get());
 			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 			std::cout << "temps activate " << vec_volume.size() << " volume : " << duration << std::endl;
-			vmrm.changed_connectivity(*selected_mesh, position.get());
 		}
 
 		break;
