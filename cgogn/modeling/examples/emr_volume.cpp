@@ -93,6 +93,7 @@ int main(int argc, char** argv)
 
 	MRMesh* mrm = vmrm.create_mrmesh(*m, mp.mesh_name(m));
 	vs.selected_mesh_ = mrm;
+	cgogn::index_cells<Mesh::Face>(*mrm);
 
 	m->add_resolution();
 	mrm->change_resolution_level(1);
@@ -110,7 +111,6 @@ int main(int argc, char** argv)
 
 	cgogn::index_cells<Mesh::Volume>(*mrm);
 	cgogn::index_cells<Mesh::Edge>(*mrm);
-	cgogn::index_cells<Mesh::Face>(*mrm);
 
 	vr.set_vertex_position(*v1, *mrm, position);
 

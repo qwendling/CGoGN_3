@@ -119,7 +119,7 @@ Dart EMR_Map3_Adaptative::face_youngest_dart(Dart d) const
 			return result_young;
 		}
 		m2.current_level_++;
-		cgogn_message_assert(m2.current_level > maximum_level_, "Pb algo volume level");
+		cgogn_message_assert(m2.current_level_ <= maximum_level_, "Pb algo volume level");
 	} while (!result);
 	return d;
 }
@@ -156,6 +156,38 @@ uint32 EMR_Map3_Adaptative::face_level(Dart d) const
 	{
 		return 0;
 	}
+	if (is_indexed<Face>(*this))
+	{
+		std::vector<uint32> vec_face_index(maximum_level_ + 1);
+		for (uint32& i : vec_face_index)
+			i = UINT_MAX;
+		Dart it = d;
+		Dart young = d;
+		const EMR_Map3::MAP& map = static_cast<const EMR_Map3::MAP&>(*this);
+		do
+		{
+			if (vec_face_index[dart_level(it)] == UINT_MAX)
+				vec_face_index[dart_level(it)] = index_of(map, Face(it));
+			if (vec_face_index[dart_level(it)] != index_of(map, Face(it)))
+				vec_face_index[dart_level(it)] = UINT_MAX - 1;
+			if (dart_level(it) > dart_level(young))
+				young = it;
+			it = phi1(*this, it);
+		} while (it != d);
+		for (int i = dart_level(young); i >= 0; i--)
+		{
+			if (vec_face_index[i] < UINT_MAX - 1)
+			{
+				for (int j = i - 1; j >= 0; j--)
+				{
+					if (vec_face_index[j] != vec_face_index[i])
+						return j + 1;
+				}
+				return 0;
+			}
+		}
+		return 0;
+	}
 	Dart old = d;
 	DartMarkerStore<EMR_Map3> marker(*this);
 	foreach_dart_of_orbit(*this, Face2(d), [&](Dart it) -> bool {
@@ -180,7 +212,7 @@ uint32 EMR_Map3_Adaptative::face_level(Dart d) const
 			return m2.current_level_;
 		}
 		m2.current_level_++;
-		cgogn_message_assert(m2.current_level > maximum_level_, "Pb algo face level");
+		cgogn_message_assert(m2.current_level_ <= maximum_level_, "Pb algo face level");
 	} while (!result);
 	return m2.current_level_;
 }
@@ -224,7 +256,7 @@ Dart EMR_Map3_Adaptative::volume_youngest_dart(Dart d) const
 			return result_young;
 		}
 		m2.current_level_++;
-		cgogn_message_assert(m2.current_level > maximum_level_, "Pb algo volume level");
+		cgogn_message_assert(m2.current_level_ <= maximum_level_, "Pb algo volume youngest");
 	} while (!result);
 	return d;
 }
@@ -283,7 +315,7 @@ uint32 EMR_Map3_Adaptative::volume_level(Dart d) const
 			return m2.current_level_;
 		}
 		m2.current_level_++;
-		cgogn_message_assert(m2.current_level > maximum_level_, "Pb algo volume level");
+		cgogn_message_assert(m2.current_level_ <= maximum_level_, "Pb algo volume level");
 	} while (!result);
 	return m2.current_level_;
 }
