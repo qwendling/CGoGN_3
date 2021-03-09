@@ -30,6 +30,8 @@ struct EMR_Map3_Adaptative : EMR_Map3
 			dart_visibility_ = m_.darts_->add_attribute<uint32>("dart_visibility");
 	}
 
+	virtual bool check_integrity() const;
+
 	uint32 get_dart_visibility(Dart d) const;
 	void set_dart_visibility(Dart d, uint32 v);
 

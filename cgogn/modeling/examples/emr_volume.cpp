@@ -124,7 +124,14 @@ int main(int argc, char** argv)
 			if (selected_vertices != nullptr)
 			{
 				selected_vertices->foreach_cell([&](Vertex v) {
-					cgogn::foreach_incident_edge(*m, v, [&](Edge e) -> bool {
+					std::vector<Edge> vec_edge;
+					cgogn::foreach_incident_edge(*mrm, v, [&](Edge e) -> bool {
+						vec_edge.push_back(e);
+
+						return true;
+					});
+					for (Edge& e : vec_edge)
+					{
 						if (view->shift_pressed())
 						{
 							selected_mesh->disable_edge_subdivision(e);
@@ -133,12 +140,12 @@ int main(int argc, char** argv)
 						{
 							selected_mesh->activate_edge_subdivision(e);
 						}
-						return true;
-					});
+					}
 				});
+				cgogn_message_assert(mrm->check_integrity(), "check_integrity failed");
 				vmrm.changed_connectivity(*selected_mesh, position.get());
 			}
-			cgogn_message_assert(mrm->check_integrity(), "check_integrity failed");
+
 			std::cout << "hello" << std::endl;
 
 			break;
@@ -146,17 +153,23 @@ int main(int argc, char** argv)
 			if (selected_vertices != nullptr)
 			{
 				selected_vertices->foreach_cell([&](Vertex v) {
-					cgogn::foreach_incident_face(*m, v, [&](Face f) -> bool {
+					std::vector<Face> vec_face;
+					cgogn::foreach_incident_face(*mrm, v, [&](Face f) -> bool {
+						vec_face.push_back(f);
+						return true;
+					});
+					for (auto& f : vec_face)
+					{
 						if (view->shift_pressed())
 						{
-							selected_mesh->disable_face_subdivision(f, true);
+							if (selected_mesh->disable_face_subdivision(f, true))
+								std::cout << "ok pour la subdiv de face " << std::endl;
 						}
 						else
 						{
 							selected_mesh->activate_face_subdivision(f);
 						}
-						return true;
-					});
+					}
 				});
 				vmrm.changed_connectivity(*selected_mesh, position.get());
 			}
@@ -168,7 +181,7 @@ int main(int argc, char** argv)
 			if (selected_vertices != nullptr)
 			{
 				selected_vertices->foreach_cell([&](Vertex v) {
-					cgogn::foreach_incident_volume(*m, v, [&](Volume f) -> bool {
+					cgogn::foreach_incident_volume(*mrm, v, [&](Volume f) -> bool {
 						if (view->shift_pressed())
 						{
 							selected_mesh->disable_volume_subdivision(f, true);
