@@ -253,9 +253,13 @@ int main(int argc, char** argv)
 			{
 				mrm->activate_volume_subdivision(v);
 			}
-			vmrm.changed_connectivity(*selected_mesh, position.get());
+
 			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 			std::cout << "temps activate " << vec_volume.size() << " volume : " << duration << std::endl;
+			start = std::clock();
+			vmrm.changed_connectivity(*selected_mesh, position.get());
+			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << "temps update topo " << vec_volume.size() << " volume : " << duration << std::endl;
 		}
 
 		break;

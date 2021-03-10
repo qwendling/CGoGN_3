@@ -181,13 +181,14 @@ Dart EMR_Map3_Adaptative::face_youngest_dart(Dart d) const
 	do
 	{
 		result = true;
-		Dart result_young = old;
-		foreach_dart_of_orbit(m2, Face2(old), [&](Dart it) -> bool {
+		Dart result_young = phi1(m2, old);
+		result = marker.is_marked(phi1(m2, result_young));
+		/*foreach_dart_of_orbit(m2, Face2(old), [&](Dart it) -> bool {
 			result = marker.is_marked(it);
 			if (dart_level(it) > dart_level(result_young))
 				result_young = it;
 			return result;
-		});
+		});*/
 		if (result)
 		{
 			return result_young;
@@ -276,11 +277,12 @@ uint32 EMR_Map3_Adaptative::face_level(Dart d) const
 	bool result = false;
 	do
 	{
-		result = true;
+		result = marker.is_marked(phi1(m2, old));
+		/*result = true;
 		foreach_dart_of_orbit(m2, Face2(old), [&](Dart it) -> bool {
 			result = marker.is_marked(it);
 			return result;
-		});
+		});*/
 		if (result)
 		{
 			return m2.current_level_;
@@ -348,13 +350,14 @@ Dart EMR_Map3_Adaptative::volume_youngest_dart(Dart d) const
 	do
 	{
 		result = true;
-		Dart result_young = old;
-		foreach_dart_of_orbit(m2, Volume(old), [&](Dart it) -> bool {
+		Dart result_young = phi1(m2, old);
+		result = marker.is_marked(phi1(m2, result_young));
+		/*foreach_dart_of_orbit(m2, Volume(old), [&](Dart it) -> bool {
 			result = marker.is_marked(it);
 			if (dart_level(it) > dart_level(result_young))
 				result_young = it;
 			return result;
-		});
+		});*/
 		if (result)
 		{
 			return result_young;
@@ -439,11 +442,12 @@ uint32 EMR_Map3_Adaptative::volume_level(Dart d) const
 	bool result = false;
 	do
 	{
-		result = true;
+		result = marker.is_marked(phi1(m2, old));
+		/*result = true;
 		foreach_dart_of_orbit(m2, Volume(old), [&](Dart it) -> bool {
 			result = marker.is_marked(it);
 			return result;
-		});
+		});*/
 		if (result)
 		{
 			return m2.current_level_;

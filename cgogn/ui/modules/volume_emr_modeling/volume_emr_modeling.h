@@ -83,11 +83,20 @@ public:
 	void changed_connectivity(MRMesh& m, Attribute<Vec3>* vertex_position)
 	{
 
+		std::clock_t start;
+		double duration;
+
+		start = std::clock();
 		emr_provider_->emit_connectivity_changed(&m);
 		emr_provider_->emit_attribute_changed(&m, vertex_position);
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << "temps update emr adaptatif :" << duration << std::endl;
 
+		start = std::clock();
 		cmap3_provider_->emit_connectivity_changed(&m.m_);
 		cmap3_provider_->emit_attribute_changed(&m.m_, vertex_position);
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << "temps update emr :" << duration << std::endl;
 	}
 
 	void subdivide(MRMesh& m, Attribute<Vec3>* vertex_position, Attribute<Vec3>* vertex_attr2 = nullptr,
