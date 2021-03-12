@@ -426,8 +426,6 @@ EMR_Map3_Adaptative::Face cut_volume(EMR_Map3_Adaptative& m, const std::vector<D
 		}
 	}
 
-	cgogn_message_assert(m.check_integrity(), "check_integrity failed");
-
 	return result;
 }
 

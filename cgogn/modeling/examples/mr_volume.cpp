@@ -319,17 +319,74 @@ int main(int argc, char** argv)
 		}
 		break;
 		case GLFW_KEY_Z: {
-			std::vector<Volume> list_cut_volumes;
-			cgogn::foreach_cell(*selected_mesh, [&list_cut_volumes](Volume v) -> bool {
-				list_cut_volumes.push_back(v);
-				return true;
-			});
-			clock_t start = clock();
-			for (Volume v : list_cut_volumes)
-				selected_mesh->activate_volume_subdivision(v);
-			double time = (clock() - start) / (double)CLOCKS_PER_SEC;
-			std::cout << "time for " << list_cut_volumes.size() << " volume activation : " << time << "s" << std::endl;
-			vmrm.changed_connectivity(*selected_mesh, position.get());
+			std::vector<Edge> vec_edge;
+			std::clock_t start;
+			double duration;
+
+			start = std::clock();
+
+			cgogn::foreach_cell(*selected_mesh, [&](Vertex) -> bool { return true; });
+			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << "temps parcours vertex : " << duration << std::endl;
+			start = std::clock();
+			cgogn::foreach_cell(*selected_mesh, [&](Edge) -> bool { return true; });
+			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << "temps parcours edge : " << duration << std::endl;
+			start = std::clock();
+			cgogn::foreach_cell(*selected_mesh, [&](Face) -> bool { return true; });
+			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << "temps parcours face : " << duration << std::endl;
+			start = std::clock();
+			cgogn::foreach_cell(*selected_mesh, [&](Volume) -> bool { return true; });
+			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << "temps parcours volume : " << duration << std::endl;
+			start = std::clock();
+			duration = 0;
+			for (cgogn::Dart d = selected_mesh->begin(), e = selected_mesh->end(); d != e; d = selected_mesh->next(d))
+			{
+				start = std::clock();
+
+				if (selected_mesh->edge_level(d) != 0)
+				{
+					foreach_dart_of_orbit(*selected_mesh, Face(d), [&](cgogn::Dart) -> bool { return true; });
+					duration += (std::clock() - start) / (double)CLOCKS_PER_SEC;
+				}
+			}
+			std::cout << "temps face foreach dart : " << duration << std::endl;
+			start = std::clock();
+			duration = 0;
+			for (cgogn::Dart d = selected_mesh->begin(), e = selected_mesh->end(); d != e; d = selected_mesh->next(d))
+			{
+				start = std::clock();
+
+				if (selected_mesh->edge_level(d) != 0)
+				{
+					foreach_dart_of_orbit(*selected_mesh, Volume(d), [&](cgogn::Dart) -> bool { return true; });
+					duration += (std::clock() - start) / (double)CLOCKS_PER_SEC;
+				}
+			}
+			std::cout << "temps volume foreach dart : " << duration << std::endl;
+			start = std::clock();
+			for (cgogn::Dart d = selected_mesh->begin(), e = selected_mesh->end(); d != e; d = selected_mesh->next(d))
+			{
+				phi1(*selected_mesh, d);
+			}
+			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << "temps phi1 : " << duration << std::endl;
+			start = std::clock();
+			for (cgogn::Dart d = selected_mesh->begin(), e = selected_mesh->end(); d != e; d = selected_mesh->next(d))
+			{
+				phi2(*selected_mesh, d);
+			}
+			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << "temps phi2 : " << duration << std::endl;
+			start = std::clock();
+			for (cgogn::Dart d = selected_mesh->begin(), e = selected_mesh->end(); d != e; d = selected_mesh->next(d))
+			{
+				phi3(*selected_mesh, d);
+			}
+			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << "temps phi3 : " << duration << std::endl;
 		}
 		break;
 		case GLFW_KEY_L:

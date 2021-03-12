@@ -444,8 +444,6 @@ EMR_Map3::Edge cut_face(EMR_Map3& m, EMR_Map3::Vertex v1, EMR_Map3::Vertex v2, b
 		}
 	}
 
-	cgogn_message_assert(m.check_integrity(), "check_integrity failed");
-
 	return result;
 }
 
@@ -513,8 +511,6 @@ EMR_Map3_Adaptative::Edge cut_face(EMR_Map3_Adaptative& m, EMR_Map3_Adaptative::
 			}
 		}
 	}
-
-	cgogn_message_assert(m.check_integrity(), "check_integrity failed");
 
 	return result;
 }

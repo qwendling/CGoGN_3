@@ -42,6 +42,7 @@
 
 using MRMesh = cgogn::EMR_Map3_Adaptative;
 using Mesh = MRMesh::BASE;
+using EMR_Map3 = cgogn::EMR_Map3;
 
 template <typename T>
 using Attribute = typename cgogn::mesh_traits<MRMesh>::Attribute<T>;
@@ -49,6 +50,7 @@ using Vertex = typename cgogn::mesh_traits<MRMesh>::Vertex;
 using Edge = typename cgogn::mesh_traits<MRMesh>::Edge;
 using Face = typename cgogn::mesh_traits<MRMesh>::Face;
 using Volume = typename cgogn::mesh_traits<MRMesh>::Volume;
+using Dart = cgogn::Dart;
 
 using Vec3 = cgogn::geometry::Vec3;
 
@@ -199,6 +201,78 @@ int main(int argc, char** argv)
 			std::cout << "hello" << std::endl;
 
 			break;
+		case GLFW_KEY_Z: {
+			std::vector<Edge> vec_edge;
+			std::clock_t start;
+			double duration;
+
+			start = std::clock();
+
+			cgogn::foreach_cell(*mrm, [&](Vertex) -> bool { return true; });
+			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << "temps parcours vertex : " << duration << std::endl;
+			start = std::clock();
+			cgogn::foreach_cell(*mrm, [&](Edge) -> bool { return true; });
+			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << "temps parcours edge : " << duration << std::endl;
+			start = std::clock();
+			cgogn::foreach_cell(*mrm, [&](Face) -> bool { return true; });
+			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << "temps parcours face : " << duration << std::endl;
+			start = std::clock();
+			cgogn::foreach_cell(*mrm, [&](Volume) -> bool { return true; });
+			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << "temps parcours volume : " << duration << std::endl;
+			start = std::clock();
+			duration = 0;
+			for (cgogn::Dart d = mrm->begin(), e = mrm->end(); d != e; d = mrm->next(d))
+			{
+				start = std::clock();
+
+				if (mrm->edge_level(d) != 0)
+				{
+					foreach_dart_of_orbit(*mrm, Face(d), [&](Dart) -> bool { return true; });
+					duration += (std::clock() - start) / (double)CLOCKS_PER_SEC;
+				}
+			}
+			std::cout << "temps face foreach dart : " << duration << std::endl;
+			start = std::clock();
+			duration = 0;
+			for (cgogn::Dart d = mrm->begin(), e = mrm->end(); d != e; d = mrm->next(d))
+			{
+				start = std::clock();
+
+				if (mrm->edge_level(d) != 0)
+				{
+					foreach_dart_of_orbit(*mrm, Volume(d), [&](Dart) -> bool { return true; });
+					duration += (std::clock() - start) / (double)CLOCKS_PER_SEC;
+				}
+			}
+			std::cout << "temps volume foreach dart : " << duration << std::endl;
+			start = std::clock();
+			for (cgogn::Dart d = mrm->begin(), e = mrm->end(); d != e; d = mrm->next(d))
+			{
+				phi1(*mrm, d);
+			}
+			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << "temps phi1 : " << duration << std::endl;
+			start = std::clock();
+			for (cgogn::Dart d = mrm->begin(), e = mrm->end(); d != e; d = mrm->next(d))
+			{
+				phi2(*mrm, d);
+			}
+			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << "temps phi2 : " << duration << std::endl;
+			start = std::clock();
+			for (cgogn::Dart d = mrm->begin(), e = mrm->end(); d != e; d = mrm->next(d))
+			{
+				phi3(*mrm, d);
+			}
+			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << "temps phi3 : " << duration << std::endl;
+		}
+
+		break;
 		case GLFW_KEY_T: {
 			std::vector<Edge> vec_edge;
 

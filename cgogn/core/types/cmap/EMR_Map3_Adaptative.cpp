@@ -136,44 +136,21 @@ Dart EMR_Map3_Adaptative::face_youngest_dart(Dart d) const
 	{
 		return d;
 	}
-	/*if (is_indexed<Face>(*this))
-	{
-		std::vector<std::pair<uint32, Dart>> vec_face_index(maximum_level_ + 1);
-		for (std::pair<uint32, Dart>& p : vec_face_index)
-			p = std::make_pair(UINT_MAX, Dart());
-		Dart young = d;
-		const EMR_Map3::MAP& map = static_cast<const EMR_Map3::MAP&>(*this);
-		foreach_dart_of_orbit(*this, Face2(d), [&](Dart it) -> bool {
-			if (vec_face_index[dart_level(it)].first == UINT_MAX)
-				vec_face_index[dart_level(it)] = std::make_pair(index_of(map, Face(it)), it);
-			if (vec_face_index[dart_level(it)].first != index_of(map, Face(it)))
-				vec_face_index[dart_level(it)].first = UINT_MAX - 1;
-			if (dart_level(it) > dart_level(young))
-				young = it;
-			return true;
-		});
-		for (int i = dart_level(young); i >= 0; i--)
-		{
-			if (vec_face_index[i].first < UINT_MAX - 1)
-			{
-				for (int j = i - 1; j >= 0; j--)
-				{
-					if (vec_face_index[j].first != vec_face_index[i].first)
-						return vec_face_index[j + 1].second;
-				}
-				return vec_face_index[0].second;
-			}
-		}
-		return Dart();
-	}*/
 	Dart old = d;
 	DartMarkerStore<EMR_Map3> marker(*this);
-	foreach_dart_of_orbit(*this, Face2(d), [&](Dart it) -> bool {
+	Dart it, it2;
+	it = d;
+	it2 = phi_1(*this, d);
+	do
+	{
+		if (dart_level(it) == dart_level(it2))
+			return it;
 		marker.mark(it);
 		if (dart_level(it) < dart_level(old))
 			old = it;
-		return true;
-	});
+		it2 = it;
+		it = phi1(*this, it);
+	} while (it != d);
 	EMR_Map3 m2(m_);
 	m2.current_level_ = dart_level(old);
 
@@ -182,19 +159,13 @@ Dart EMR_Map3_Adaptative::face_youngest_dart(Dart d) const
 	{
 		result = true;
 		Dart result_young = phi1(m2, old);
-		result = marker.is_marked(phi1(m2, result_young));
-		/*foreach_dart_of_orbit(m2, Face2(old), [&](Dart it) -> bool {
-			result = marker.is_marked(it);
-			if (dart_level(it) > dart_level(result_young))
-				result_young = it;
-			return result;
-		});*/
+		result = marker.is_marked(result_young);
 		if (result)
 		{
 			return result_young;
 		}
 		m2.current_level_++;
-		cgogn_message_assert(m2.current_level_ <= maximum_level_, "Pb algo volume level");
+		cgogn_message_assert(m2.current_level_ <= maximum_level_, "Pb algo face level");
 	} while (!result);
 	return d;
 }
@@ -231,38 +202,6 @@ uint32 EMR_Map3_Adaptative::face_level(Dart d) const
 	{
 		return 0;
 	}
-	/*if (is_indexed<Face>(*this))
-	{
-		std::vector<uint32> vec_face_index(maximum_level_ + 1);
-		for (uint32& i : vec_face_index)
-			i = UINT_MAX;
-		Dart it = d;
-		Dart young = d;
-		const EMR_Map3::MAP& map = static_cast<const EMR_Map3::MAP&>(*this);
-		do
-		{
-			if (vec_face_index[dart_level(it)] == UINT_MAX)
-				vec_face_index[dart_level(it)] = index_of(map, Face(it));
-			if (vec_face_index[dart_level(it)] != index_of(map, Face(it)))
-				vec_face_index[dart_level(it)] = UINT_MAX - 1;
-			if (dart_level(it) > dart_level(young))
-				young = it;
-			it = phi1(*this, it);
-		} while (it != d);
-		for (int i = dart_level(young); i >= 0; i--)
-		{
-			if (vec_face_index[i] < UINT_MAX - 1)
-			{
-				for (int j = i - 1; j >= 0; j--)
-				{
-					if (vec_face_index[j] != vec_face_index[i])
-						return j + 1;
-				}
-				return 0;
-			}
-		}
-		return 0;
-	}*/
 	Dart old = d;
 	DartMarkerStore<EMR_Map3> marker(*this);
 	foreach_dart_of_orbit(*this, Face2(d), [&](Dart it) -> bool {
@@ -278,11 +217,6 @@ uint32 EMR_Map3_Adaptative::face_level(Dart d) const
 	do
 	{
 		result = marker.is_marked(phi1(m2, old));
-		/*result = true;
-		foreach_dart_of_orbit(m2, Face2(old), [&](Dart it) -> bool {
-			result = marker.is_marked(it);
-			return result;
-		});*/
 		if (result)
 		{
 			return m2.current_level_;
@@ -305,36 +239,6 @@ Dart EMR_Map3_Adaptative::volume_youngest_dart(Dart d) const
 	{
 		return d;
 	}
-	/*if (is_indexed<Volume>(*this))
-	{
-		std::vector<std::pair<uint32, Dart>> vec_volume_index(maximum_level_ + 1);
-		for (std::pair<uint32, Dart>& p : vec_volume_index)
-			p = std::make_pair(UINT_MAX, Dart());
-		Dart young = d;
-		const EMR_Map3::MAP& map = static_cast<const EMR_Map3::MAP&>(*this);
-		foreach_dart_of_orbit(*this, Volume(d), [&](Dart it) -> bool {
-			if (vec_volume_index[dart_level(it)].first == UINT_MAX)
-				vec_volume_index[dart_level(it)] = std::make_pair(index_of(map, Volume(it)), it);
-			if (vec_volume_index[dart_level(it)].first != index_of(map, Volume(it)))
-				vec_volume_index[dart_level(it)].first = UINT_MAX - 1;
-			if (dart_level(it) > dart_level(young))
-				young = it;
-			return true;
-		});
-		for (int i = dart_level(young); i >= 0; i--)
-		{
-			if (vec_volume_index[i].first < UINT_MAX - 1)
-			{
-				for (int j = i - 1; j >= 0; j--)
-				{
-					if (vec_volume_index[j].first != vec_volume_index[i].first)
-						return vec_volume_index[j + 1].second;
-				}
-				return vec_volume_index[0].second;
-			}
-		}
-		return Dart();
-	}*/
 	Dart old = d;
 	DartMarkerStore<EMR_Map3> marker(*this);
 	foreach_dart_of_orbit(*this, Volume(d), [&](Dart it) -> bool {
@@ -351,13 +255,7 @@ Dart EMR_Map3_Adaptative::volume_youngest_dart(Dart d) const
 	{
 		result = true;
 		Dart result_young = phi1(m2, old);
-		result = marker.is_marked(phi1(m2, result_young));
-		/*foreach_dart_of_orbit(m2, Volume(old), [&](Dart it) -> bool {
-			result = marker.is_marked(it);
-			if (dart_level(it) > dart_level(result_young))
-				result_young = it;
-			return result;
-		});*/
+		result = marker.is_marked(result_young);
 		if (result)
 		{
 			return result_young;
@@ -398,36 +296,7 @@ uint32 EMR_Map3_Adaptative::volume_level(Dart d) const
 	{
 		return 0;
 	}
-	/*if (is_indexed<Volume>(*this))
-	{
-		std::vector<uint32> vec_volume_index(maximum_level_ + 1);
-		for (uint32& i : vec_volume_index)
-			i = UINT_MAX;
-		Dart young = d;
-		const EMR_Map3::MAP& map = static_cast<const EMR_Map3::MAP&>(*this);
-		foreach_dart_of_orbit(*this, Volume(d), [&](Dart it) -> bool {
-			if (vec_volume_index[dart_level(it)] == UINT_MAX)
-				vec_volume_index[dart_level(it)] = index_of(map, Volume(it));
-			if (vec_volume_index[dart_level(it)] != index_of(map, Volume(it)))
-				vec_volume_index[dart_level(it)] = UINT_MAX - 1;
-			if (dart_level(it) > dart_level(young))
-				young = it;
-			return true;
-		});
-		for (int i = dart_level(young); i >= 0; i--)
-		{
-			if (vec_volume_index[i] < UINT_MAX - 1)
-			{
-				for (int j = i - 1; j >= 0; j--)
-				{
-					if (vec_volume_index[j] != vec_volume_index[i])
-						return j + 1;
-				}
-				return 0;
-			}
-		}
-		return 0;
-	}*/
+
 	Dart old = d;
 	DartMarkerStore<EMR_Map3> marker(*this);
 	foreach_dart_of_orbit(*this, Volume(d), [&](Dart it) -> bool {
@@ -443,11 +312,6 @@ uint32 EMR_Map3_Adaptative::volume_level(Dart d) const
 	do
 	{
 		result = marker.is_marked(phi1(m2, old));
-		/*result = true;
-		foreach_dart_of_orbit(m2, Volume(old), [&](Dart it) -> bool {
-			result = marker.is_marked(it);
-			return result;
-		});*/
 		if (result)
 		{
 			return m2.current_level_;
