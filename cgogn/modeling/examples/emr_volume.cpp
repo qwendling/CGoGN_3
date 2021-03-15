@@ -303,7 +303,14 @@ int main(int argc, char** argv)
 			});
 			for (auto f : vec_face)
 			{
-				mrm->activate_face_subdivision(f);
+				if (view->shift_pressed())
+				{
+					selected_mesh->disable_face_subdivision(f, true);
+				}
+				else
+				{
+					selected_mesh->activate_face_subdivision(f);
+				}
 			}
 			vmrm.changed_connectivity(*selected_mesh, position.get());
 		}

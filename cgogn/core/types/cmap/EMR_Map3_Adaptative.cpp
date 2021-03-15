@@ -473,9 +473,9 @@ bool EMR_Map3_Adaptative::disable_edge_subdivision(Edge e)
 	Dart test = old;
 	do
 	{
-		if (phi2(*this, phi1(*this, test)) != phi2(m2, test))
+		if (phi3(*this, phi1(*this, test)) != phi3(m2, test))
 			return false;
-		test = phi2(m2, phi3(m2, test));
+		test = phi2(*this, phi3(*this, test));
 	} while (test != old);
 	m2.current_level_ = e_level;
 	Dart it, it2;
@@ -530,6 +530,25 @@ bool EMR_Map3_Adaptative::disable_face_subdivision(Face f, bool disable_edge, bo
 		Dart tmp = phi1(m2, d);
 		while (edge_level(tmp) != f_level)
 			disable_edge_subdivision(Edge(tmp));
+	}
+	for (Dart d : vec_vertices)
+	{
+		d = phi1(m2, d);
+		Dart it = d;
+		do
+		{
+			set_dart_visibility(it, UINT_MAX);
+			it = phi3(m2, it);
+			set_dart_visibility(it, UINT_MAX);
+			it = phi2(m2, it);
+		} while (it != d);
+	}
+	if (disable_edge)
+	{
+		for (Dart d : vec_vertices)
+		{
+			disable_edge_subdivision(Edge(d));
+		}
 	}
 	return true;
 }
