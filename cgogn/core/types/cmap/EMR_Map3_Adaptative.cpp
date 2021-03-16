@@ -136,6 +136,24 @@ Dart EMR_Map3_Adaptative::face_youngest_dart(Dart d) const
 	{
 		return d;
 	}
+
+	if (is_indexed<Face>(*this))
+	{
+		std::unordered_set<uint32> cell_id;
+		Dart result = d;
+		foreach_dart_of_orbit(*this, Face2(d), [&](Dart it) -> bool {
+			auto p = cell_id.insert(index_of(static_cast<const EMR_Map3::MAP&>(*this), Face(it)));
+			if (!p.second)
+			{
+				result = it;
+				return false;
+			}
+
+			return true;
+		});
+		return result;
+	}
+
 	Dart old = d;
 	DartMarkerStore<EMR_Map3> marker(*this);
 	Dart it, it2;
@@ -239,6 +257,24 @@ Dart EMR_Map3_Adaptative::volume_youngest_dart(Dart d) const
 	{
 		return d;
 	}
+
+	if (is_indexed<Volume>(*this))
+	{
+		std::unordered_set<uint32> cell_id;
+		Dart result = d;
+		foreach_dart_of_orbit(*this, Volume(d), [&](Dart it) -> bool {
+			auto p = cell_id.insert(index_of(static_cast<const EMR_Map3::MAP&>(*this), Volume(it)));
+			if (!p.second)
+			{
+				result = it;
+				return false;
+			}
+
+			return true;
+		});
+		return result;
+	}
+
 	Dart old = d;
 	DartMarkerStore<EMR_Map3> marker(*this);
 	foreach_dart_of_orbit(*this, Volume(d), [&](Dart it) -> bool {
@@ -554,6 +590,38 @@ bool EMR_Map3_Adaptative::disable_face_subdivision(Face f, bool disable_edge, bo
 }
 bool EMR_Map3_Adaptative::disable_volume_subdivision(Volume v, bool disable_face)
 {
+	uint32 v_level = volume_level(v.dart);
+	if (v_level <= current_level_)
+		return false;
+	EMR_Map3 m2(m_);
+	m2.current_level_ = v_level;
+	Dart old;
+	foreach_dart_of_orbit(m2, v, [&](Dart d) -> bool {
+		if (dart_level(d) <= v_level - 1)
+		{
+			old = d;
+			return false;
+		}
+		return true;
+	});
+
+	// marker v_level -1
+	// tout brin non marquer et phi2 non marquer a supprimer
+
+	DartMarker<EMR_Map3_Adaptative> dm(*this);
+	CellMarker<EMR_Map3_Adaptative, Vertex> vm(*this);
+	std::vector<Dart> vect_vertices;
+
+	foreach_dart_of_orbit(m2, Volume(old), [&](Dart d) -> bool {
+		dm.mark(d);
+		if (!vm.is_marked(Vertex(d)))
+		{
+			vm.mark(Vertex(d));
+			vect_vertices.push_back(d);
+		}
+		return true;
+	});
+
 	return false;
 }
 
