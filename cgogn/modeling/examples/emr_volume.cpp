@@ -183,17 +183,23 @@ int main(int argc, char** argv)
 			if (selected_vertices != nullptr)
 			{
 				selected_vertices->foreach_cell([&](Vertex v) {
-					cgogn::foreach_incident_volume(*mrm, v, [&](Volume f) -> bool {
+					std::vector<Volume> vec_volume;
+					cgogn::foreach_incident_volume(*mrm, v, [&](Volume w) -> bool {
+						vec_volume.push_back(w);
+						return true;
+					});
+					for (auto& w : vec_volume)
+					{
 						if (view->shift_pressed())
 						{
-							selected_mesh->disable_volume_subdivision(f, true);
+							if (selected_mesh->disable_volume_subdivision(w, true))
+								std::cout << "ok pour la subdiv de face " << std::endl;
 						}
 						else
 						{
-							selected_mesh->activate_volume_subdivision(f);
+							selected_mesh->activate_volume_subdivision(w);
 						}
-						return true;
-					});
+					}
 				});
 				vmrm.changed_connectivity(*selected_mesh, position.get());
 			}

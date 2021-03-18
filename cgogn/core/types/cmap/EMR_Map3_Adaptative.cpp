@@ -611,9 +611,12 @@ bool EMR_Map3_Adaptative::disable_volume_subdivision(Volume v, bool disable_face
 	DartMarker<EMR_Map3_Adaptative> dm(*this);
 	CellMarker<EMR_Map3_Adaptative, Vertex> vm(*this);
 	std::vector<Dart> vect_vertices;
+	std::vector<Dart> vect_volume;
 
+	m2.current_level_ = v_level - 1;
 	foreach_dart_of_orbit(m2, Volume(old), [&](Dart d) -> bool {
 		dm.mark(d);
+		vect_volume.push_back(d);
 		if (!vm.is_marked(Vertex(d)))
 		{
 			vm.mark(Vertex(d));
@@ -621,6 +624,48 @@ bool EMR_Map3_Adaptative::disable_volume_subdivision(Volume v, bool disable_face
 		}
 		return true;
 	});
+
+	for (Dart d : vect_vertices)
+	{
+		while (volume_level(d) != v_level)
+			disable_volume_subdivision(Volume(d), disable_face);
+	}
+
+	m2.current_level_ = v_level;
+	std::vector<Dart> vect_dart;
+	for (Dart d : vect_volume)
+	{
+		Dart tmp = phi<12>(m2, d);
+		if (dm.is_marked(tmp))
+			continue;
+		while (face_level(tmp) != v_level)
+			disable_face_subdivision(Face(tmp), true, true);
+		Dart it = tmp;
+		do
+		{
+			Dart it2 = phi3(*this, it);
+			vect_dart.push_back(it);
+			dm.mark(it);
+			vect_dart.push_back(it2);
+			dm.mark(it2);
+			it = phi1(*this, it);
+		} while (it != tmp);
+	}
+	for (Dart d : vect_dart)
+	{
+		set_dart_visibility(d, UINT_MAX);
+	}
+	if (disable_face)
+	{
+		for (Dart d : vect_volume)
+		{
+			while (face_level(d) != v_level - 1)
+			{
+				if (!disable_face_subdivision(Face(d), true, true))
+					break;
+			}
+		}
+	}
 
 	return false;
 }
