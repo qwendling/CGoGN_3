@@ -413,30 +413,71 @@ int main(int argc, char** argv)
 				std::cout << "######################################" << std::endl;
 			}
 			break;
-		case GLFW_KEY_R: {
-			std::vector<Volume> vec_volume;
-
-			cgogn::foreach_cell(*selected_mesh, [&](Volume v) -> bool {
-				if ((rand() / (double)RAND_MAX) * 100 < 10)
-				{
-					vec_volume.push_back(v);
-				}
-				return true;
-			});
-			std::clock_t start;
-			double duration;
-
-			start = std::clock();
-			for (auto v : vec_volume)
+		case GLFW_KEY_R:
+			if (!view->shift_pressed())
 			{
-				selected_mesh->activate_volume_subdivision(v);
-			}
-			vmrm.changed_connectivity(*selected_mesh, position.get());
-			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-			std::cout << "temps activate " << vec_volume.size() << " volume : " << duration << std::endl;
-		}
+				std::vector<Volume> vec_volume;
 
-		break;
+				cgogn::foreach_cell(*selected_mesh, [&](Volume v) -> bool {
+					if ((rand() / (double)RAND_MAX) * 100 < 10)
+					{
+						vec_volume.push_back(v);
+					}
+					return true;
+				});
+				std::clock_t start;
+				double duration;
+				double diff_volume = md->nb_cells<Volume>();
+
+				start = std::clock();
+				for (auto v : vec_volume)
+				{
+					selected_mesh->activate_volume_subdivision(v);
+				}
+
+				duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+				md->update_nb_cells();
+				std::cout << "temps activate " << md->nb_cells<Volume>() - diff_volume << " volume : " << duration
+						  << std::endl;
+				start = std::clock();
+				vmrm.changed_connectivity(*selected_mesh, position.get());
+				duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+				std::cout << "temps update topo " << vec_volume.size() << " volume : " << duration << std::endl;
+			}
+			else
+			{
+				std::vector<Volume> vec_volume;
+
+				cgogn::foreach_cell(*selected_mesh, [&](Volume v) -> bool {
+					if ((rand() / (double)RAND_MAX) * 100 < 10)
+					{
+						vec_volume.push_back(v);
+					}
+					return true;
+				});
+				std::clock_t start;
+				double duration;
+				double diff_volume = md->nb_cells<Volume>();
+
+				start = std::clock();
+				for (auto v : vec_volume)
+				{
+					if (selected_mesh->get_dart_visibility_level(v.dart) > selected_mesh->current_level_)
+						continue;
+					selected_mesh->disable_volume_subdivision(v, true);
+				}
+
+				duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+				md->update_nb_cells();
+				std::cout << "temps disable " << diff_volume - md->nb_cells<Volume>() << " volume : " << duration
+						  << std::endl;
+				start = std::clock();
+				vmrm.changed_connectivity(*selected_mesh, position.get());
+				duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+				std::cout << "temps update topo " << vec_volume.size() << " volume : " << duration << std::endl;
+			}
+
+			break;
 		case GLFW_KEY_P: {
 			if (selected_vertices != nullptr)
 			{

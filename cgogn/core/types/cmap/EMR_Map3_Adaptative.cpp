@@ -258,7 +258,7 @@ Dart EMR_Map3_Adaptative::volume_youngest_dart(Dart d) const
 		return d;
 	}
 
-	if (is_indexed<Volume>(*this))
+	/*if (is_indexed<Volume>(*this))
 	{
 		std::unordered_set<uint32> cell_id;
 		Dart result = d;
@@ -273,7 +273,7 @@ Dart EMR_Map3_Adaptative::volume_youngest_dart(Dart d) const
 			return true;
 		});
 		return result;
-	}
+	}*/
 
 	Dart old = d;
 	DartMarkerStore<EMR_Map3> marker(*this);
@@ -604,10 +604,6 @@ bool EMR_Map3_Adaptative::disable_volume_subdivision(Volume v, bool disable_face
 		}
 		return true;
 	});
-
-	// marker v_level -1
-	// tout brin non marquer et phi2 non marquer a supprimer
-
 	DartMarker<EMR_Map3_Adaptative> dm(*this);
 	CellMarker<EMR_Map3_Adaptative, Vertex> vm(*this);
 	std::vector<Dart> vect_vertices;
