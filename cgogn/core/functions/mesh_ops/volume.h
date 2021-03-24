@@ -1,4 +1,4 @@
-/*******************************************************************************
+﻿/*******************************************************************************
  * CGoGN: Combinatorial and Geometric modeling with Generic N-dimensional Maps  *
  * Copyright (C), IGG Group, ICube, University of Strasbourg, France            *
  *                                                                              *
@@ -249,6 +249,177 @@ void unsew_volume(CMap3& m, const mesh_traits<CMap3>::Face f, const FUNC& callba
 	for (auto p : list_pair_vertex)
 	{
 		callback_vertices(p);
+	}
+}
+
+//////////////
+// EMR_Map3 //
+//////////////
+
+template <typename FUNC>
+void unsew_volume(EMR_Map3& m, const mesh_traits<EMR_Map3>::Face f, const FUNC& callback_vertices,
+				  bool set_indices = true)
+{
+	using Vertex = typename mesh_traits<EMR_Map3>::Vertex;
+	using Edge = typename mesh_traits<EMR_Map3>::Edge;
+	using Face = typename mesh_traits<EMR_Map3>::Face;
+	using Face2 = typename mesh_traits<EMR_Map3>::Face2;
+
+	static_assert(is_func_parameter_same<FUNC, std::pair<Vertex, Vertex>>::value,
+				  "Function must have std::pair<Vertex, Vertex> as a parameter");
+	static_assert(is_func_return_same<FUNC, bool>::value, "Given function should return a bool");
+	if (is_incident_to_boundary(m, f))
+	{
+		return;
+	}
+
+	auto same_orbit = [&](auto v1, auto v2) -> bool {
+		bool result = false;
+		foreach_dart_of_orbit(m, v1, [&](Dart d) -> bool {
+			if (v2.dart == d)
+			{
+				result = true;
+				return false;
+			}
+			return true;
+		});
+		return result;
+	};
+
+	EMR_Map3 m2(m);
+	m2.current_level_ = std::min(m.current_level_ + 1, m.maximum_level_);
+
+	uint32 f_level = m.face_level(f.dart);
+	uint32 f_level2 = m2.face_level(f.dart);
+	std::pair<Vertex, Vertex> p_rep = {Vertex(f.dart), Vertex(phi3(m2, f.dart))};
+
+	if (f_level == f_level2)
+	{
+		m2.current_level_ = m2.maximum_level_;
+		Dart f_rep = f.dart;
+		Dart f3_rep = phi3(m2, f_rep);
+		unsew_volume(m2.get_map(), f, callback_vertices, false);
+
+		if (set_indices && is_indexed<CMap3::Vertex>(m))
+		{
+			Dart it = f_rep;
+			Dart it2 = phi1(m, f3_rep);
+			do
+			{
+				Dart it_3 = phi3(m, it);
+				Dart it2_3 = phi3(m, it2);
+				if (!same_orbit(Vertex(it), Vertex(it2)))
+				{
+					auto tmp = new_index<Vertex>(m);
+					set_index(m, Vertex(it2), tmp);
+				}
+				else
+				{
+					copy_index<CMap3::Vertex>(m, it2_3, phi1(m, it2));
+				}
+				copy_index<CMap3::Vertex>(m, it_3, phi1(m, it));
+				it = phi1(m, it);
+				it2 = phi_1(m, it2);
+			} while (it != f_rep);
+		}
+
+		Dart it = f_rep;
+		Dart it3 = f3_rep;
+		do
+		{
+			m.set_dart_level(phi3(m2, it), m.dart_level(phi2(m2, it)));
+			m.set_dart_level(phi3(m2, it3), m.dart_level(phi2(m2, it3)));
+			it = phi1(m2, it);
+			it3 = phi1(m2, it3);
+		} while (it != f_rep);
+		EMR_Map3 m3(m);
+		for (uint32 i = m2.maximum_level_ - 1; i >= f_level; i--)
+		{
+			m2.current_level_ = i + 1;
+			m3.current_level_ = i;
+			Dart it;
+			std::array<Dart, 2> ar_dart = {f_rep, f3_rep};
+			int nb_dart = 0;
+			while (nb_dart < 2)
+			{
+				it = ar_dart[nb_dart++];
+
+				do
+				{
+					Dart d3 = phi3(m2, it);
+					if (m.dart_level(d3) == i + 1)
+					{
+						d3 = phi_1(m2, d3);
+						(*((*m3.m_.MR_phi3_)[m3.current_level_]))[it.index] = d3;
+						(*((*m3.m_.MR_phi3_)[m3.current_level_]))[d3.index] = it;
+						Dart d2 = phi<12>(m2, d3);
+						(*((*m3.m_.MR_phi2_)[m3.current_level_]))[d3.index] = d2;
+						(*((*m3.m_.MR_phi2_)[m3.current_level_]))[d2.index] = d3;
+						Dart d1 = phi<11>(m2, d3);
+						(*((*m3.m_.MR_phi1_)[m3.current_level_]))[d3.index] = d1;
+						(*((*m3.m_.MR_phi_1_)[m3.current_level_]))[d1.index] = d3;
+					}
+					else
+					{
+						(*((*m3.m_.MR_phi3_)[m3.current_level_]))[it.index] = d3;
+						(*((*m3.m_.MR_phi3_)[m3.current_level_]))[d3.index] = it;
+						Dart d2 = phi2(m2, d3);
+						(*((*m3.m_.MR_phi2_)[m3.current_level_]))[d3.index] = d2;
+						(*((*m3.m_.MR_phi2_)[m3.current_level_]))[d2.index] = d3;
+						Dart d1 = phi1(m2, d3);
+						(*((*m3.m_.MR_phi1_)[m3.current_level_]))[d3.index] = d1;
+						(*((*m3.m_.MR_phi_1_)[m3.current_level_]))[d1.index] = d3;
+					}
+					it = phi1(m3, it);
+				} while (it != ar_dart[nb_dart]);
+			}
+		}
+	}
+
+	if (set_indices)
+	{
+		Face f1 = Face(p_rep.first.dart);
+		Face f2 = Face(p_rep.second.dart);
+		Dart d = f1.dart;
+		Dart it = d;
+		Dart it2 = f2.dart;
+		uint32 new_id = new_index<Face>(m);
+		uint32 f1_id = index_of(m, Face(d));
+		do
+		{
+			if (is_indexed<Edge>(m))
+			{
+				if (!same_orbit(Edge(it), Edge(it2)))
+				{
+					set_index<Edge>(m, it2, new_index<Edge>(m));
+				}
+				uint32 e_level = m.edge_level(it2);
+				foreach_dart_of_orbit(m, Edge(it2), [&](Dart dd) -> bool {
+					if (m.dart_level(dd) == e_level)
+					{
+						set_index<Edge>(m, dd, index_of(m, Edge(it2)));
+					}
+					return true;
+				});
+			}
+			if (is_indexed<Face>(m))
+			{
+				if (m.dart_level(it2) >= f_level)
+				{
+					set_index<Face>(m, it2, new_id);
+				}
+				if (m.dart_level(phi3(m, it2)) >= f_level)
+				{
+					set_index<Face>(m, phi3(m, it2), new_id);
+				}
+				if (m.dart_level(phi3(m, it)) >= f_level)
+				{
+					set_index<Face>(m, phi3(m, it), f1_id);
+				}
+			}
+			it = phi1(m, it);
+			it2 = phi_1(m, it2);
+		} while (it != d);
 	}
 }
 

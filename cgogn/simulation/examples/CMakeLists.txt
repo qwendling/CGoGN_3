@@ -52,6 +52,16 @@ target_link_libraries(linked_volumes
 	${CMAKE_DL_LIBS}
 )
 
+add_executable(linked_volumes_MR linked_volumes_MR.cpp)
+target_link_libraries(linked_volumes_MR
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::simulation
+	${CMAKE_DL_LIBS}
+)
+
 if(APPLE)
 	find_library(CORE_FOUNDATION CoreFoundation)
 	find_library(CARBON Carbon)
