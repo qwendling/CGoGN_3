@@ -130,6 +130,26 @@ struct EMR_MapBase
 		} while (d.index < lastidx && m_.dart_level(d) > current_level_);
 		return d;
 	}
+
+	void start_reader() const
+	{
+		m_.start_reader();
+	}
+
+	void end_reader() const
+	{
+		m_.end_reader();
+	}
+
+	void start_writer()
+	{
+		m_.start_writer();
+	}
+
+	void end_writer()
+	{
+		m_.end_writer();
+	}
 };
 
 } // namespace cgogn

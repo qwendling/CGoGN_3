@@ -37,18 +37,21 @@
 #include <cgogn/ui/modules/mesh_provider/mesh_provider.h>
 #include <cgogn/ui/modules/shape_matching/shape_matching.h>
 #include <cgogn/ui/modules/surface_render/surface_render.h>
+#include <cgogn/ui/modules/volume_emr_modeling/volume_emr_modeling.h>
 #include <cgogn/ui/modules/volume_mr_modeling/volume_mr_modeling.h>
 #include <cgogn/ui/modules/volume_render/volume_render.h>
 #include <cgogn/ui/modules/volume_selection/volume_selection.h>
 
-using Mesh = cgogn::CMap3;
+using MRMesh = cgogn::EMR_Map3_Adaptative;
+using Mesh = MRMesh::BASE;
+using EMR_Map3 = cgogn::EMR_Map3;
 
 template <typename T>
-using Attribute = typename cgogn::mesh_traits<Mesh>::Attribute<T>;
-using Vertex = typename cgogn::mesh_traits<Mesh>::Vertex;
-using Edge = typename cgogn::mesh_traits<Mesh>::Edge;
-using Face = typename cgogn::mesh_traits<Mesh>::Face;
-using Volume = typename cgogn::mesh_traits<Mesh>::Volume;
+using Attribute = typename cgogn::mesh_traits<MRMesh>::Attribute<T>;
+using Vertex = typename cgogn::mesh_traits<MRMesh>::Vertex;
+using Edge = typename cgogn::mesh_traits<MRMesh>::Edge;
+using Face = typename cgogn::mesh_traits<MRMesh>::Face;
+using Volume = typename cgogn::mesh_traits<MRMesh>::Volume;
 
 using Vec3 = cgogn::geometry::Vec3;
 
@@ -70,10 +73,13 @@ int main(int argc, char** argv)
 	app.set_window_size(1000, 800);
 
 	cgogn::ui::MeshProvider<Mesh> mp(app);
-	cgogn::ui::VolumeRender<Mesh> mrsr(app);
-	cgogn::ui::VolumeSelection<Mesh> vs(app);
-	cgogn::ui::ShapeMatching<Mesh> sm(app);
-	cgogn::ui::LinkedVolumes<Mesh> lv(app);
+	cgogn::ui::MeshProvider<MRMesh> mrmp(app);
+	cgogn::ui::VolumeRender<MRMesh> mrsr(app);
+	cgogn::ui::VolumeSelection<MRMesh> vs(app);
+	cgogn::ui::ShapeMatching<MRMesh> sm(app);
+	cgogn::ui::LinkedVolumes<MRMesh> lv(app);
+
+	cgogn::ui::VolumeEMRModeling<MRMesh> vmrm(app);
 
 	cgogn::ui::View* v1 = app.current_view();
 	v1->link_module(&mp);
@@ -91,21 +97,27 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*m, "position");
+	MRMesh* mrm = vmrm.create_mrmesh(*m, mp.mesh_name(m));
+	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*mrm, "position");
 
-	vs.selected_mesh_ = m;
+	vs.selected_mesh_ = mrm;
 
-	cgogn::index_cells<Mesh::Volume>(*m);
-	cgogn::index_cells<Mesh::Edge>(*m);
-	cgogn::index_cells<Mesh::Face>(*m);
+	cgogn::index_cells<MRMesh::Volume>(*mrm);
+	cgogn::index_cells<MRMesh::Edge>(*mrm);
+	cgogn::index_cells<MRMesh::Face>(*mrm);
 
-	mrsr.set_vertex_position(*v1, *m, position);
+	m->add_resolution();
+	mrm->change_resolution_level(1);
+
+	vmrm.subdivide(*mrm, position.get());
+
+	mrsr.set_vertex_position(*v1, *mrm, position);
 	v1->scene_bb_locked_ = true;
 
 	std::srand(std::time(nullptr));
 
-	vs.f_keypress = [&](cgogn::ui::View*, Mesh* selected_mesh, std::int32_t k,
-						cgogn::ui::CellsSet<Mesh, Vertex>* selected_vertices, cgogn::ui::CellsSet<Mesh, Edge>*) {
+	vs.f_keypress = [&](cgogn::ui::View*, MRMesh* selected_mesh, std::int32_t k,
+						cgogn::ui::CellsSet<MRMesh, Vertex>* selected_vertices, cgogn::ui::CellsSet<MRMesh, Edge>*) {
 		switch (k)
 		{
 		case GLFW_KEY_R: {

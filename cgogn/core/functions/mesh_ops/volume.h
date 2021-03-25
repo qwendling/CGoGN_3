@@ -263,7 +263,6 @@ void unsew_volume(EMR_Map3& m, const mesh_traits<EMR_Map3>::Face f, const FUNC& 
 	using Vertex = typename mesh_traits<EMR_Map3>::Vertex;
 	using Edge = typename mesh_traits<EMR_Map3>::Edge;
 	using Face = typename mesh_traits<EMR_Map3>::Face;
-	using Face2 = typename mesh_traits<EMR_Map3>::Face2;
 
 	static_assert(is_func_parameter_same<FUNC, std::pair<Vertex, Vertex>>::value,
 				  "Function must have std::pair<Vertex, Vertex> as a parameter");
@@ -298,7 +297,14 @@ void unsew_volume(EMR_Map3& m, const mesh_traits<EMR_Map3>::Face f, const FUNC& 
 		m2.current_level_ = m2.maximum_level_;
 		Dart f_rep = f.dart;
 		Dart f3_rep = phi3(m2, f_rep);
-		unsew_volume(m2.get_map(), f, callback_vertices, false);
+
+		std::vector<std::pair<Vertex, Vertex>> list_pair_vertex;
+		auto get_list_pair_vertex = [&list_pair_vertex](std::pair<Vertex, Vertex> p) -> bool {
+			list_pair_vertex.push_back(p);
+			return true;
+		};
+
+		unsew_volume(*m2.get_map(), f, get_list_pair_vertex, false);
 
 		if (set_indices && is_indexed<CMap3::Vertex>(m))
 		{
@@ -323,6 +329,11 @@ void unsew_volume(EMR_Map3& m, const mesh_traits<EMR_Map3>::Face f, const FUNC& 
 			} while (it != f_rep);
 		}
 
+		for (auto p : list_pair_vertex)
+		{
+			callback_vertices(p);
+		}
+
 		Dart it = f_rep;
 		Dart it3 = f3_rep;
 		do
@@ -332,46 +343,50 @@ void unsew_volume(EMR_Map3& m, const mesh_traits<EMR_Map3>::Face f, const FUNC& 
 			it = phi1(m2, it);
 			it3 = phi1(m2, it3);
 		} while (it != f_rep);
-		EMR_Map3 m3(m);
-		for (uint32 i = m2.maximum_level_ - 1; i >= f_level; i--)
+		if (m2.maximum_level_ != 0)
 		{
-			m2.current_level_ = i + 1;
-			m3.current_level_ = i;
-			Dart it;
-			std::array<Dart, 2> ar_dart = {f_rep, f3_rep};
-			int nb_dart = 0;
-			while (nb_dart < 2)
+			EMR_Map3 m3(m);
+			for (int i = m2.maximum_level_ - 1; i >= int(f_level); i--)
 			{
-				it = ar_dart[nb_dart++];
-
-				do
+				m2.current_level_ = i + 1;
+				m3.current_level_ = i;
+				Dart it;
+				std::array<Dart, 2> ar_dart = {m.face_oldest_dart(f_rep), m.face_oldest_dart(f3_rep)};
+				int nb_dart = 0;
+				while (nb_dart < 2)
 				{
-					Dart d3 = phi3(m2, it);
-					if (m.dart_level(d3) == i + 1)
+					it = ar_dart[nb_dart];
+
+					do
 					{
-						d3 = phi_1(m2, d3);
-						(*((*m3.m_.MR_phi3_)[m3.current_level_]))[it.index] = d3;
-						(*((*m3.m_.MR_phi3_)[m3.current_level_]))[d3.index] = it;
-						Dart d2 = phi<12>(m2, d3);
-						(*((*m3.m_.MR_phi2_)[m3.current_level_]))[d3.index] = d2;
-						(*((*m3.m_.MR_phi2_)[m3.current_level_]))[d2.index] = d3;
-						Dart d1 = phi<11>(m2, d3);
-						(*((*m3.m_.MR_phi1_)[m3.current_level_]))[d3.index] = d1;
-						(*((*m3.m_.MR_phi_1_)[m3.current_level_]))[d1.index] = d3;
-					}
-					else
-					{
-						(*((*m3.m_.MR_phi3_)[m3.current_level_]))[it.index] = d3;
-						(*((*m3.m_.MR_phi3_)[m3.current_level_]))[d3.index] = it;
-						Dart d2 = phi2(m2, d3);
-						(*((*m3.m_.MR_phi2_)[m3.current_level_]))[d3.index] = d2;
-						(*((*m3.m_.MR_phi2_)[m3.current_level_]))[d2.index] = d3;
-						Dart d1 = phi1(m2, d3);
-						(*((*m3.m_.MR_phi1_)[m3.current_level_]))[d3.index] = d1;
-						(*((*m3.m_.MR_phi_1_)[m3.current_level_]))[d1.index] = d3;
-					}
-					it = phi1(m3, it);
-				} while (it != ar_dart[nb_dart]);
+						Dart d3 = phi3(m2, it);
+						if (m.dart_level(d3) == i + 1)
+						{
+							d3 = phi_1(m2, d3);
+							(*((*m3.m_.MR_phi3_)[m3.current_level_]))[it.index] = d3;
+							(*((*m3.m_.MR_phi3_)[m3.current_level_]))[d3.index] = it;
+							Dart d2 = phi<12>(m2, d3);
+							(*((*m3.m_.MR_phi2_)[m3.current_level_]))[d3.index] = d2;
+							(*((*m3.m_.MR_phi2_)[m3.current_level_]))[d2.index] = d3;
+							Dart d1 = phi<11>(m2, d3);
+							(*((*m3.m_.MR_phi1_)[m3.current_level_]))[d3.index] = d1;
+							(*((*m3.m_.MR_phi_1_)[m3.current_level_]))[d1.index] = d3;
+						}
+						else
+						{
+							(*((*m3.m_.MR_phi3_)[m3.current_level_]))[it.index] = d3;
+							(*((*m3.m_.MR_phi3_)[m3.current_level_]))[d3.index] = it;
+							Dart d2 = phi2(m2, d3);
+							(*((*m3.m_.MR_phi2_)[m3.current_level_]))[d3.index] = d2;
+							(*((*m3.m_.MR_phi2_)[m3.current_level_]))[d2.index] = d3;
+							Dart d1 = phi1(m2, d3);
+							(*((*m3.m_.MR_phi1_)[m3.current_level_]))[d3.index] = d1;
+							(*((*m3.m_.MR_phi_1_)[m3.current_level_]))[d1.index] = d3;
+						}
+						it = phi1(m3, it);
+					} while (it != ar_dart[nb_dart]);
+					nb_dart++;
+				}
 			}
 		}
 	}
