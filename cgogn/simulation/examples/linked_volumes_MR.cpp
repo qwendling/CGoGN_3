@@ -42,7 +42,7 @@
 #include <cgogn/ui/modules/volume_render/volume_render.h>
 #include <cgogn/ui/modules/volume_selection/volume_selection.h>
 
-using MRMesh = cgogn::EMR_Map3_Adaptative;
+using MRMesh = cgogn::EMR_Map3;
 using Mesh = MRMesh::BASE;
 using EMR_Map3 = cgogn::EMR_Map3;
 

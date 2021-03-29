@@ -363,7 +363,7 @@ protected:
 
 				selected_mesh_->start_reader();
 				std::cout << "Debut simu" << std::endl;
-				for (int i = 0; i < 10; i++)
+				for (int i = 0; i < 1; i++)
 				{
 
 					if (apply_gravity)
