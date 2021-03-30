@@ -272,9 +272,9 @@ void unsew_volume(EMR_Map3& m, const mesh_traits<EMR_Map3>::Face f, const FUNC& 
 		return;
 	}
 
-	auto same_orbit = [&](auto v1, auto v2) -> bool {
+	auto same_orbit = [&](auto mo, auto v1, auto v2) -> bool {
 		bool result = false;
-		foreach_dart_of_orbit(m, v1, [&](Dart d) -> bool {
+		foreach_dart_of_orbit(mo, v1, [&](Dart d) -> bool {
 			if (v2.dart == d)
 			{
 				result = true;
@@ -292,8 +292,8 @@ void unsew_volume(EMR_Map3& m, const mesh_traits<EMR_Map3>::Face f, const FUNC& 
 	uint32 f_level2 = m2.face_level(f.dart);
 
 	Dart f_rep = f.dart;
-	Dart f3_rep = phi3(m2, f_rep);
-	std::pair<Vertex, Vertex> p_rep = {Vertex(f_rep), Vertex(f3_rep)};
+	Dart f3_rep = phi3(m, f_rep);
+	std::pair<Vertex, Vertex> p_rep = {Vertex(f_rep), Vertex(phi3(m, f_rep))};
 
 	if (f_level == f_level2)
 	{
@@ -313,20 +313,20 @@ void unsew_volume(EMR_Map3& m, const mesh_traits<EMR_Map3>::Face f, const FUNC& 
 			Dart it2 = phi1(m, f3_rep);
 			do
 			{
-				Dart it_3 = phi3(m, it);
-				Dart it2_3 = phi3(m, it2);
-				if (!same_orbit(Vertex(it), Vertex(it2)))
+				Dart it_3 = phi3(m2, it);
+				Dart it2_3 = phi3(m2, it2);
+				if (!same_orbit(m2, Vertex(it), Vertex(it2)))
 				{
-					auto tmp = new_index<Vertex>(m);
-					set_index(m, Vertex(it2), tmp);
+					auto tmp = new_index<Vertex>(m2);
+					set_index(m2, Vertex(it2), tmp);
 				}
 				else
 				{
-					copy_index<CMap3::Vertex>(m, it2_3, phi1(m, it2));
+					copy_index<CMap3::Vertex>(m2, phi1(m2, it2_3), it2);
 				}
-				copy_index<CMap3::Vertex>(m, it_3, phi1(m, it));
-				it = phi1(m, it);
-				it2 = phi_1(m, it2);
+				copy_index<CMap3::Vertex>(m2, phi1(m2, it_3), it);
+				it = phi1(m2, it);
+				it2 = phi_1(m2, it2);
 			} while (it != f_rep);
 		}
 
@@ -399,7 +399,7 @@ void unsew_volume(EMR_Map3& m, const mesh_traits<EMR_Map3>::Face f, const FUNC& 
 			unsew_volume(m2, Face(it), callback_vertices, set_indices);
 			it = phi1(m, it);
 		} while (it != f_rep);
-		std::array<Dart, 2> ar_dart = {m.face_oldest_dart(f_rep), m.face_oldest_dart(f3_rep)};
+		/*std::array<Dart, 2> ar_dart = {m.face_oldest_dart(f_rep), m.face_oldest_dart(f3_rep)};
 		int nb_dart = 0;
 		while (nb_dart < 2)
 		{
@@ -431,7 +431,7 @@ void unsew_volume(EMR_Map3& m, const mesh_traits<EMR_Map3>::Face f, const FUNC& 
 				it = phi1(m, it);
 			} while (it != ar_dart[nb_dart]);
 			nb_dart++;
-		}
+		}*/
 	}
 
 	if (set_indices)
@@ -447,7 +447,7 @@ void unsew_volume(EMR_Map3& m, const mesh_traits<EMR_Map3>::Face f, const FUNC& 
 		{
 			if (is_indexed<Edge>(m))
 			{
-				if (!same_orbit(Edge(it), Edge(it2)))
+				if (!same_orbit(m, Edge(it), Edge(it2)))
 				{
 					set_index<Edge>(m, it2, new_index<Edge>(m));
 				}

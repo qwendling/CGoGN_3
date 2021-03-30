@@ -777,7 +777,7 @@ auto butterflySubdivisionVolumeAdaptative(MESH& m, double angle_threshold,
 			}
 			// First attribute is the one watch for adaptive subdivision
 			auto edge_angle = geometry::angle(m, Face2(d), Face2(d2), attrs.front());
-			if (true || std::abs(edge_angle) > angle_threshold)
+			if (std::abs(edge_angle) > angle_threshold)
 			{
 				if (!cm_cell.is_marked(Volume(d)) && isValidForSubdivision(m, d))
 					cm_cell.mark(Volume(d));

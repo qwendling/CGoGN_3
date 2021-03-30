@@ -192,7 +192,6 @@ auto is_incident_to_boundary(const MESH& m, CELL c) -> std::enable_if_t<std::is_
 	});
 	return result;
 }
-
 /*****************************************************************************/
 
 // template <typename MESH>
