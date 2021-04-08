@@ -86,6 +86,12 @@ int main(int argc, char** argv)
 	v1->link_module(&vr);
 	v1->link_module(&vs);
 
+	cgogn::ui::View* v2 = app.add_view();
+	v2->link_module(&mp);
+	v2->link_module(&mrmp);
+	v2->link_module(&vr);
+	v2->link_module(&vs);
+
 	Mesh* m = mp.load_volume_from_file(filename);
 	if (!m)
 	{
@@ -94,6 +100,8 @@ int main(int argc, char** argv)
 	}
 
 	MRMesh* mrm = vmrm.create_mrmesh(*m, mp.mesh_name(m));
+	MRMesh* mrm2 = vmrm.create_mrmesh(*m, mp.mesh_name(m));
+	mrm2->parent = mrm;
 	vs.selected_mesh_ = mrm;
 	cgogn::index_cells<Mesh::Face>(*mrm);
 	cgogn::index_cells<Mesh::Volume>(*mrm);
@@ -114,6 +122,9 @@ int main(int argc, char** argv)
 	mrmp.set_mesh_bb_vertex_position(mrm, position);
 
 	vr.set_vertex_position(*v1, *mrm, position);
+	vr.set_vertex_position(*v1, *mrm2, nullptr);
+	vr.set_vertex_position(*v2, *mrm, nullptr);
+	vr.set_vertex_position(*v2, *mrm2, position);
 
 	std::srand(std::time(nullptr));
 
@@ -201,9 +212,11 @@ int main(int argc, char** argv)
 						}
 					}
 				});
-				vmrm.changed_connectivity(*selected_mesh, position.get());
+				vmrm.changed_connectivity(*mrm, position.get());
+				vmrm.changed_connectivity(*mrm2, position.get());
 			}
 			cgogn_message_assert(mrm->check_integrity(), "check_integrity failed");
+			cgogn_message_assert(mrm2->check_integrity(), "check_integrity failed");
 			std::cout << "hello" << std::endl;
 
 			break;
@@ -390,12 +403,12 @@ int main(int argc, char** argv)
 			break;
 		case GLFW_KEY_C:
 			std::vector<int> bucket;
-			for (uint i = 0; i <= mrm->maximum_level_; i++)
+			for (uint i = 0; i <= mrm2->maximum_level_; i++)
 			{
 				bucket.push_back(0);
 			}
-			cgogn::foreach_cell(*mrm, [&](Edge f) -> bool {
-				bucket[mrm->edge_level(f.dart)]++;
+			cgogn::foreach_cell(*mrm2, [&](Edge f) -> bool {
+				bucket[mrm2->edge_level(f.dart)]++;
 				return true;
 			});
 			std::cout << "Edge level : " << std::endl;
@@ -404,12 +417,12 @@ int main(int argc, char** argv)
 				std::cout << i << std::endl;
 			}
 
-			for (uint i = 0; i <= mrm->maximum_level_; i++)
+			for (uint i = 0; i <= mrm2->maximum_level_; i++)
 			{
 				bucket[i] = 0;
 			}
-			cgogn::foreach_cell(*mrm, [&](Face f) -> bool {
-				bucket[mrm->face_level(f.dart)]++;
+			cgogn::foreach_cell(*mrm2, [&](Face f) -> bool {
+				bucket[mrm2->face_level(f.dart)]++;
 				return true;
 			});
 			std::cout << "Face level : " << std::endl;
@@ -418,12 +431,12 @@ int main(int argc, char** argv)
 				std::cout << i << std::endl;
 			}
 
-			for (uint i = 0; i <= mrm->maximum_level_; i++)
+			for (uint i = 0; i <= mrm2->maximum_level_; i++)
 			{
 				bucket[i] = 0;
 			}
-			cgogn::foreach_cell(*mrm, [&](Volume f) -> bool {
-				bucket[mrm->volume_level(f.dart)]++;
+			cgogn::foreach_cell(*mrm2, [&](Volume f) -> bool {
+				bucket[mrm2->volume_level(f.dart)]++;
 				return true;
 			});
 			std::cout << "Volume level : " << std::endl;

@@ -42,7 +42,7 @@
 #include <cgogn/ui/modules/volume_render/volume_render.h>
 #include <cgogn/ui/modules/volume_selection/volume_selection.h>
 
-using MRMesh = cgogn::EMR_Map3;
+using MRMesh = cgogn::EMR_Map3_Adaptative;
 using Mesh = MRMesh::BASE;
 using EMR_Map3 = cgogn::EMR_Map3;
 
@@ -88,6 +88,13 @@ int main(int argc, char** argv)
 	v1->link_module(&sm);
 	v1->link_module(&lv);
 
+	cgogn::ui::View* v2 = app.add_view();
+	v2->link_module(&mp);
+	v2->link_module(&mrsr);
+	v2->link_module(&vs);
+	v2->link_module(&sm);
+	v2->link_module(&lv);
+
 	app.init_modules();
 
 	Mesh* m = mp.load_volume_from_file(filename);
@@ -98,6 +105,7 @@ int main(int argc, char** argv)
 	}
 
 	MRMesh* mrm = vmrm.create_mrmesh(*m, mp.mesh_name(m));
+	MRMesh* mrm2 = vmrm.create_mrmesh(*m, mp.mesh_name(m));
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*mrm, "position");
 
 	vs.selected_mesh_ = mrm;
@@ -106,29 +114,69 @@ int main(int argc, char** argv)
 	cgogn::index_cells<MRMesh::Edge>(*mrm);
 	cgogn::index_cells<MRMesh::Face>(*mrm);
 
-	m->add_resolution();
-	mrm->change_resolution_level(1);
+	vmrm.subdivide(*mrm, position.get());
 
 	vmrm.subdivide(*mrm, position.get());
 
+	mrm2->parent = mrm;
+
 	mrsr.set_vertex_position(*v1, *mrm, position);
+	mrsr.set_vertex_position(*v1, *mrm2, nullptr);
 	v1->scene_bb_locked_ = true;
+
+	mrsr.set_vertex_position(*v2, *mrm, nullptr);
+	mrsr.set_vertex_position(*v2, *mrm2, position);
+	v2->scene_bb_locked_ = true;
+
+	vmrm.changed_connectivity(*mrm2, position.get());
 
 	std::srand(std::time(nullptr));
 
-	vs.f_keypress = [&](cgogn::ui::View*, MRMesh* selected_mesh, std::int32_t k,
+	vs.f_keypress = [&](cgogn::ui::View* view, MRMesh* selected_mesh, std::int32_t k,
 						cgogn::ui::CellsSet<MRMesh, Vertex>* selected_vertices, cgogn::ui::CellsSet<MRMesh, Edge>*) {
 		switch (k)
 		{
 		case GLFW_KEY_R: {
-			selected_vertices->foreach_cell([&](Vertex v) {
-				cgogn::value<Vec3>(*selected_mesh, position.get(), v) =
-					cgogn::value<Vec3>(*selected_mesh, position.get(), v) + Vec3((rand() / (double)RAND_MAX) - 0.5,
-																				 (rand() / (double)RAND_MAX) - 0.5,
-																				 (rand() / (double)RAND_MAX) - 0.5);
-			});
+			MRMesh tmp(*mrm);
+			tmp.change_resolution_level(0);
+			cgogn_message_assert(tmp.check_integrity(), "check_integrity failed");
+			tmp.change_resolution_level(1);
+			cgogn_message_assert(tmp.check_integrity(), "check_integrity failed");
+			tmp.change_resolution_level(2);
+			cgogn_message_assert(tmp.check_integrity(), "check_integrity failed");
+			std::cout << "ok check " << std::endl;
 			break;
 		}
+		case GLFW_KEY_V:
+			if (selected_vertices != nullptr)
+			{
+				selected_vertices->foreach_cell([&](Vertex v) {
+					std::vector<Volume> vec_volume;
+					cgogn::foreach_incident_volume(*mrm, v, [&](Volume w) -> bool {
+						vec_volume.push_back(w);
+						return true;
+					});
+					for (auto& w : vec_volume)
+					{
+						if (view->shift_pressed())
+						{
+							if (selected_mesh->disable_volume_subdivision(w, true))
+								std::cout << "ok pour la subdiv de face " << std::endl;
+						}
+						else
+						{
+							selected_mesh->activate_volume_subdivision(w);
+						}
+					}
+				});
+				vmrm.changed_connectivity(*mrm, position.get());
+				vmrm.changed_connectivity(*mrm2, position.get());
+			}
+			cgogn_message_assert(mrm->check_integrity(), "check_integrity failed");
+			cgogn_message_assert(mrm2->check_integrity(), "check_integrity failed");
+			std::cout << "hello" << std::endl;
+
+			break;
 		}
 	};
 

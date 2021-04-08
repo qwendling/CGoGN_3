@@ -124,10 +124,10 @@ public:
 		list_volume_coarse_.clear();
 		list_volume_current_.clear();
 		int cmp_cur = 0;
-		CPH3 tmp(m);
+		MR_MAP tmp(m);
 		tmp.current_level_ = m.current_level_;
-		std::function<void(tree_volume*, CPH3&)> progress_tree;
-		progress_tree = [&](tree_volume* p, CPH3& cph) {
+		std::function<void(tree_volume*, MR_MAP&)> progress_tree;
+		progress_tree = [&](tree_volume* p, MR_MAP& cph) -> void {
 			uint32 cph_level = cph.volume_level(p->volume_dart);
 			uint32 l = 0;
 			if (mecanical_mesh_->dart_is_visible(p->volume_dart))
@@ -162,8 +162,8 @@ public:
 			}
 			cph.current_level_--;
 		};
-		foreach_cell(tmp, [&](CPH3::Volume v) -> bool {
-			CPH3 tmp2(tmp);
+		foreach_cell(tmp, [&](typename MR_MAP::Volume v) -> bool {
+			MR_MAP tmp2(tmp);
 			tree_volume* t = new tree_volume();
 			t->volume_dart = v.dart;
 			progress_tree(t, tmp2);

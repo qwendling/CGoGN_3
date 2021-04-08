@@ -5,10 +5,13 @@
 namespace cgogn
 {
 
+uint32 EMR_Map3_Adaptative::nb_views = 0;
+
 bool EMR_Map3_Adaptative::check_integrity() const
 {
 	for (Dart d = this->begin(), end = this->end(); d != end; d = this->next(d))
 	{
+
 		int limit = INT_MAX;
 		int i = 0;
 		Dart it = phi1(*this, d);
@@ -19,7 +22,7 @@ bool EMR_Map3_Adaptative::check_integrity() const
 			it = phi1(*this, it);
 			i++;
 		}
-		if (i == 0)
+		if (i == 1)
 		{
 			std::cerr << "phi1 have a fix point : " << d.index << std::endl;
 			return false;
@@ -48,14 +51,37 @@ bool EMR_Map3_Adaptative::check_integrity() const
 	return true;
 }
 
+EMR_Map3_Adaptative* EMR_Map3_Adaptative::get_child()
+{
+	EMR_Map3_Adaptative* result = new EMR_Map3_Adaptative(*this);
+	result->parent = this;
+	return result;
+}
+EMR_Map3_Adaptative* EMR_Map3_Adaptative::get_copy()
+{
+	return new EMR_Map3_Adaptative(*this);
+}
+
 uint32 EMR_Map3_Adaptative::get_dart_visibility(Dart d) const
 {
-	return std::min(this->dart_level(d), (*dart_visibility_)[d.index]);
+	uint32 result = UINT_MAX;
+	if (parent != nullptr)
+		result = parent->get_dart_visibility(d);
+	auto p = (*dart_visibility_)[d.index];
+	if (p.first)
+		result = std::min(result, p.second);
+	return std::min(this->dart_level(d), result);
 }
 
 void EMR_Map3_Adaptative::set_dart_visibility(Dart d, uint32 v)
 {
-	(*dart_visibility_)[d.index] = v;
+	(*dart_visibility_)[d.index].first = true;
+	(*dart_visibility_)[d.index].second = v;
+}
+
+bool EMR_Map3_Adaptative::dart_is_visible(Dart d) const
+{
+	return get_dart_visibility(d) <= current_level_;
 }
 
 Dart EMR_Map3_Adaptative::begin() const
@@ -257,24 +283,6 @@ Dart EMR_Map3_Adaptative::volume_youngest_dart(Dart d) const
 	{
 		return d;
 	}
-
-	/*if (is_indexed<Volume>(*this))
-	{
-		std::unordered_set<uint32> cell_id;
-		Dart result = d;
-		foreach_dart_of_orbit(*this, Volume(d), [&](Dart it) -> bool {
-			auto p = cell_id.insert(index_of(static_cast<const EMR_Map3::MAP&>(*this), Volume(it)));
-			if (!p.second)
-			{
-				result = it;
-				return false;
-			}
-
-			return true;
-		});
-		return result;
-	}*/
-
 	Dart old = d;
 	DartMarkerStore<EMR_Map3> marker(*this);
 	foreach_dart_of_orbit(*this, Volume(d), [&](Dart it) -> bool {
@@ -322,6 +330,8 @@ bool EMR_Map3_Adaptative::volume_is_subdivided(Dart d) const
 		return false;
 	EMR_Map3 m2(m_);
 	m2.current_level_ = volume_level(d);
+	if (dart_level(d) > m2.current_level_)
+		return false;
 	return m2.volume_is_subdivided(d);
 }
 

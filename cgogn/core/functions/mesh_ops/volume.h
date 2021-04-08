@@ -429,6 +429,31 @@ void unsew_volume(EMR_Map3& m, const mesh_traits<EMR_Map3>::Face f, const FUNC& 
 	}
 }
 
+//////////////
+// EMR_Map3 //
+//////////////
+
+template <typename FUNC>
+void unsew_volume(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3_Adaptative>::Face f, const FUNC& callback_vertices,
+				  bool set_indices = true)
+{
+	using Vertex = typename mesh_traits<EMR_Map3_Adaptative>::Vertex;
+	using Face = typename mesh_traits<EMR_Map3_Adaptative>::Face;
+
+	static_assert(is_func_parameter_same<FUNC, std::pair<Vertex, Vertex>>::value,
+				  "Function must have std::pair<Vertex, Vertex> as a parameter");
+	static_assert(is_func_return_same<FUNC, bool>::value, "Given function should return a bool");
+	if (is_incident_to_boundary(m, f))
+	{
+		return;
+	}
+
+	uint32 f_level = m.face_level(f.dart);
+	EMR_Map3 m2(m);
+	m2.current_level_ = f_level;
+	unsew_volume(m2, Face(m.face_oldest_dart(f.dart)), callback_vertices, set_indices);
+}
+
 } // namespace cgogn
 
 #endif // CGOGN_CORE_FUNCTIONS_MESH_OPS_VOLUME_H_

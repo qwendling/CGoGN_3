@@ -624,7 +624,8 @@ auto subdivideVolume(MESH& m, Dart d, const FUNC& after_cut)
 
 template <typename MESH, typename FUNC>
 auto subdivideListEdges(MESH& m, std::vector<Dart>& edges, const FUNC& after_cut)
-	-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&> && !(std::is_convertible_v<MESH&, CPH3&>)>
+	-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&> &&
+						!(std::is_convertible_v<MESH&, CPH3&>)&&!(std::is_convertible_v<MESH&, EMR_Map3&>)>
 {
 	for (Dart d : edges)
 	{
@@ -643,10 +644,25 @@ auto subdivideListEdges(MR_MESH& m, std::vector<Dart>& edges, const FUNC& after_
 		subdivideEdge(m2, d, after_cut);
 	}
 }
+template <typename MR_MESH, typename FUNC>
+auto subdivideListEdges(MR_MESH& m, std::vector<Dart>& edges, const FUNC& after_cut)
+	-> std::enable_if_t<std::is_convertible_v<MR_MESH&, EMR_Map3&>>
+{
+	MR_MESH m2(m);
+	for (Dart d : edges)
+	{
+		uint32 e_level = m.edge_level(d);
+		if (m.maximum_level_ == e_level)
+			m.m_.add_resolution();
+		m2.current_level_ = m.edge_level(d) + 1;
+		subdivideEdge(m2, d, after_cut);
+	}
+}
 
 template <typename MESH, typename FUNC>
 auto subdivideListFaces(MESH& m, std::vector<Dart>& faces, const FUNC& after_cut)
-	-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&> && !(std::is_convertible_v<MESH&, CPH3&>)>
+	-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&> &&
+						!(std::is_convertible_v<MESH&, CPH3&>)&&!(std::is_convertible_v<MESH&, EMR_Map3&>)>
 {
 	for (Dart d : faces)
 	{
@@ -666,9 +682,22 @@ auto subdivideListFaces(MR_MESH& m, std::vector<Dart>& faces, const FUNC& after_
 	}
 }
 
+template <typename MR_MESH, typename FUNC>
+auto subdivideListFaces(MR_MESH& m, std::vector<Dart>& faces, const FUNC& after_cut)
+	-> std::enable_if_t<std::is_convertible_v<MR_MESH&, EMR_Map3&>>
+{
+	MR_MESH m2(m);
+	for (Dart d : faces)
+	{
+		m2.current_level_ = m.face_level(d) + 1;
+		subdivideFace(m2, d, after_cut);
+	}
+}
+
 template <typename MESH, typename FUNC>
 auto subdivideListVolumes(MESH& m, std::vector<Dart>& volumes, const FUNC& after_cut)
-	-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&> && !(std::is_convertible_v<MESH&, CPH3&>)>
+	-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&> &&
+						!(std::is_convertible_v<MESH&, CPH3&>)&&!(std::is_convertible_v<MESH&, EMR_Map3&>)>
 {
 	for (Dart d : volumes)
 	{
@@ -679,6 +708,18 @@ auto subdivideListVolumes(MESH& m, std::vector<Dart>& volumes, const FUNC& after
 template <typename MR_MESH, typename FUNC>
 auto subdivideListVolumes(MR_MESH& m, std::vector<Dart>& volumes, const FUNC& after_cut)
 	-> std::enable_if_t<std::is_convertible_v<MR_MESH&, CPH3&>>
+{
+	MR_MESH m2(m);
+	for (Dart d : volumes)
+	{
+		m2.current_level_ = m.volume_level(d) + 1;
+		subdivideVolume(m2, d, after_cut);
+	}
+}
+
+template <typename MR_MESH, typename FUNC>
+auto subdivideListVolumes(MR_MESH& m, std::vector<Dart>& volumes, const FUNC& after_cut)
+	-> std::enable_if_t<std::is_convertible_v<MR_MESH&, EMR_Map3&>>
 {
 	MR_MESH m2(m);
 	for (Dart d : volumes)

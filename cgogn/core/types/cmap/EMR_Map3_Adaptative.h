@@ -10,6 +10,7 @@ struct EMR_Map3_Adaptative : EMR_Map3
 {
 
 	using MAP = CMap3;
+	using CMAP = CMap3;
 	using Vertex = Cell<PHI21_PHI31>;
 	using Vertex2 = Cell<PHI21>;
 	using HalfEdge = Cell<DART>;
@@ -21,25 +22,36 @@ struct EMR_Map3_Adaptative : EMR_Map3
 	template <typename T>
 	using Attribute = typename CMap3::template Attribute<T>;
 
-	std::shared_ptr<Attribute<uint32>> dart_visibility_;
+	std::shared_ptr<Attribute<std::pair<bool, uint32>>> dart_visibility_;
+	static uint32 nb_views;
+	EMR_Map3_Adaptative* parent;
 
-	EMR_Map3_Adaptative(EMR_Map3_T<CMap3>& m) : EMR_Map3(m)
+	EMR_Map3_Adaptative(EMR_Map3_T<CMap3>& m) : EMR_Map3(m), parent(nullptr)
 	{
-		dart_visibility_ = m_.darts_->get_attribute<uint32>("dart_visibility");
+		nb_views++;
+		dart_visibility_ =
+			m_.darts_->get_attribute<std::pair<bool, uint32>>("dart_visibility" + std::to_string(nb_views));
 		if (!dart_visibility_)
-			dart_visibility_ = m_.darts_->add_attribute<uint32>("dart_visibility");
+		{
+			dart_visibility_ =
+				m_.darts_->add_attribute<std::pair<bool, uint32>>("dart_visibility" + std::to_string(nb_views));
+		}
 	}
 
 	virtual bool check_integrity() const;
 
 	uint32 get_dart_visibility(Dart d) const;
 	void set_dart_visibility(Dart d, uint32 v);
+	bool dart_is_visible(Dart d) const;
 
 	Dart begin() const;
 
 	Dart end() const;
 
 	Dart next(Dart d) const;
+
+	EMR_Map3_Adaptative* get_child();
+	EMR_Map3_Adaptative* get_copy();
 
 	/***************************************************
 	 *                  EDGE INFO                      *

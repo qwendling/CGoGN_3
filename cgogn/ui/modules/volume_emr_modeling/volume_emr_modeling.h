@@ -159,6 +159,7 @@ protected:
 			if (ImGui::SliderScalar("Level", ImGuiDataType_U32, &selected_cph3_->current_level_, &min,
 									&selected_cph3_->maximum_level_))
 			{
+				cgogn_message_assert(selected_cph3_->check_integrity(), "check_integrity failed");
 				emr_provider_->emit_connectivity_changed(selected_cph3_);
 				emr_provider_->emit_attribute_changed(selected_cph3_, selected_vertex_position_.get());
 			}

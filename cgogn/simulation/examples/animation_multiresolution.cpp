@@ -36,12 +36,12 @@
 #include <cgogn/ui/modules/animation_multiresolution/animation_multiresolution.h>
 #include <cgogn/ui/modules/mesh_provider/mesh_provider.h>
 #include <cgogn/ui/modules/surface_render/surface_render.h>
-#include <cgogn/ui/modules/volume_mr_modeling/volume_mr_modeling.h>
+#include <cgogn/ui/modules/volume_emr_modeling/volume_emr_modeling.h>
 #include <cgogn/ui/modules/volume_render/volume_render.h>
 #include <cgogn/ui/modules/volume_selection/volume_selection.h>
 
-using Mesh = cgogn::CMap3;
-using MRMesh = cgogn::CPH3_adaptative;
+using MRMesh = cgogn::EMR_Map3_Adaptative;
+using Mesh = MRMesh::BASE;
 
 template <typename T>
 using Attribute = typename cgogn::mesh_traits<Mesh>::Attribute<T>;
@@ -73,7 +73,7 @@ int main(int argc, char** argv)
 	cgogn::ui::VolumeRender<MRMesh> mrsr(app);
 	cgogn::ui::VolumeSelection<MRMesh> vs(app);
 	cgogn::ui::AnimationMultiresolution<MRMesh> am(app);
-	cgogn::ui::VolumeMRModeling vmrm(app);
+	cgogn::ui::VolumeEMRModeling<MRMesh> vmrm(app);
 	cgogn::ui::MeshProvider<MRMesh> mrmp(app);
 
 	cgogn::ui::View* v1 = app.current_view();
@@ -111,9 +111,9 @@ int main(int argc, char** argv)
 
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*m, "position");
 
-	MRMesh* cph1 = vmrm.create_cph3(*m, mp.mesh_name(m));
-	MRMesh* cph2 = vmrm.create_cph3(*m, mp.mesh_name(m));
-	MRMesh* cph3 = vmrm.create_cph3(*m, mp.mesh_name(m));
+	MRMesh* cph1 = vmrm.create_mrmesh(*m, mp.mesh_name(m));
+	MRMesh* cph2 = vmrm.create_mrmesh(*m, mp.mesh_name(m));
+	MRMesh* cph3 = vmrm.create_mrmesh(*m, mp.mesh_name(m));
 
 	vmrm.selected_vertex_parents_ = cgogn::add_attribute<std::array<Vertex, 3>, Vertex>(*m, "parents");
 	vmrm.selected_vertex_relative_position_ = cgogn::add_attribute<Vec3, Vertex>(*m, "relative_position");
@@ -140,9 +140,6 @@ int main(int argc, char** argv)
 			if (tmp == 1)
 			{
 				cph2->activate_volume_subdivision(v);
-				tmp = std::rand() / ((RAND_MAX + 1u) / 2);
-				if (tmp == 1)
-					cph2->disable_volume_subdivision(v, true);
 			}
 		}
 		list_cut_volumes.clear();
