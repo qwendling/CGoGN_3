@@ -1,4 +1,5 @@
 #include "EMR_Map3_Adaptative.h"
+#include <cgogn/core/functions/traversals/edge.h>
 #include <cgogn/core/functions/traversals/vertex.h>
 #include <cgogn/core/types/cmap/orbit_traversal.h>
 
@@ -64,13 +65,24 @@ EMR_Map3_Adaptative* EMR_Map3_Adaptative::get_copy()
 
 uint32 EMR_Map3_Adaptative::get_dart_visibility(Dart d) const
 {
+	uint32 d_level = this->dart_level(d);
+	if (d_level == 0)
+		return 0;
 	uint32 result = UINT_MAX;
 	if (parent != nullptr)
 		result = parent->get_dart_visibility(d);
 	auto p = (*dart_visibility_)[d.index];
 	if (p.first)
 		result = std::min(result, p.second);
-	return std::min(this->dart_level(d), result);
+
+	if (d_level < result)
+		return d_level;
+
+	Dart d3 = (*((*m_.MR_phi3_)[d_level]))[d.index];
+
+	if (dart_level(d3) < d_level)
+		return std::max(get_dart_visibility(d3), result);
+	return result;
 }
 
 void EMR_Map3_Adaptative::set_dart_visibility(Dart d, uint32 v)
@@ -379,18 +391,24 @@ void EMR_Map3_Adaptative::activate_edge_subdivision(Edge e)
 
 	Edge e2 = Edge(phi2(*this, e.dart));
 	EMR_Map3 m2(m_);
-	m2.current_level_ = edge_level(e.dart) + 1;
-	foreach_dart_of_orbit(m2, e, [&](Dart d) -> bool {
-		if (get_dart_visibility(phi3(m2, d)) <= current_level_)
-			set_dart_visibility(d, current_level_);
-		return true;
-	});
-	foreach_dart_of_orbit(m2, e2, [&](Dart d) -> bool {
-		if (get_dart_visibility(phi3(m2, d)) <= current_level_)
-			set_dart_visibility(d, current_level_);
-		return true;
-	});
-	return;
+	uint32 e_level = edge_level(e.dart);
+	m2.current_level_ = e_level + 1;
+
+	Dart d2 = phi2(m2, e.dart);
+	Dart it = d2;
+	do
+	{
+		set_dart_visibility(it, current_level_);
+		it = phi<23>(m2, it);
+	} while (it != d2);
+
+	d2 = phi2(m2, e2.dart);
+	it = d2;
+	do
+	{
+		set_dart_visibility(it, current_level_);
+		it = phi<23>(m2, it);
+	} while (it != d2);
 }
 void EMR_Map3_Adaptative::activate_face_subdivision(Face f)
 {
@@ -430,14 +448,9 @@ bool EMR_Map3_Adaptative::activate_volume_subdivision(Volume v)
 	{
 		return false;
 	}
+
 	Dart d = volume_oldest_dart(v.dart);
 	uint32 v_level = volume_level(v.dart);
-	/*if (v_level >= current_level_ + 1)
-	{
-		current_level_++;
-		activate_volume_subdivision(v);
-		current_level_--;
-	}*/
 
 	EMR_Map3 m2(m_);
 	m2.current_level_ = v_level;
@@ -446,62 +459,17 @@ bool EMR_Map3_Adaptative::activate_volume_subdivision(Volume v)
 		vect_vertices.push_back(w);
 		return true;
 	});
-
+	foreach_incident_edge(m2, Volume(d), [&](Edge e) -> bool {
+		if (edge_level(e.dart) == v_level)
+			activate_edge_subdivision(e);
+		return true;
+	});
 	m2.current_level_++;
-	uint32 tmp = m2.current_level_;
-	std::vector<Dart> intern_darts;
 	for (Vertex w : vect_vertices)
 	{
 		foreach_dart_of_orbit(m2, Volume(w.dart), [&](Dart d) -> bool {
-			if (get_dart_visibility(d) > current_level_)
-			{
-				Dart d2 = phi2(m2, d);
-				if (get_dart_visibility(d2) <= current_level_)
-				{
-					uint32 e_level = edge_level(d2);
-					uint32 tmp = m2.current_level_;
-					std::vector<Dart> vec_dart;
-					vec_dart.push_back(d2);
-					while (m2.current_level_ <= e_level)
-					{
-						uint32 size_vec = vec_dart.size();
-						for (uint32 i = 0; i < size_vec; i++)
-						{
-							vec_dart.push_back(phi2(m2, vec_dart[i]));
-							intern_darts.push_back(phi2(m2, vec_dart[i]));
-						}
-						m2.current_level_++;
-					}
-					m2.current_level_ = tmp;
-				}
-			}
-			return true;
-		});
-	}
-	for (auto id : intern_darts)
-	{
-		set_dart_visibility(id, current_level_);
-	}
-	m2.current_level_ = tmp;
-
-	for (Vertex w : vect_vertices)
-	{
-		foreach_dart_of_orbit(m2, Volume(w.dart), [&](Dart d) -> bool {
-			if (get_dart_visibility(d) <= current_level_)
-			{
-				foreach_dart_of_orbit(m2, Edge(d), [&](Dart dd) -> bool {
-					if (get_dart_visibility(dd) <= current_level_)
-					{
-						set_dart_visibility(phi3(m2, dd), current_level_);
-					}
-					return true;
-				});
-			}
-			else
-			{
-				set_dart_visibility(d, current_level_);
-				set_dart_visibility(phi3(m2, d), current_level_);
-			}
+			set_dart_visibility(d, current_level_);
+			set_dart_visibility(phi3(m2, d), current_level_);
 			return true;
 		});
 	}
