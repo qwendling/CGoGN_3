@@ -54,7 +54,7 @@ bool EMR_Map3_Adaptative::check_integrity() const
 
 EMR_Map3_Adaptative* EMR_Map3_Adaptative::get_child()
 {
-	EMR_Map3_Adaptative* result = new EMR_Map3_Adaptative(m_);
+	EMR_Map3_Adaptative* result = get_copy();
 	result->parent = this;
 	return result;
 }
