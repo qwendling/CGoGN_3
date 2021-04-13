@@ -432,6 +432,13 @@ bool EMR_Map3_Adaptative::activate_volume_subdivision(Volume v)
 	}
 	Dart d = volume_oldest_dart(v.dart);
 	uint32 v_level = volume_level(v.dart);
+	/*if (v_level >= current_level_ + 1)
+	{
+		current_level_++;
+		activate_volume_subdivision(v);
+		current_level_--;
+	}*/
+
 	EMR_Map3 m2(m_);
 	m2.current_level_ = v_level;
 	std::vector<Vertex> vect_vertices;

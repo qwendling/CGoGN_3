@@ -341,7 +341,7 @@ int main(int argc, char** argv)
 			{
 				std::vector<Volume> vec_volume;
 
-				cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
+				cgogn::foreach_cell(*selected_mesh, [&](Volume v) -> bool {
 					if ((rand() / (double)RAND_MAX) * 100 < 10)
 					{
 						vec_volume.push_back(v);
@@ -355,7 +355,7 @@ int main(int argc, char** argv)
 				start = std::clock();
 				for (auto v : vec_volume)
 				{
-					mrm->activate_volume_subdivision(v);
+					selected_mesh->activate_volume_subdivision(v);
 				}
 
 				duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
@@ -371,7 +371,7 @@ int main(int argc, char** argv)
 			{
 				std::vector<Volume> vec_volume;
 
-				cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
+				cgogn::foreach_cell(*selected_mesh, [&](Volume v) -> bool {
 					if ((rand() / (double)RAND_MAX) * 100 < 10)
 					{
 						vec_volume.push_back(v);
@@ -385,9 +385,9 @@ int main(int argc, char** argv)
 				start = std::clock();
 				for (auto v : vec_volume)
 				{
-					if (mrm->get_dart_visibility(v.dart) > mrm->current_level_)
+					if (selected_mesh->get_dart_visibility(v.dart) > selected_mesh->current_level_)
 						continue;
-					mrm->disable_volume_subdivision(v, true);
+					selected_mesh->disable_volume_subdivision(v, true);
 				}
 
 				duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
