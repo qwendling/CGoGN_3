@@ -100,8 +100,9 @@ int main(int argc, char** argv)
 	}
 
 	MRMesh* mrm = vmrm.create_mrmesh(*m, mp.mesh_name(m));
-	MRMesh* mrm2 = vmrm.create_mrmesh(*m, mp.mesh_name(m));
-	mrm2->parent = mrm;
+	// MRMesh* mrm2 = vmrm.create_mrmesh(*m, mp.mesh_name(m));
+	MRMesh* mrm2 = mrm->get_copy();
+	mrmp.register_mesh(mrm2, "copy");
 	vs.selected_mesh_ = mrm;
 	cgogn::index_cells<Mesh::Face>(*mrm);
 	cgogn::index_cells<Mesh::Volume>(*mrm);
@@ -133,6 +134,23 @@ int main(int argc, char** argv)
 						cgogn::ui::CellsSet<MRMesh, Edge>* selected_edges) {
 		switch (k)
 		{
+		case GLFW_KEY_I: {
+			MRMesh tmp(*mrm);
+			tmp.change_resolution_level(0);
+			if (tmp.check_integrity())
+				std::cout << "ok lvl 0 integrity" << std::endl;
+			cgogn_message_assert(tmp.check_integrity(), "check_integrity failed");
+			tmp.change_resolution_level(1);
+			if (tmp.check_integrity())
+				std::cout << "ok lvl 1 integrity" << std::endl;
+			cgogn_message_assert(tmp.check_integrity(), "check_integrity failed");
+			tmp.change_resolution_level(2);
+			if (tmp.check_integrity())
+				std::cout << "ok lvl 2 integrity" << std::endl;
+			cgogn_message_assert(tmp.check_integrity(), "check_integrity failed");
+			std::cout << "ok check " << std::endl;
+			break;
+		}
 		case GLFW_KEY_E:
 			if (selected_vertices != nullptr)
 			{

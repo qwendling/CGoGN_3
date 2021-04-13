@@ -113,7 +113,6 @@ int main(int argc, char** argv)
 
 	MRMesh* cph1 = vmrm.create_mrmesh(*m, mp.mesh_name(m));
 	MRMesh* cph2 = vmrm.create_mrmesh(*m, mp.mesh_name(m));
-	MRMesh* cph3 = vmrm.create_mrmesh(*m, mp.mesh_name(m));
 
 	vmrm.selected_vertex_parents_ = cgogn::add_attribute<std::array<Vertex, 3>, Vertex>(*m, "parents");
 	vmrm.selected_vertex_relative_position_ = cgogn::add_attribute<Vec3, Vertex>(*m, "relative_position");
@@ -152,7 +151,6 @@ int main(int argc, char** argv)
 	mrsr.set_vertex_position(*v2, *cph2, position);
 	mrsr.set_vertex_position(*v3, *cph1, nullptr);
 	mrsr.set_vertex_position(*v3, *cph2, nullptr);
-	mrsr.set_vertex_position(*v3, *cph3, position);
 	/*mrsr.set_vertex_position(*v4, *cph1, position);
 	mrsr.set_vertex_position(*v4, *cph2, position);*/
 

@@ -54,13 +54,18 @@ bool EMR_Map3_Adaptative::check_integrity() const
 
 EMR_Map3_Adaptative* EMR_Map3_Adaptative::get_child()
 {
-	EMR_Map3_Adaptative* result = new EMR_Map3_Adaptative(*this);
+	EMR_Map3_Adaptative* result = new EMR_Map3_Adaptative(m_);
 	result->parent = this;
 	return result;
 }
 EMR_Map3_Adaptative* EMR_Map3_Adaptative::get_copy()
 {
-	return new EMR_Map3_Adaptative(*this);
+	auto result = new EMR_Map3_Adaptative(m_);
+	for (Dart it = m_.begin(); it != m_.end(); it = m_.next(it))
+	{
+		(*result->dart_visibility_)[it.index] = (*dart_visibility_)[it.index];
+	}
+	return result;
 }
 
 uint32 EMR_Map3_Adaptative::get_dart_visibility(Dart d) const
@@ -486,11 +491,14 @@ bool EMR_Map3_Adaptative::disable_edge_subdivision(Edge e)
 		return false;
 	EMR_Map3 m2(m_);
 	m2.current_level_ = e_level - 1;
-	Dart d2 = phi<23>(*this, old);
-	d2 = phi3(m2, d2);
+
+	// equilibrage des deux parties de l'arete
+	Dart d2 = phi2(m2, old);
 	while (edge_level(d2) != e_level)
 		if (!disable_edge_subdivision(Edge(d2)))
 			return false;
+
+	// test des faces adjacentes
 	Dart test = old;
 	do
 	{
@@ -498,6 +506,8 @@ bool EMR_Map3_Adaptative::disable_edge_subdivision(Edge e)
 			return false;
 		test = phi2(*this, phi3(*this, test));
 	} while (test != old);
+
+	// deactivation de l'arete
 	m2.current_level_ = e_level;
 	Dart it, it2;
 	it = old;
@@ -624,12 +634,12 @@ bool EMR_Map3_Adaptative::disable_volume_subdivision(Volume v, bool disable_face
 		Dart it = tmp;
 		do
 		{
-			Dart it2 = phi3(*this, it);
+			Dart it2 = phi3(m2, it);
 			vect_dart.push_back(it);
 			dm.mark(it);
 			vect_dart.push_back(it2);
 			dm.mark(it2);
-			it = phi1(*this, it);
+			it = phi1(m2, it);
 		} while (it != tmp);
 	}
 	for (Dart d : vect_dart)
