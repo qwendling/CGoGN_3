@@ -109,6 +109,7 @@ public:
 					 const std::shared_ptr<Attribute<Vec3>>& speed = nullptr,
 					 const std::shared_ptr<Attribute<Vec3>>& forces = nullptr)
 	{
+		using MR_Base = typename MR_MAP::Inherit;
 		Inherit::init_solver(m, sc, speed, forces);
 		pc_ = pc;
 		mecanical_mesh_ = &m;
@@ -124,10 +125,10 @@ public:
 		list_volume_coarse_.clear();
 		list_volume_current_.clear();
 		int cmp_cur = 0;
-		MR_MAP tmp(m);
+		MR_Base tmp(m);
 		tmp.current_level_ = m.current_level_;
-		std::function<void(tree_volume*, MR_MAP&)> progress_tree;
-		progress_tree = [&](tree_volume* p, MR_MAP& cph) -> void {
+		std::function<void(tree_volume*, MR_Base&)> progress_tree;
+		progress_tree = [&](tree_volume* p, MR_Base& cph) -> void {
 			uint32 cph_level = cph.volume_level(p->volume_dart);
 			uint32 l = 0;
 			if (mecanical_mesh_->dart_is_visible(p->volume_dart))
@@ -162,8 +163,9 @@ public:
 			}
 			cph.current_level_--;
 		};
-		foreach_cell(tmp, [&](typename MR_MAP::Volume v) -> bool {
-			MR_MAP tmp2(tmp);
+
+		foreach_cell(tmp, [&](typename MR_Base::Volume v) -> bool {
+			MR_Base tmp2(tmp);
 			tree_volume* t = new tree_volume();
 			t->volume_dart = v.dart;
 			progress_tree(t, tmp2);

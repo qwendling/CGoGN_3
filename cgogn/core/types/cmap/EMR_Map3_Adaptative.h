@@ -9,6 +9,7 @@ namespace cgogn
 struct EMR_Map3_Adaptative : EMR_Map3
 {
 
+	using Inherit = EMR_Map3;
 	using MAP = CMap3;
 	using CMAP = CMap3;
 	using Vertex = Cell<PHI21_PHI31>;

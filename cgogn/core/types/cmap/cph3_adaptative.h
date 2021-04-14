@@ -10,6 +10,7 @@ namespace cgogn
 struct CPH3_adaptative : public CPH3
 {
 	using Self = CPH3_adaptative;
+	using Inherit = CPH3;
 
 	CPH3_adaptative* father_;
 	std::shared_ptr<Attribute<std::set<uint32>>> dart_visibility_level_;

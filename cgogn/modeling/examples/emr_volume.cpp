@@ -368,6 +368,7 @@ int main(int argc, char** argv)
 				});
 				std::clock_t start;
 				double duration;
+				auto md = mrmp.mesh_data(selected_mesh);
 				double diff_volume = md->nb_cells<Volume>();
 
 				start = std::clock();
