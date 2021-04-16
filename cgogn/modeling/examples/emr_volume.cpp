@@ -127,7 +127,8 @@ int main(int argc, char** argv)
 	vr.set_vertex_position(*v2, *mrm, nullptr);
 	vr.set_vertex_position(*v2, *mrm2, position);
 
-	std::srand(std::time(nullptr));
+	// std::srand(std::time(nullptr));
+	std::srand(2124512438);
 
 	vs.f_keypress = [&](cgogn::ui::View* view, MRMesh* selected_mesh, std::int32_t k,
 						cgogn::ui::CellsSet<MRMesh, Vertex>* selected_vertices,
@@ -354,12 +355,12 @@ int main(int argc, char** argv)
 
 		break;
 		case GLFW_KEY_R:
-
+#define CELL_RANDOM Face
 			if (!view->shift_pressed())
 			{
-				std::vector<Volume> vec_volume;
+				std::vector<CELL_RANDOM> vec_volume;
 
-				cgogn::foreach_cell(*selected_mesh, [&](Volume v) -> bool {
+				cgogn::foreach_cell(*selected_mesh, [&](CELL_RANDOM v) -> bool {
 					if ((rand() / (double)RAND_MAX) * 100 < 10)
 					{
 						vec_volume.push_back(v);
@@ -369,28 +370,28 @@ int main(int argc, char** argv)
 				std::clock_t start;
 				double duration;
 				auto md = mrmp.mesh_data(selected_mesh);
-				double diff_volume = md->nb_cells<Volume>();
+				double diff_volume = md->nb_cells<CELL_RANDOM>();
 
 				start = std::clock();
 				for (auto v : vec_volume)
 				{
-					selected_mesh->activate_volume_subdivision(v);
+					selected_mesh->activate_face_subdivision(v);
 				}
 
 				duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 				md->update_nb_cells();
-				std::cout << "temps activate " << md->nb_cells<Volume>() - diff_volume << " volume : " << duration
+				std::cout << "temps activate " << md->nb_cells<CELL_RANDOM>() - diff_volume << " volume : " << duration
 						  << std::endl;
 				start = std::clock();
 				vmrm.changed_connectivity(*selected_mesh, position.get());
 				duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-				std::cout << "temps update topo " << vec_volume.size() << " volume : " << duration << std::endl;
+				// std::cout << "temps update topo : " << duration << std::endl;
 			}
 			else
 			{
-				std::vector<Volume> vec_volume;
+				std::vector<CELL_RANDOM> vec_volume;
 
-				cgogn::foreach_cell(*selected_mesh, [&](Volume v) -> bool {
+				cgogn::foreach_cell(*selected_mesh, [&](CELL_RANDOM v) -> bool {
 					if ((rand() / (double)RAND_MAX) * 100 < 10)
 					{
 						vec_volume.push_back(v);
@@ -399,24 +400,25 @@ int main(int argc, char** argv)
 				});
 				std::clock_t start;
 				double duration;
-				double diff_volume = md->nb_cells<Volume>();
+				auto md = mrmp.mesh_data(selected_mesh);
+				double diff_volume = md->nb_cells<CELL_RANDOM>();
 
 				start = std::clock();
 				for (auto v : vec_volume)
 				{
 					if (selected_mesh->get_dart_visibility(v.dart) > selected_mesh->current_level_)
 						continue;
-					selected_mesh->disable_volume_subdivision(v, true);
+					selected_mesh->disable_face_subdivision(v);
 				}
 
 				duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 				md->update_nb_cells();
-				std::cout << "temps disable " << diff_volume - md->nb_cells<Volume>() << " volume : " << duration
+				std::cout << "temps disable " << diff_volume - md->nb_cells<CELL_RANDOM>() << " volume : " << duration
 						  << std::endl;
 				start = std::clock();
 				vmrm.changed_connectivity(*selected_mesh, position.get());
 				duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-				std::cout << "temps update topo " << vec_volume.size() << " volume : " << duration << std::endl;
+				// std::cout << "temps update topo : " << duration << std::endl;
 			}
 
 			break;

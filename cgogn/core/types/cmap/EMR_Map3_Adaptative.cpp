@@ -159,7 +159,7 @@ bool EMR_Map3_Adaptative::edge_is_subdivided(Dart d) const
 	uint32 e_level = edge_level(d);
 	if (e_level == maximum_level_)
 		return false;
-	EMR_Map3_Adaptative m2(m_);
+	EMR_Map3 m2(m_);
 	m2.current_level_ = e_level + 1;
 	if (phi1(*this, d) == phi1(m2, d))
 	{
@@ -253,7 +253,7 @@ bool EMR_Map3_Adaptative::face_is_subdivided(Dart d) const
 		return false;
 	EMR_Map3 m2(m_);
 	m2.current_level_ = face_level(d);
-	return m2.face_is_subdivided(d);
+	return m2.face_is_subdivided(face_oldest_dart(d));
 }
 
 uint32 EMR_Map3_Adaptative::face_level(Dart d) const

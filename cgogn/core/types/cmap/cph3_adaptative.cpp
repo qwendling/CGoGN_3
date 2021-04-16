@@ -759,7 +759,8 @@ bool CPH3_adaptative::disable_volume_subdivision(CMAP::Volume v, bool disable_fa
 	CPH3 m2(CPH3(*this));
 	m2.current_level_ = dart_level(y) - 1;
 	std::vector<Vertex> vect_vertices;
-	foreach_incident_vertex(m2, CMAP::Volume(volume_oldest_dart(v.dart)), [&](CMAP::Vertex w) -> bool {
+	Dart old = volume_oldest_dart(v.dart);
+	foreach_incident_vertex(m2, CMAP::Volume(old), [&](CMAP::Vertex w) -> bool {
 		vect_vertices.push_back(w);
 		return true;
 	});
@@ -792,7 +793,7 @@ bool CPH3_adaptative::disable_volume_subdivision(CMAP::Volume v, bool disable_fa
 	if (disable_face)
 	{
 		m2.current_level_--;
-		foreach_incident_face(m2, CPH3_adaptative::CMAP::Volume(volume_oldest_dart(v.dart)), [&](CMAP::Face f) -> bool {
+		foreach_incident_face(m2, CPH3_adaptative::CMAP::Volume(old), [&](CMAP::Face f) -> bool {
 			while (face_level(f.dart) != m2.current_level_ && disable_face_subdivision(f, true, true))
 				;
 			return true;
