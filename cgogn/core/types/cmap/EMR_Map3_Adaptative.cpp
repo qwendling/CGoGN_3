@@ -493,7 +493,7 @@ bool EMR_Map3_Adaptative::disable_edge_subdivision(Edge e)
 	m2.current_level_ = e_level - 1;
 
 	// equilibrage des deux parties de l'arete
-	Dart d2 = phi2(m2, old);
+	Dart d2 = phi3(m2, old);
 	while (edge_level(d2) != e_level)
 		if (!disable_edge_subdivision(Edge(d2)))
 			return false;
@@ -529,16 +529,22 @@ bool EMR_Map3_Adaptative::disable_face_subdivision(Face f, bool disable_edge, bo
 	uint32 f_level = face_level(f.dart);
 	if (f_level == 0)
 		return false;
-	uint32 v_level = volume_level(f.dart);
+	EMR_Map3 m2(m_);
+	m2.current_level_ = f_level;
+	Dart old = face_oldest_dart(f.dart);
+	Dart test = phi1(m2, old);
+	if (phi<2323>(*this, test) != test)
+		return false;
+
+	/*uint32 v_level = volume_level(f.dart);
 	if (v_level == f_level)
 		return false;
 	uint32 v_level3 = volume_level(phi3(*this, f.dart));
 	if (v_level3 == f_level)
-		return false;
-	EMR_Map3 m2(m_);
-	m2.current_level_ = f_level - 1;
+		return false;*/
+
 	std::vector<Dart> vec_vertices;
-	Dart old = face_oldest_dart(f.dart);
+	m2.current_level_ = f_level - 1;
 	Dart it = old;
 	do
 	{
@@ -556,24 +562,33 @@ bool EMR_Map3_Adaptative::disable_face_subdivision(Face f, bool disable_edge, bo
 	} while (it != old);
 
 	m2.current_level_ = f_level;
+
+	std::vector<Dart> list_dart_disable;
 	for (Dart d : vec_vertices)
 	{
-		Dart tmp = phi1(m2, d);
-		while (edge_level(tmp) != f_level)
-			disable_edge_subdivision(Edge(tmp));
-	}
-	for (Dart d : vec_vertices)
-	{
-		d = phi1(m2, d);
-		Dart it = d;
-		do
+		Dart it = phi1(m2, d);
+		Dart d11 = phi<11>(m2, d);
+		while (it != d11)
 		{
-			set_dart_visibility(it, UINT_MAX);
-			it = phi3(m2, it);
-			set_dart_visibility(it, UINT_MAX);
-			it = phi2(m2, it);
-		} while (it != d);
+			Dart d3 = phi3(*this, it);
+			Dart it2 = d3;
+			m2.current_level_ = std::max(dart_level(it), dart_level(d3));
+			do
+			{
+				list_dart_disable.push_back(it2);
+				it2 = phi2(m2, it2);
+				list_dart_disable.push_back(it2);
+				it2 = phi3(m2, it2);
+			} while (it2 != d3);
+			m2.current_level_ = f_level;
+			it = phi1(*this, it);
+		}
 	}
+	for (Dart d : list_dart_disable)
+	{
+		set_dart_visibility(d, UINT_MAX);
+	}
+
 	if (disable_edge)
 	{
 		for (Dart d : vec_vertices)

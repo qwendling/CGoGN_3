@@ -157,7 +157,7 @@ int main(int argc, char** argv)
 			{
 				selected_vertices->foreach_cell([&](Vertex v) {
 					std::vector<Edge> vec_edge;
-					cgogn::foreach_incident_edge(*mrm, v, [&](Edge e) -> bool {
+					cgogn::foreach_incident_edge(*selected_mesh, v, [&](Edge e) -> bool {
 						vec_edge.push_back(e);
 
 						return true;
@@ -174,7 +174,7 @@ int main(int argc, char** argv)
 						}
 					}
 				});
-				cgogn_message_assert(mrm->check_integrity(), "check_integrity failed");
+				cgogn_message_assert(selected_mesh->check_integrity(), "check_integrity failed");
 				vmrm.changed_connectivity(*selected_mesh, position.get());
 			}
 
@@ -186,7 +186,7 @@ int main(int argc, char** argv)
 			{
 				selected_vertices->foreach_cell([&](Vertex v) {
 					std::vector<Face> vec_face;
-					cgogn::foreach_incident_face(*mrm, v, [&](Face f) -> bool {
+					cgogn::foreach_incident_face(*selected_mesh, v, [&](Face f) -> bool {
 						vec_face.push_back(f);
 						return true;
 					});
@@ -203,9 +203,10 @@ int main(int argc, char** argv)
 						}
 					}
 				});
+				cgogn_message_assert(selected_mesh->check_integrity(), "check_integrity failed");
 				vmrm.changed_connectivity(*selected_mesh, position.get());
 			}
-			cgogn_message_assert(mrm->check_integrity(), "check_integrity failed");
+
 			std::cout << "hello" << std::endl;
 
 			break;
@@ -408,7 +409,7 @@ int main(int argc, char** argv)
 				{
 					if (selected_mesh->get_dart_visibility(v.dart) > selected_mesh->current_level_)
 						continue;
-					selected_mesh->disable_face_subdivision(v);
+					selected_mesh->disable_face_subdivision(v, true);
 				}
 
 				duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
