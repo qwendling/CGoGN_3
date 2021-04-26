@@ -422,6 +422,7 @@ EMR_Map3::MAP::Vertex cut_edge(EMR_Map3& m, EMR_Map3::MAP::Edge e, bool set_indi
 EMR_Map3_Adaptative::MAP::Vertex CGOGN_CORE_EXPORT cut_edge(EMR_Map3_Adaptative& m, EMR_Map3_Adaptative::MAP::Edge e,
 															bool set_indices)
 {
+	m.m_.clock_++;
 	EMR_Map3_Adaptative::MAP* map = m.get_map();
 
 	EMR_Map3_Adaptative::MAP::Vertex v = cut_edge(*map, e, false);

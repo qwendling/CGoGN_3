@@ -62,6 +62,16 @@ target_link_libraries(emr_volume
 	${CMAKE_DL_LIBS}
 )
 
+add_executable(benchmark benchmark.cpp)
+target_link_libraries(benchmark
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::modeling
+	${CMAKE_DL_LIBS}
+)
+
 if(APPLE)
 	find_library(CORE_FOUNDATION CoreFoundation)
 	find_library(CARBON Carbon)

@@ -33,14 +33,19 @@ struct CGOGN_CORE_EXPORT EMR_MapBase_T : public CMAP
 	std::shared_ptr<Attribute<uint32>> dart_level_;
 	std::shared_ptr<std::vector<std::shared_ptr<std::vector<std::shared_ptr<Attribute<Dart>>>>>> MR_relation_;
 	uint32& maximum_level_;
+	uint32& clock_;
 
-	EMR_MapBase_T() : CMAP(), maximum_level_(CMAP::template get_attribute<uint32>("emr_maximum_level"))
+	EMR_MapBase_T()
+		: CMAP(), maximum_level_(CMAP::template get_attribute<uint32>("emr_maximum_level")),
+		  clock_(CMAP::template get_attribute<uint32>("emr_clock"))
 	{
 		MR_relation_ = std::shared_ptr<std::vector<std::shared_ptr<std::vector<std::shared_ptr<Attribute<Dart>>>>>>(
 			new std::vector<std::shared_ptr<std::vector<std::shared_ptr<Attribute<Dart>>>>>());
 		dart_level_ = CMAP::darts_->template get_attribute<uint32>("dart_level");
 		if (!dart_level_)
 			dart_level_ = CMAP::darts_->template add_attribute<uint32>("dart_level");
+		if (clock_ == 0)
+			clock_ = 1;
 	}
 	virtual ~EMR_MapBase_T()
 	{

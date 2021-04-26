@@ -1,4 +1,4 @@
-/*******************************************************************************
+﻿/*******************************************************************************
  * CGoGN: Combinatorial and Geometric modeling with Generic N-dimensional Maps  *
  * Copyright (C), IGG Group, ICube, University of Strasbourg, France            *
  *                                                                              *
@@ -51,38 +51,7 @@ Dart phi3(const EMR_Map3& m, Dart d)
 Dart phi1(const EMR_Map3_Adaptative& m, Dart d)
 {
 	cgogn_message_assert(m.get_dart_visibility(d) <= m.current_level_, "Access to a dart visible at a higher level");
-	if (m.current_level_ == m.maximum_level_)
-		return (*((*m.m_.MR_phi1_)[m.current_level_]))[d.index];
-	EMR_Map3 emr = EMR_Map3(m);
-	Dart d3 = phi3(m, d);
-	uint32 l_d3 = m.dart_level(d3);
-	uint32 l_d = m.dart_level(d);
-
-	if (l_d3 == l_d)
-	{
-		emr.current_level_ = l_d;
-		return phi1(emr, d);
-	}
-	if (l_d3 > l_d)
-	{
-		emr.current_level_ = l_d3;
-		Dart tmp = phi1(emr, d);
-		if (m.get_dart_visibility(tmp) <= m.current_level_)
-			return tmp;
-		emr.current_level_--;
-		tmp = phi1(emr, d);
-		emr.current_level_++;
-		return phi_1(emr, tmp);
-	}
-	emr.current_level_ = l_d - 1;
-	Dart d_1 = phi3(emr, d3);
-	Dart tmp = phi1(emr, d_1);
-	if (m.get_dart_visibility(tmp) <= m.current_level_)
-		return tmp;
-	emr.current_level_--;
-	tmp = phi1(emr, d_1);
-	emr.current_level_++;
-	return phi_1(emr, tmp);
+	return m.get_phi1_buffer(d);
 }
 Dart phi_1(const EMR_Map3_Adaptative& m, Dart d)
 {
@@ -93,38 +62,12 @@ Dart phi_1(const EMR_Map3_Adaptative& m, Dart d)
 Dart phi2(const EMR_Map3_Adaptative& m, Dart d)
 {
 	cgogn_message_assert(m.get_dart_visibility(d) <= m.current_level_, "Access to a dart visible at a higher level");
-	if (m.current_level_ == m.maximum_level_)
-		return (*((*m.m_.MR_phi2_)[m.current_level_]))[d.index];
-
-	EMR_Map3 emr = EMR_Map3(m);
-	Dart d3 = phi3(m, d);
-	emr.current_level_ = std::max(m.dart_level(d), m.dart_level(d3));
-	Dart result = phi2(emr, d);
-	while (m.get_dart_visibility(result) > m.current_level_)
-	{
-		result = phi2(emr, phi3(emr, result));
-	}
-	return result;
+	return m.get_phi2_buffer(d);
 }
 Dart phi3(const EMR_Map3_Adaptative& m, Dart d)
 {
 	cgogn_message_assert(m.get_dart_visibility(d) <= m.current_level_, "Access to a dart visible at a higher level");
-	if (m.current_level_ == m.maximum_level_)
-		return (*((*m.m_.MR_phi3_)[m.current_level_]))[d.index];
-
-	EMR_Map3 emr = EMR_Map3(m);
-	Dart result;
-
-	for (uint32 i = m.maximum_level_; i >= m.dart_level(d); --i)
-	{
-		emr.current_level_ = i;
-		result = phi3(emr, d);
-		if (m.get_dart_visibility(result) <= m.current_level_)
-		{
-			return result;
-		}
-	}
-	return result;
+	return m.get_phi3_buffer(d);
 }
 
 Dart phi2bis(const CPH3& m, Dart d)

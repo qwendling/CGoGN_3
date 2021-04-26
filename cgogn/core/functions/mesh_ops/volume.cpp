@@ -376,6 +376,7 @@ EMR_Map3::Face cut_volume(EMR_Map3& m, const std::vector<Dart>& path, bool set_i
 
 EMR_Map3_Adaptative::Face cut_volume(EMR_Map3_Adaptative& m, const std::vector<Dart>& path, bool set_indices)
 {
+	m.m_.clock_++;
 	EMR_Map3_Adaptative::MAP& map = static_cast<EMR_Map3_Adaptative::MAP&>(m);
 
 	EMR_Map3_Adaptative::MAP::Face result = cut_volume(map, path, false);

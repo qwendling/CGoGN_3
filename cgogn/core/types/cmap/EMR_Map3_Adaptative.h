@@ -24,10 +24,16 @@ struct EMR_Map3_Adaptative : EMR_Map3
 	using Attribute = typename CMap3::template Attribute<T>;
 
 	std::shared_ptr<Attribute<std::pair<bool, uint32>>> dart_visibility_;
+	mutable std::shared_ptr<Attribute<std::pair<bool, Dart>>> dart_representative_;
+	mutable std::shared_ptr<Attribute<std::tuple<uint32, uint32, uint32, Dart>>> phi3_buffer_;
+	mutable std::shared_ptr<Attribute<std::tuple<uint32, uint32, uint32, Dart>>> phi2_buffer_;
+	mutable std::shared_ptr<Attribute<std::tuple<uint32, uint32, uint32, Dart>>> phi1_buffer_;
+	mutable std::shared_ptr<Attribute<std::tuple<uint32, uint32, uint32, Dart>>> volume_dart_buffer_;
 	static uint32 nb_views;
 	EMR_Map3_Adaptative* parent;
+	uint32 clock_views_;
 
-	EMR_Map3_Adaptative(EMR_Map3_T<CMap3>& m) : EMR_Map3(m), parent(nullptr)
+	EMR_Map3_Adaptative(EMR_Map3_T<CMap3>& m) : EMR_Map3(m), parent(nullptr), clock_views_(0)
 	{
 		nb_views++;
 		dart_visibility_ =
@@ -37,13 +43,54 @@ struct EMR_Map3_Adaptative : EMR_Map3
 			dart_visibility_ =
 				m_.darts_->add_attribute<std::pair<bool, uint32>>("dart_visibility" + std::to_string(nb_views));
 		}
+		dart_representative_ = m_.darts_->get_attribute<std::pair<bool, Dart>>("dart_representative");
+		if (!dart_representative_)
+		{
+			dart_representative_ = m_.darts_->add_attribute<std::pair<bool, Dart>>("dart_representative");
+		}
+		phi1_buffer_ = m_.darts_->get_attribute<std::tuple<uint32, uint32, uint32, Dart>>("phi1_buffer" +
+																						  std::to_string(nb_views));
+		if (!phi1_buffer_)
+		{
+			phi1_buffer_ = m_.darts_->add_attribute<std::tuple<uint32, uint32, uint32, Dart>>("phi1_buffer" +
+																							  std::to_string(nb_views));
+		}
+		phi2_buffer_ = m_.darts_->get_attribute<std::tuple<uint32, uint32, uint32, Dart>>("phi2_buffer" +
+																						  std::to_string(nb_views));
+		if (!phi2_buffer_)
+		{
+			phi2_buffer_ = m_.darts_->add_attribute<std::tuple<uint32, uint32, uint32, Dart>>("phi2_buffer" +
+																							  std::to_string(nb_views));
+		}
+		phi3_buffer_ = m_.darts_->get_attribute<std::tuple<uint32, uint32, uint32, Dart>>("phi3_buffer" +
+																						  std::to_string(nb_views));
+		if (!phi3_buffer_)
+		{
+			phi3_buffer_ = m_.darts_->add_attribute<std::tuple<uint32, uint32, uint32, Dart>>("phi3_buffer" +
+																							  std::to_string(nb_views));
+		}
+
+		volume_dart_buffer_ = m_.darts_->get_attribute<std::tuple<uint32, uint32, uint32, Dart>>(
+			"volume_dart_buffer" + std::to_string(nb_views));
+		if (!volume_dart_buffer_)
+		{
+			volume_dart_buffer_ = m_.darts_->add_attribute<std::tuple<uint32, uint32, uint32, Dart>>(
+				"volume_dart_buffer" + std::to_string(nb_views));
+		}
 	}
 
 	virtual bool check_integrity() const;
 
 	uint32 get_dart_visibility(Dart d) const;
+	uint32 get_dart_visibility_fast(Dart d) const;
 	void set_dart_visibility(Dart d, uint32 v);
 	bool dart_is_visible(Dart d) const;
+
+	Dart get_representative(Dart d) const;
+
+	Dart get_phi1_buffer(Dart d) const;
+	Dart get_phi2_buffer(Dart d) const;
+	Dart get_phi3_buffer(Dart d) const;
 
 	Dart begin() const;
 

@@ -257,7 +257,6 @@ int main(int argc, char** argv)
 					{
 						if (selected_mesh->dart_is_visible(v.dart))
 							selected_mesh->disable_volume_subdivision(v, true);
-						std::cout << "hello" << std::endl;
 					}
 					else
 					{
@@ -356,17 +355,22 @@ int main(int argc, char** argv)
 			std::cout << "temps face foreach dart : " << duration << std::endl;
 			start = std::clock();
 			duration = 0;
+			int cpt = 0;
 			for (cgogn::Dart d = selected_mesh->begin(), e = selected_mesh->end(); d != e; d = selected_mesh->next(d))
 			{
 				start = std::clock();
 
 				if (selected_mesh->edge_level(d) != 0)
 				{
-					foreach_dart_of_orbit(*selected_mesh, Volume(d), [&](cgogn::Dart) -> bool { return true; });
+					foreach_dart_of_orbit(*selected_mesh, Volume(d), [&](cgogn::Dart) -> bool {
+						cpt++;
+						return true;
+					});
 					duration += (std::clock() - start) / (double)CLOCKS_PER_SEC;
 				}
 			}
 			std::cout << "temps volume foreach dart : " << duration << std::endl;
+			std::cout << "nb dart : " << cpt << std::endl;
 			start = std::clock();
 			for (cgogn::Dart d = selected_mesh->begin(), e = selected_mesh->end(); d != e; d = selected_mesh->next(d))
 			{
@@ -415,7 +419,7 @@ int main(int argc, char** argv)
 			}
 			break;
 		case GLFW_KEY_R:
-#define CELL_RANDOM Face
+#define CELL_RANDOM Volume
 			if (!view->shift_pressed())
 			{
 				std::vector<CELL_RANDOM> vec_volume;
@@ -435,7 +439,7 @@ int main(int argc, char** argv)
 				start = std::clock();
 				for (auto v : vec_volume)
 				{
-					selected_mesh->activate_face_subdivision(v);
+					selected_mesh->activate_volume_subdivision(v);
 				}
 
 				duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
@@ -445,7 +449,7 @@ int main(int argc, char** argv)
 				start = std::clock();
 				vmrm.changed_connectivity(*selected_mesh, position.get());
 				duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-				// std::cout << "temps update topo : " << duration << std::endl;
+				std::cout << "temps update topo : " << duration << std::endl;
 			}
 			else
 			{
@@ -468,7 +472,7 @@ int main(int argc, char** argv)
 				{
 					if (selected_mesh->get_dart_visibility_level(v.dart) > selected_mesh->current_level_)
 						continue;
-					selected_mesh->disable_face_subdivision(v, true);
+					selected_mesh->disable_volume_subdivision(v, true);
 				}
 
 				duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
@@ -478,7 +482,7 @@ int main(int argc, char** argv)
 				start = std::clock();
 				vmrm.changed_connectivity(*selected_mesh, position.get());
 				duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-				// std::cout << "temps update topo : " << duration << std::endl;
+				std::cout << "temps update topo : " << duration << std::endl;
 			}
 
 			break;

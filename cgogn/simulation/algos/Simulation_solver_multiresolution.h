@@ -113,7 +113,7 @@ public:
 		Inherit::init_solver(m, sc, speed, forces);
 		pc_ = pc;
 		mecanical_mesh_ = &m;
-		fine_meca_mesh_ = m.get_child();
+		fine_meca_mesh_ = m.get_copy();
 		coarse_meca_mesh_ = m.get_copy();
 
 		if (cache_current_vol_ != nullptr)
@@ -130,19 +130,24 @@ public:
 		std::function<void(tree_volume*, MR_Base&)> progress_tree;
 		progress_tree = [&](tree_volume* p, MR_Base& cph) -> void {
 			uint32 cph_level = cph.volume_level(p->volume_dart);
-			uint32 l = 0;
+			uint32 l = UINT32_MAX;
 			if (mecanical_mesh_->dart_is_visible(p->volume_dart))
 				l = mecanical_mesh_->volume_level(p->volume_dart);
+
+			if (l == cph_level)
+			{
+				p->is_current = true;
+			}
+			if (!cph.volume_is_subdivided(p->volume_dart))
+			{
+				return;
+			}
 			if (l == cph_level)
 			{
 				list_volume_current_.push_front(p);
 				tmp_watcher.push_back(p);
 				cmp_cur++;
 				p->is_current = true;
-			}
-			if (!cph.volume_is_subdivided(p->volume_dart))
-			{
-				return;
 			}
 
 			std::vector<Volume> sub_volume;
@@ -154,7 +159,7 @@ public:
 			for (auto v : sub_volume)
 			{
 				tree_volume* t = new tree_volume();
-				t->volume_dart = v.dart;
+				t->volume_dart = cph.volume_oldest_dart(v.dart);
 				t->frere = p->fils;
 				p->fils = t;
 				t->pere = p;
@@ -167,7 +172,7 @@ public:
 		foreach_cell(tmp, [&](typename MR_Base::Volume v) -> bool {
 			MR_Base tmp2(tmp);
 			tree_volume* t = new tree_volume();
-			t->volume_dart = v.dart;
+			t->volume_dart = tmp.volume_oldest_dart(v.dart);
 			progress_tree(t, tmp2);
 			return true;
 		});

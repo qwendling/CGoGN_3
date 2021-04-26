@@ -454,6 +454,7 @@ EMR_Map3::Edge cut_face(EMR_Map3& m, EMR_Map3::Vertex v1, EMR_Map3::Vertex v2, b
 EMR_Map3_Adaptative::Edge cut_face(EMR_Map3_Adaptative& m, EMR_Map3_Adaptative::Vertex v1,
 								   EMR_Map3_Adaptative::Vertex v2, bool set_indices)
 {
+	m.m_.clock_++;
 	EMR_Map3_Adaptative::MAP& map = static_cast<EMR_Map3_Adaptative::MAP&>(m);
 
 	Dart d = v1.dart;

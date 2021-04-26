@@ -33,6 +33,7 @@
 #include <cgogn/core/functions/mesh_info.h>
 #include <cgogn/core/functions/traversals/edge.h>
 #include <cgogn/core/functions/traversals/volume.h>
+#include <cgogn/core/types/cmap/phi.h>
 #include <cgogn/modeling/algos/subdivision.h>
 #include <cgogn/ui/modules/mesh_provider/mesh_provider.h>
 #include <cgogn/ui/modules/surface_render/surface_render.h>
@@ -178,8 +179,6 @@ int main(int argc, char** argv)
 				vmrm.changed_connectivity(*selected_mesh, position.get());
 			}
 
-			std::cout << "hello" << std::endl;
-
 			break;
 		case GLFW_KEY_F:
 			if (selected_vertices != nullptr)
@@ -247,65 +246,70 @@ int main(int argc, char** argv)
 
 			start = std::clock();
 
-			cgogn::foreach_cell(*mrm, [&](Vertex) -> bool { return true; });
+			cgogn::foreach_cell(*selected_mesh, [&](Vertex) -> bool { return true; });
 			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 			std::cout << "temps parcours vertex : " << duration << std::endl;
 			start = std::clock();
-			cgogn::foreach_cell(*mrm, [&](Edge) -> bool { return true; });
+			cgogn::foreach_cell(*selected_mesh, [&](Edge) -> bool { return true; });
 			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 			std::cout << "temps parcours edge : " << duration << std::endl;
 			start = std::clock();
-			cgogn::foreach_cell(*mrm, [&](Face) -> bool { return true; });
+			cgogn::foreach_cell(*selected_mesh, [&](Face) -> bool { return true; });
 			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 			std::cout << "temps parcours face : " << duration << std::endl;
 			start = std::clock();
-			cgogn::foreach_cell(*mrm, [&](Volume) -> bool { return true; });
+			cgogn::foreach_cell(*selected_mesh, [&](Volume) -> bool { return true; });
 			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 			std::cout << "temps parcours volume : " << duration << std::endl;
 			start = std::clock();
 			duration = 0;
-			for (cgogn::Dart d = mrm->begin(), e = mrm->end(); d != e; d = mrm->next(d))
+			for (cgogn::Dart d = selected_mesh->begin(), e = selected_mesh->end(); d != e; d = selected_mesh->next(d))
 			{
 				start = std::clock();
 
-				if (mrm->edge_level(d) != 0)
+				if (selected_mesh->edge_level(d) != 0)
 				{
-					foreach_dart_of_orbit(*mrm, Face(d), [&](Dart) -> bool { return true; });
+					foreach_dart_of_orbit(*selected_mesh, Face(d), [&](Dart) -> bool { return true; });
 					duration += (std::clock() - start) / (double)CLOCKS_PER_SEC;
 				}
 			}
 			std::cout << "temps face foreach dart : " << duration << std::endl;
 			start = std::clock();
 			duration = 0;
-			for (cgogn::Dart d = mrm->begin(), e = mrm->end(); d != e; d = mrm->next(d))
+			int cpt = 0;
+			for (cgogn::Dart d = selected_mesh->begin(), e = selected_mesh->end(); d != e; d = selected_mesh->next(d))
 			{
 				start = std::clock();
 
-				if (mrm->edge_level(d) != 0)
+				if (selected_mesh->edge_level(d) != 0)
 				{
-					foreach_dart_of_orbit(*mrm, Volume(d), [&](Dart) -> bool { return true; });
+					foreach_dart_of_orbit(*selected_mesh, Volume(d), [&](cgogn::Dart) -> bool {
+						cpt++;
+						return true;
+					});
 					duration += (std::clock() - start) / (double)CLOCKS_PER_SEC;
 				}
 			}
 			std::cout << "temps volume foreach dart : " << duration << std::endl;
+			std::cout << "nb dart : " << cpt << std::endl;
 			start = std::clock();
-			for (cgogn::Dart d = mrm->begin(), e = mrm->end(); d != e; d = mrm->next(d))
+			for (cgogn::Dart d = selected_mesh->begin(), e = selected_mesh->end(); d != e; d = selected_mesh->next(d))
 			{
-				phi1(*mrm, d);
+				cgogn::phi1(*selected_mesh, d);
 			}
 			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 			std::cout << "temps phi1 : " << duration << std::endl;
 			start = std::clock();
-			for (cgogn::Dart d = mrm->begin(), e = mrm->end(); d != e; d = mrm->next(d))
+			for (cgogn::Dart d = selected_mesh->begin(), e = selected_mesh->end(); d != e; d = selected_mesh->next(d))
 			{
-				phi2(*mrm, d);
+				phi2(*selected_mesh, d);
 			}
 			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 			std::cout << "temps phi2 : " << duration << std::endl;
 			start = std::clock();
-			for (cgogn::Dart d = mrm->begin(), e = mrm->end(); d != e; d = mrm->next(d))
+			for (cgogn::Dart d = selected_mesh->begin(), e = selected_mesh->end(); d != e; d = selected_mesh->next(d))
 			{
-				phi3(*mrm, d);
+				phi3(*selected_mesh, d);
 			}
 			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 			std::cout << "temps phi3 : " << duration << std::endl;
@@ -356,7 +360,7 @@ int main(int argc, char** argv)
 
 		break;
 		case GLFW_KEY_R:
-#define CELL_RANDOM Face
+#define CELL_RANDOM Volume
 			if (!view->shift_pressed())
 			{
 				std::vector<CELL_RANDOM> vec_volume;
@@ -376,7 +380,7 @@ int main(int argc, char** argv)
 				start = std::clock();
 				for (auto v : vec_volume)
 				{
-					selected_mesh->activate_face_subdivision(v);
+					selected_mesh->activate_volume_subdivision(v);
 				}
 
 				duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
@@ -386,7 +390,7 @@ int main(int argc, char** argv)
 				start = std::clock();
 				vmrm.changed_connectivity(*selected_mesh, position.get());
 				duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-				// std::cout << "temps update topo : " << duration << std::endl;
+				std::cout << "temps update topo : " << duration << std::endl;
 			}
 			else
 			{
@@ -409,7 +413,7 @@ int main(int argc, char** argv)
 				{
 					if (selected_mesh->get_dart_visibility(v.dart) > selected_mesh->current_level_)
 						continue;
-					selected_mesh->disable_face_subdivision(v, true);
+					selected_mesh->disable_volume_subdivision(v, true);
 				}
 
 				duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
@@ -419,7 +423,7 @@ int main(int argc, char** argv)
 				start = std::clock();
 				vmrm.changed_connectivity(*selected_mesh, position.get());
 				duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-				// std::cout << "temps update topo : " << duration << std::endl;
+				std::cout << "temps update topo : " << duration << std::endl;
 			}
 
 			break;
