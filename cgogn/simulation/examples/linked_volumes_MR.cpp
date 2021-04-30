@@ -129,21 +129,47 @@ int main(int argc, char** argv)
 	v2->scene_bb_locked_ = true;
 
 	vmrm.changed_connectivity(*mrm2, position.get());
+	std::vector<Volume> list_cut_volumes;
 
-	std::srand(std::time(nullptr));
+	std::srand(164512792);
+	while (std::rand() / ((RAND_MAX + 1u) / 5) > 1)
+	{
+		cgogn::foreach_cell(*mrm2, [&list_cut_volumes](Volume v) -> bool {
+			list_cut_volumes.push_back(v);
+			return true;
+		});
+		for (Volume v : list_cut_volumes)
+		{
+
+			int tmp = std::rand() / ((RAND_MAX + 1u) / 2);
+			if (tmp == 1)
+			{
+				mrm2->activate_volume_subdivision(v);
+			}
+		}
+		list_cut_volumes.clear();
+	}
+	vmrm.changed_connectivity(*mrm2, position.get());
 
 	vs.f_keypress = [&](cgogn::ui::View* view, MRMesh* selected_mesh, std::int32_t k,
 						cgogn::ui::CellsSet<MRMesh, Vertex>* selected_vertices, cgogn::ui::CellsSet<MRMesh, Edge>*) {
 		switch (k)
 		{
+		case GLFW_KEY_U: {
+			vmrm.changed_connectivity(*mrm, position.get());
+			vmrm.changed_connectivity(*mrm2, position.get());
+			break;
+		}
 		case GLFW_KEY_R: {
-			MRMesh tmp(*mrm);
+			MRMesh tmp(*selected_mesh);
 			tmp.change_resolution_level(0);
 			cgogn_message_assert(tmp.check_integrity(), "check_integrity failed");
 			tmp.change_resolution_level(1);
 			cgogn_message_assert(tmp.check_integrity(), "check_integrity failed");
 			tmp.change_resolution_level(2);
 			cgogn_message_assert(tmp.check_integrity(), "check_integrity failed");
+			cgogn_message_assert(selected_mesh->check_integrity(), "check_integrity failed");
+			cgogn::Dart tmp_test = phi_1(*selected_mesh, cgogn::Dart(439));
 			std::cout << "ok check " << std::endl;
 			break;
 		}

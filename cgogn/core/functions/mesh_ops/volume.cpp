@@ -384,7 +384,7 @@ EMR_Map3_Adaptative::Face cut_volume(EMR_Map3_Adaptative& m, const std::vector<D
 	Dart f0 = result.dart;
 	Dart f1 = phi3(m, f0);
 
-	foreach_dart_of_orbit(m, result, [&](Dart d) -> bool {
+	foreach_dart_of_orbit(map, result, [&](Dart d) -> bool {
 		m.set_dart_level(d, m.current_level_);
 		m.set_dart_visibility(d, m.current_level_);
 		return true;

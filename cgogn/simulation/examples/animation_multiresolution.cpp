@@ -34,6 +34,7 @@
 #include <cgogn/core/functions/traversals/volume.h>
 #include <cgogn/modeling/algos/subdivision.h>
 #include <cgogn/ui/modules/animation_multiresolution/animation_multiresolution.h>
+#include <cgogn/ui/modules/linked_volumes/linked_volumes.h>
 #include <cgogn/ui/modules/mesh_provider/mesh_provider.h>
 #include <cgogn/ui/modules/surface_render/surface_render.h>
 #include <cgogn/ui/modules/volume_emr_modeling/volume_emr_modeling.h>
@@ -75,24 +76,28 @@ int main(int argc, char** argv)
 	cgogn::ui::AnimationMultiresolution<MRMesh> am(app);
 	cgogn::ui::VolumeEMRModeling<MRMesh> vmrm(app);
 	cgogn::ui::MeshProvider<MRMesh> mrmp(app);
+	cgogn::ui::LinkedVolumes<MRMesh> lv(app);
 
 	cgogn::ui::View* v1 = app.current_view();
 	v1->link_module(&mrmp);
 	v1->link_module(&mrsr);
 	v1->link_module(&vs);
 	v1->link_module(&am);
+	v1->link_module(&lv);
 
 	cgogn::ui::View* v2 = app.add_view();
 	v2->link_module(&mrmp);
 	v2->link_module(&mrsr);
 	v2->link_module(&vs);
 	v2->link_module(&am);
+	v2->link_module(&lv);
 
 	cgogn::ui::View* v3 = app.add_view();
 	v3->link_module(&mrmp);
 	v3->link_module(&mrsr);
 	v3->link_module(&vs);
 	v3->link_module(&am);
+	v3->link_module(&lv);
 
 	/*cgogn::ui::View* v4 = app.add_view();
 	v4->link_module(&mrmp);
@@ -111,8 +116,11 @@ int main(int argc, char** argv)
 
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*m, "position");
 
-	MRMesh* cph1 = vmrm.create_mrmesh(*m, mp.mesh_name(m));
-	MRMesh* cph2 = vmrm.create_mrmesh(*m, mp.mesh_name(m));
+	MRMesh* topo_mesh = vmrm.create_mrmesh(*m, "topology");
+	MRMesh* meca_mesh = topo_mesh->get_child();
+	MRMesh* geometry_mesh = topo_mesh->get_child();
+	mrmp.register_mesh(meca_mesh, "mecanic");
+	mrmp.register_mesh(geometry_mesh, "geometry");
 
 	vmrm.selected_vertex_parents_ = cgogn::add_attribute<std::array<Vertex, 3>, Vertex>(*m, "parents");
 	vmrm.selected_vertex_relative_position_ = cgogn::add_attribute<Vec3, Vertex>(*m, "relative_position");
@@ -121,14 +129,14 @@ int main(int argc, char** argv)
 	cgogn::index_cells<Mesh::Edge>(*m);
 	cgogn::index_cells<Mesh::Face>(*m);
 
-	vmrm.subdivide(*cph2, position.get());
-	vmrm.subdivide(*cph2, position.get());
+	vmrm.subdivide(*meca_mesh, position.get());
+	vmrm.subdivide(*meca_mesh, position.get());
 	std::vector<Volume> list_cut_volumes;
 
 	std::srand(164512792);
 	while (std::rand() / ((RAND_MAX + 1u) / 5) > 1)
 	{
-		cgogn::foreach_cell(*cph2, [&list_cut_volumes](Volume v) -> bool {
+		cgogn::foreach_cell(*meca_mesh, [&list_cut_volumes](Volume v) -> bool {
 			list_cut_volumes.push_back(v);
 			return true;
 		});
@@ -138,19 +146,30 @@ int main(int argc, char** argv)
 			int tmp = std::rand() / ((RAND_MAX + 1u) / 2);
 			if (tmp == 1)
 			{
-				cph2->activate_volume_subdivision(v);
+				meca_mesh->activate_volume_subdivision(v);
 			}
 		}
 		list_cut_volumes.clear();
 	}
-	vmrm.changed_connectivity(*cph2, position.get());
 
-	mrsr.set_vertex_position(*v1, *cph1, position);
-	mrsr.set_vertex_position(*v1, *cph2, nullptr);
-	mrsr.set_vertex_position(*v2, *cph1, nullptr);
-	mrsr.set_vertex_position(*v2, *cph2, position);
-	mrsr.set_vertex_position(*v3, *cph1, nullptr);
-	mrsr.set_vertex_position(*v3, *cph2, nullptr);
+	cgogn::foreach_cell(*geometry_mesh, [&](Face f) -> bool {
+		if (is_incident_to_boundary(*geometry_mesh, f))
+		{
+
+			geometry_mesh->activate_face_subdivision(f);
+		}
+		return true;
+	});
+
+	vmrm.changed_connectivity(*meca_mesh, position.get());
+	vmrm.changed_connectivity(*geometry_mesh, position.get());
+
+	mrsr.set_vertex_position(*v1, *topo_mesh, position);
+	mrsr.set_vertex_position(*v1, *meca_mesh, nullptr);
+	mrsr.set_vertex_position(*v2, *topo_mesh, nullptr);
+	mrsr.set_vertex_position(*v2, *meca_mesh, position);
+	mrsr.set_vertex_position(*v3, *topo_mesh, nullptr);
+	mrsr.set_vertex_position(*v3, *meca_mesh, nullptr);
 	/*mrsr.set_vertex_position(*v4, *cph1, position);
 	mrsr.set_vertex_position(*v4, *cph2, position);*/
 
@@ -169,17 +188,6 @@ int main(int argc, char** argv)
 			});
 			break;
 		}
-		case GLFW_KEY_S:
-			cgogn::foreach_cell(*selected_mesh, [&](Face f) -> bool {
-				if (is_incident_to_boundary(*selected_mesh, f))
-				{
-
-					selected_mesh->activate_face_subdivision(f);
-				}
-				return true;
-			});
-			vmrm.changed_connectivity(*selected_mesh, position.get());
-			break;
 		case GLFW_KEY_V:
 			cgogn::foreach_cell(*selected_mesh, [&list_cut_volumes](Volume v) -> bool {
 				list_cut_volumes.push_back(v);

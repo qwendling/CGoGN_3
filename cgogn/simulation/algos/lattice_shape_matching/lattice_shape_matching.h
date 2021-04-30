@@ -84,9 +84,11 @@ public:
 				{
 					value<double>(m, this->masse_.get(), w) += vol / inc_vertices.size();
 				}
+
 				return true;
 			});
 		}
+		std::cout << "________________________" << std::endl;
 
 		init_region(m);
 	}
@@ -179,7 +181,7 @@ public:
 			for (Vertex v2 : r)
 			{
 				value<Vec3>(m, init_cm_region_.get(), v) +=
-					value<double>(m, modify_masse_vertex_.get(), v2) * value<Vec3>(m, vertex_init_position_.get(), v);
+					value<double>(m, modify_masse_vertex_.get(), v2) * value<Vec3>(m, vertex_init_position_.get(), v2);
 			}
 			value<Vec3>(m, init_cm_region_.get(), v) /= value<double>(m, masse_region_.get(), v);
 			return true;
@@ -223,7 +225,6 @@ public:
 			return true;
 		});
 		parallel_foreach_cell(m, [&](Vertex v) -> bool {
-			std::cout << "masse : " << value<double>(m, this->masse_.get(), v) << std::endl;
 			value<double>(m, modify_masse_vertex_.get(), v) =
 				value<double>(m, this->masse_.get(), v) /
 				(double)value<std::vector<Vertex>>(m, vertex_region_.get(), v).size();

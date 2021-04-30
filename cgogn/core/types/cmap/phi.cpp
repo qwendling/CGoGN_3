@@ -21,6 +21,7 @@
  *                                                                              *
  *******************************************************************************/
 
+#include <cgogn/core/types/cmap/cmap_info.h>
 #include <cgogn/core/types/cmap/cph3.h>
 #include <cgogn/core/types/cmap/phi.h>
 
@@ -55,6 +56,7 @@ Dart phi1(const EMR_Map3_Adaptative& m, Dart d)
 }
 Dart phi_1(const EMR_Map3_Adaptative& m, Dart d)
 {
+	cgogn_message_assert(m.get_dart_visibility(d) <= m.current_level_, "Access to a dart visible at a higher level");
 	if (m.current_level_ == m.maximum_level_)
 		return (*((*m.m_.MR_phi_1_)[m.current_level_]))[d.index];
 	return phi3(m, phi1(m, phi3(m, d)));
@@ -62,6 +64,7 @@ Dart phi_1(const EMR_Map3_Adaptative& m, Dart d)
 Dart phi2(const EMR_Map3_Adaptative& m, Dart d)
 {
 	cgogn_message_assert(m.get_dart_visibility(d) <= m.current_level_, "Access to a dart visible at a higher level");
+
 	return m.get_phi2_buffer(d);
 }
 Dart phi3(const EMR_Map3_Adaptative& m, Dart d)

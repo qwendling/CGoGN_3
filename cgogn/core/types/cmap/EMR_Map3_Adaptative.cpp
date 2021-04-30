@@ -48,6 +48,11 @@ bool EMR_Map3_Adaptative::check_integrity() const
 			std::cerr << "phi1(phi3(d)) must be an involution" << std::endl;
 			return false;
 		}
+		if (phi1(*this, phi_1(*this, d)) != d || phi1(*this, phi_1(*this, d)) != phi_1(*this, phi1(*this, d)))
+		{
+			std::cerr << "phi1(phi_1(d)) must be an involution" << std::endl;
+			return false;
+		}
 	}
 	return true;
 }
@@ -152,7 +157,7 @@ Dart EMR_Map3_Adaptative::get_phi3_buffer(Dart d) const
 			else
 			{
 
-				for (uint32 i = maximum_level_; i >= d_level; --i)
+				for (int i = maximum_level_; i >= int(d_level); --i)
 				{
 					std::get<3>(buffer) = (*((*m_.MR_phi3_)[i]))[d.index];
 					if (get_dart_visibility_fast(std::get<3>(buffer)) <= current_level_)
@@ -182,6 +187,7 @@ EMR_Map3_Adaptative* EMR_Map3_Adaptative::get_copy()
 	{
 		(*result->dart_visibility_)[it.index] = (*dart_visibility_)[it.index];
 	}
+	result->parent = parent;
 	return result;
 }
 
@@ -196,6 +202,7 @@ Dart EMR_Map3_Adaptative::get_representative(Dart d) const
 		while (dart_level(d3) != d_level)
 		{
 			d_level = dart_level(d3);
+			Dart tmp = d3;
 			d3 = (*((*m_.MR_phi3_)[d_level]))[d3.index];
 			same_side = !same_side;
 		}
@@ -212,6 +219,22 @@ uint32 EMR_Map3_Adaptative::get_dart_visibility(Dart d) const
 	uint32 d_level = this->dart_level(d);
 	if (d_level == 0)
 		return 0;
+
+	/*if (is_boundary(*this, d))
+	{
+		uint32 result = UINT32_MAX;
+		for (int i = maximum_level_; i >= int(d_level); --i)
+		{
+			Dart tmp = (*((*m_.MR_phi3_)[i]))[d.index];
+			uint tmp_result = get_dart_visibility(tmp);
+			if (tmp_result <= current_level_)
+			{
+				result = tmp_result;
+				break;
+			}
+		}
+		return result;
+	}*/
 
 	auto p = (*dart_visibility_)[d.index];
 	uint32 result = d_level;
@@ -243,7 +266,7 @@ uint32 EMR_Map3_Adaptative::get_dart_visibility_fast(Dart d) const
 
 	if (parent != nullptr)
 	{
-		result = std::min(parent->get_dart_visibility(d), result);
+		result = std::min(parent->get_dart_visibility_fast(d), result);
 	}
 	return result;
 	/*uint32 d_level = this->dart_level(d);
@@ -475,7 +498,7 @@ Dart EMR_Map3_Adaptative::volume_youngest_dart(Dart d) const
 
 	auto& buffer = (*volume_dart_buffer_)[d.index];
 
-	if (std::get<0>(buffer) != m_.clock_ || std::get<1>(buffer) != clock_views_ ||
+	if (true || std::get<0>(buffer) != m_.clock_ || std::get<1>(buffer) != clock_views_ ||
 		std::get<2>(buffer) != current_level_)
 	{
 

@@ -427,6 +427,7 @@ void unsew_volume(EMR_Map3& m, const mesh_traits<EMR_Map3>::Face f, const FUNC& 
 			it2 = phi_1(m, it2);
 		} while (it != d);
 	}
+	m.m_.clock_++;
 }
 
 //////////////

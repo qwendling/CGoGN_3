@@ -465,7 +465,7 @@ EMR_Map3_Adaptative::Edge cut_face(EMR_Map3_Adaptative& m, EMR_Map3_Adaptative::
 
 	EMR_Map3_Adaptative::MAP::Edge result = cut_face(map, v1, v2, false);
 
-	foreach_dart_of_orbit(m, result, [&](Dart d) -> bool {
+	foreach_dart_of_orbit(map, result, [&](Dart d) -> bool {
 		m.set_dart_level(d, m.current_level_);
 		m.set_dart_visibility(d, m.current_level_);
 		return true;

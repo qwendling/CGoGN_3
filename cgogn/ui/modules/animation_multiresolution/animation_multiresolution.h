@@ -44,6 +44,7 @@
 #include <cgogn/rendering/vbo_update.h>
 #include <cgogn/simulation/algos/Simulation_solver.h>
 #include <cgogn/simulation/algos/Simulation_solver_multiresolution.h>
+#include <cgogn/simulation/algos/lattice_shape_matching/lattice_shape_matching.h>
 #include <cgogn/simulation/algos/multiresolution_propagation/propagation_forces.h>
 #include <cgogn/simulation/algos/multiresolution_propagation/propagation_plastique.h>
 #include <cgogn/simulation/algos/multiresolution_propagation/propagation_spring.h>
@@ -77,9 +78,9 @@ class AnimationMultiresolution : public ViewModule
 	{
 		Parameters()
 			: vertex_position_(nullptr), vertex_relative_position_(nullptr), init_vertex_position_(nullptr),
-			  vertex_forces_(nullptr), vertex_masse_(nullptr), vertex_parents_(nullptr), vertex_scale_factor_(1.0),
-			  sphere_scale_factor_(10.0), have_selected_vertex_(false), move_vertex_(0, 0, 0),
-			  show_frame_manipulator_(false), manipulating_frame_(false)
+			  vertex_forces_(nullptr), vertex_masse_(nullptr), vertex_parents_(nullptr), fixed_vertex(nullptr),
+			  vertex_scale_factor_(1.0), sphere_scale_factor_(10.0), have_selected_vertex_(false),
+			  move_vertex_(0, 0, 0), show_frame_manipulator_(false), manipulating_frame_(false)
 		{
 			param_move_vertex_ = rendering::ShaderPointSprite::generate_param();
 			param_move_vertex_->color_ = rendering::GLColor(1, 1, 0, 0.65);
@@ -114,6 +115,7 @@ class AnimationMultiresolution : public ViewModule
 		std::shared_ptr<Attribute<Vec3>> vertex_forces_;
 		std::shared_ptr<Attribute<double>> vertex_masse_;
 		std::shared_ptr<Attribute<std::array<Vertex, 3>>> vertex_parents_;
+		std::shared_ptr<Attribute<bool>> fixed_vertex;
 
 		std::unique_ptr<rendering::ShaderPointSprite::Param> param_move_vertex_;
 		std::unique_ptr<rendering::ShaderBoldLine::Param> param_edge_;
@@ -137,7 +139,7 @@ public:
 	AnimationMultiresolution(const App& app)
 		: ViewModule(app, "Animation_multiresolution (" + std::string{mesh_traits<MR_MESH>::name} + ")"),
 		  mecanical_mesh_(nullptr), selected_view_(app.current_view()), sm_solver_(0.9f), running_(false), ps_(0.9f),
-		  geometric_mesh_(nullptr), modif_topo_(false)
+		  geometric_mesh_(nullptr), modif_topo_(false), ground_(false)
 	{
 		f_keypress = [](View*, MR_MESH*, int32, CellsSet<MR_MESH, Vertex>*, CellsSet<MR_MESH, Edge>*) {};
 	}
@@ -279,6 +281,38 @@ protected:
 					p.manipulating_frame_ = true;
 			}
 		}
+		if (key_code == GLFW_KEY_G)
+		{
+			ground_ = !ground_;
+		}
+		if (key_code == GLFW_KEY_P)
+		{
+			if (simu_solver.gravity_[1] == 0)
+				simu_solver.gravity_ = Vec3(0, -9.81, 0);
+			else
+				simu_solver.gravity_ = Vec3(0, 0, 0);
+		}
+		if (key_code == GLFW_KEY_F)
+		{
+			if (mecanical_mesh_)
+			{
+				Parameters& p = parameters_[mecanical_mesh_];
+				typename MR_MESH::Inherit tmp(mecanical_mesh_->m_);
+				tmp.current_level_ = tmp.maximum_level_;
+				Vec3 pos;
+				p.frame_manipulator_.get_position(pos);
+				Vec3 a;
+				p.frame_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, a);
+				double d = pos.dot(a);
+				parallel_foreach_cell(tmp, [&](Vertex v) -> bool {
+					if (value<Vec3>(tmp, p.vertex_position_.get(), v).dot(a) < d)
+					{
+						value<bool>(tmp, p.fixed_vertex.get(), v) = true;
+					}
+					return true;
+				});
+			}
+		}
 	}
 
 	void key_release_event(View* v, int32 key_code)
@@ -355,15 +389,15 @@ protected:
 						m * (p.move_vertex_ - pos) / TIME_STEP;
 				}
 
-				/*parallel_foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
+				parallel_foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
 					double m = value<double>(*mecanical_mesh_, p.vertex_masse_.get(), v);
 					value<Vec3>(*mecanical_mesh_, p.vertex_forces_.get(), v) += m * Vec3(0, 0, -9.81);
 					return true;
-				});*/
+				});
 
 				simu_solver.compute_time_step(*geometric_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(),
 											  TIME_STEP, modif_topo_);
-				if (true || p.show_frame_manipulator_)
+				if (ground_)
 				{
 					Vec3 position;
 					Vec3 axis_z;
@@ -551,6 +585,10 @@ protected:
 							p.vertex_masse_ = sm_solver_.masse_;
 							p.init_vertex_position_ = sm_solver_.vertex_init_position_;
 							p.vertex_forces_ = simu_solver.forces_ext_;
+							p.fixed_vertex = get_attribute<bool, Vertex>(*mecanical_mesh_, "fixed_vertex");
+							if (p.fixed_vertex == nullptr)
+								p.fixed_vertex = add_attribute<bool, Vertex>(*mecanical_mesh_, "fixed_vertex");
+							simu_solver.fixed_vertex = p.fixed_vertex;
 						}
 						if (is_selected)
 							ImGui::SetItemDefaultFocus();
@@ -653,12 +691,14 @@ protected:
 					modif_topo_ = false;
 					cv_m.unlock();
 				}
-				simulation::shape_matching_constraint_solver<MR_MESH>* sm1 =
-					static_cast<simulation::shape_matching_constraint_solver<MR_MESH>*>(simu_solver.sc_);
-				simulation::shape_matching_constraint_solver<MR_MESH>* sm2 =
-					static_cast<simulation::shape_matching_constraint_solver<MR_MESH>*>(simu_solver.sc_fine_.get());
-				simulation::shape_matching_constraint_solver<MR_MESH>* sm3 =
-					static_cast<simulation::shape_matching_constraint_solver<MR_MESH>*>(simu_solver.sc_coarse_.get());
+				simulation::lattice_shape_matching_constraint_solver<MR_MESH>* sm1 =
+					static_cast<simulation::lattice_shape_matching_constraint_solver<MR_MESH>*>(simu_solver.sc_);
+				simulation::lattice_shape_matching_constraint_solver<MR_MESH>* sm2 =
+					static_cast<simulation::lattice_shape_matching_constraint_solver<MR_MESH>*>(
+						simu_solver.sc_fine_.get());
+				simulation::lattice_shape_matching_constraint_solver<MR_MESH>* sm3 =
+					static_cast<simulation::lattice_shape_matching_constraint_solver<MR_MESH>*>(
+						simu_solver.sc_coarse_.get());
 
 				double min = 0, max = 1, new_alpha = sm1->stiffness_;
 				ImGui::SliderScalar("stiffness", ImGuiDataType_Double, &new_alpha, &min, &max);
@@ -677,7 +717,7 @@ public:
 	std::vector<std::shared_ptr<boost::synapse::connection>> connections_;
 	std::unordered_map<const MR_MESH*, std::vector<std::shared_ptr<boost::synapse::connection>>> mesh_connections_;
 	MeshProvider<MR_MESH>* mesh_provider_;
-	simulation::shape_matching_constraint_solver<MR_MESH> sm_solver_;
+	simulation::lattice_shape_matching_constraint_solver<MR_MESH> sm_solver_;
 	simulation::Simulation_solver_multiresolution<MR_MESH> simu_solver;
 	simulation::Propagation_Plastique<MR_MESH> ps_;
 	std::condition_variable cv;
@@ -688,6 +728,7 @@ public:
 	bool can_move_vertex_;
 	bool modif_topo_;
 	View* selected_view_;
+	bool ground_;
 };
 
 } // namespace ui

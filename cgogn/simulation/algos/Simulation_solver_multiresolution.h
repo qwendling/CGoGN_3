@@ -90,7 +90,7 @@ public:
 	int clock;
 
 	Simulation_solver_multiresolution()
-		: Simulation_solver<MR_MAP>(), pc_(nullptr), parents_(nullptr), relative_pos_(nullptr), gravity_(0, 0, -9.81f),
+		: Simulation_solver<MR_MAP>(), pc_(nullptr), parents_(nullptr), relative_pos_(nullptr), gravity_(0, 0, 0),
 		  cache_current_vol_(nullptr), clock(1)
 	{
 	}
@@ -121,6 +121,7 @@ public:
 		cache_current_vol_ = new CellCache<MR_MAP>(*mecanical_mesh_);
 
 		std::vector<tree_volume*> tmp_watcher;
+		std::forward_list<tree_volume*> list_volume_current_tmp;
 
 		list_volume_coarse_.clear();
 		list_volume_current_.clear();
@@ -137,6 +138,8 @@ public:
 			if (l == cph_level)
 			{
 				p->is_current = true;
+				list_volume_current_tmp.push_front(p);
+				cmp_cur++;
 			}
 			if (!cph.volume_is_subdivided(p->volume_dart))
 			{
@@ -146,7 +149,6 @@ public:
 			{
 				list_volume_current_.push_front(p);
 				tmp_watcher.push_back(p);
-				cmp_cur++;
 				p->is_current = true;
 			}
 
@@ -178,7 +180,7 @@ public:
 		});
 		// init_cell_cache(*cache_current_vol_, list_volume_current_);
 
-		for (tree_volume* t : list_volume_current_)
+		for (tree_volume* t : list_volume_current_tmp)
 		{
 			if (t->pere && t->pere->clock != clock)
 			{
@@ -422,6 +424,8 @@ public:
 			});
 			sc_coarse_->solve_constraint(*coarse_meca_mesh_, vertex_position, this->forces_coarse_.get(), time_step);
 			parallel_foreach_cell(*coarse_meca_mesh_, [&](Vertex v) -> bool {
+				if (this->fixed_vertex && value<bool>(*coarse_meca_mesh_, this->fixed_vertex.get(), v))
+					return true;
 				// compute speed
 				Vec3 s = 0.995 * value<Vec3>(*coarse_meca_mesh_, this->speed_.get(), v) +
 						 time_step * value<Vec3>(*coarse_meca_mesh_, this->forces_coarse_.get(), v) /
@@ -455,6 +459,8 @@ public:
 
 			sc_->solve_constraint(*mecanical_mesh_, vertex_position, this->forces_current_.get(), time_step);
 			parallel_foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
+				if (this->fixed_vertex && value<bool>(*mecanical_mesh_, this->fixed_vertex.get(), v))
+					return true;
 				// compute speed
 				Vec3 s = 0.995 * value<Vec3>(*mecanical_mesh_, this->speed_.get(), v) +
 						 time_step * value<Vec3>(*mecanical_mesh_, this->forces_current_.get(), v) /
@@ -484,6 +490,8 @@ public:
 		auto solve_fine = [&]() {
 			sc_fine_->solve_constraint(*fine_meca_mesh_, vertex_position, this->forces_ext_.get(), time_step);
 			parallel_foreach_cell(*fine_meca_mesh_, [&](Vertex v) -> bool {
+				if (this->fixed_vertex && value<bool>(*fine_meca_mesh_, this->fixed_vertex.get(), v))
+					return true;
 				// compute speed
 				value<Vec3>(*fine_meca_mesh_, this->speed_.get(), v) =
 					0.995 * value<Vec3>(*fine_meca_mesh_, this->speed_.get(), v) +
@@ -672,9 +680,11 @@ public:
 			cv.wait(lk, [&] { return error_current_fine_is_finish && error_coarse_current_is_finish; });
 		}*/
 
-		modif_topo = update_topo(vertex_position) || modif_topo;
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << "time step : " << duration << std::endl;
+		modif_topo = update_topo(vertex_position) || modif_topo;
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << "time step + modif topo : " << duration << std::endl;
 	}
 };
 } // namespace simulation
