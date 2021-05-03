@@ -81,7 +81,7 @@ Dart EMR_Map3_Adaptative::get_phi1_buffer(Dart d) const
 			{
 				emr.current_level_ = l_d3;
 				Dart tmp = phi1(emr, d);
-				if (get_dart_visibility_fast(tmp) <= current_level_)
+				if (get_dart_visibility(tmp) <= current_level_)
 					return tmp;
 				emr.current_level_--;
 				tmp = phi1(emr, d);
@@ -91,7 +91,7 @@ Dart EMR_Map3_Adaptative::get_phi1_buffer(Dart d) const
 			emr.current_level_ = l_d - 1;
 			Dart d_1 = phi3(emr, d3);
 			Dart tmp = phi1(emr, d_1);
-			if (get_dart_visibility_fast(tmp) <= current_level_)
+			if (get_dart_visibility(tmp) <= current_level_)
 				return tmp;
 			emr.current_level_--;
 			tmp = phi1(emr, d_1);
@@ -160,7 +160,7 @@ Dart EMR_Map3_Adaptative::get_phi3_buffer(Dart d) const
 				for (int i = maximum_level_; i >= int(d_level); --i)
 				{
 					std::get<3>(buffer) = (*((*m_.MR_phi3_)[i]))[d.index];
-					if (get_dart_visibility_fast(std::get<3>(buffer)) <= current_level_)
+					if (get_dart_visibility(std::get<3>(buffer)) <= current_level_)
 					{
 						break;
 					}
@@ -220,21 +220,30 @@ uint32 EMR_Map3_Adaptative::get_dart_visibility(Dart d) const
 	if (d_level == 0)
 		return 0;
 
-	/*if (is_boundary(*this, d))
+	if (is_boundary(*this, d))
 	{
 		uint32 result = UINT32_MAX;
 		for (int i = maximum_level_; i >= int(d_level); --i)
 		{
 			Dart tmp = (*((*m_.MR_phi3_)[i]))[d.index];
-			uint tmp_result = get_dart_visibility(tmp);
-			if (tmp_result <= current_level_)
+			if (get_dart_visibility(tmp) <= current_level_)
 			{
-				result = tmp_result;
+				Dart tmp_2 = (*((*m_.MR_phi2_)[i]))[tmp.index];
+				while (tmp_2 != d)
+				{
+					uint32 tmp_result = get_dart_visibility(tmp_2);
+					if (tmp_result <= current_level_)
+					{
+						result = tmp_result;
+						break;
+					}
+					tmp_2 = (*((*m_.MR_phi2_)[i]))[(*((*m_.MR_phi3_)[i]))[tmp_2.index].index];
+				}
 				break;
 			}
 		}
 		return result;
-	}*/
+	}
 
 	auto p = (*dart_visibility_)[d.index];
 	uint32 result = d_level;
