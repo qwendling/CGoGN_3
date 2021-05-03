@@ -195,6 +195,11 @@ protected:
 					{
 						value<Vec3>(*selected_mesh_, attr, p.second) = value<Vec3>(*selected_mesh_, attr, p.first);
 					}
+					for (auto attr : list_update_attribute2)
+					{
+						value<std::array<Vertex, 3>>(*selected_mesh_, attr, p.second) =
+							value<std::array<Vertex, 3>>(*selected_mesh_, attr, p.first);
+					}
 					return true;
 				});
 				std::cout << "Fin découpe" << std::endl;
@@ -350,6 +355,30 @@ protected:
 					}
 				}
 			});
+			foreach_attribute<std::array<Vertex, 3>, Vertex>(
+				*selected_mesh_, [&](const std::shared_ptr<Attribute<std::array<Vertex, 3>>>& attribute) {
+					bool is_selected = false;
+					auto it = list_update_attribute2.begin();
+					for (; it != list_update_attribute2.end(); ++it)
+					{
+						if (*it == attribute)
+						{
+							is_selected = true;
+							break;
+						}
+					}
+					if (ImGui::Checkbox(attribute->name().c_str(), &is_selected))
+					{
+						if (is_selected)
+						{
+							list_update_attribute2.push_back(attribute);
+						}
+						else
+						{
+							list_update_attribute2.erase(it);
+						}
+					}
+				});
 		}
 	}
 
@@ -363,6 +392,7 @@ public:
 	bool need_update_;
 	View* selected_view_;
 	std::vector<std::shared_ptr<Attribute<Vec3>>> list_update_attribute;
+	std::vector<std::shared_ptr<Attribute<std::array<Vertex, 3>>>> list_update_attribute2;
 };
 
 } // namespace ui

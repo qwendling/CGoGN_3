@@ -680,10 +680,10 @@ protected:
 						mesh_provider_->emit_attribute_changed(m, simu_solver.diff_volume_coarse_current_.get());
 						mesh_provider_->emit_attribute_changed(m, simu_solver.pos_current_.get());
 						mesh_provider_->emit_attribute_changed(m, simu_solver.pos_coarse_.get());
-						/*if (modif_topo_)
+						if (modif_topo_)
 						{
 							mesh_provider_->emit_connectivity_changed(m);
-						}*/
+						}
 					});
 					map.end_reader();
 					need_update_ = false;
