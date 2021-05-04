@@ -14,7 +14,11 @@
 
 #define QUOTA_VOLUME 1000
 #define PROPORTION_QUOTA 0.1f
+#if 0
 #define MODIF_MAX PROPORTION_QUOTA* QUOTA_VOLUME
+#else
+#define MODIF_MAX 1
+#endif
 
 namespace cgogn
 {

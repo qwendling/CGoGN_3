@@ -507,7 +507,7 @@ Dart EMR_Map3_Adaptative::volume_youngest_dart(Dart d) const
 
 	auto& buffer = (*volume_dart_buffer_)[d.index];
 
-	if (true || std::get<0>(buffer) != m_.clock_ || std::get<1>(buffer) != clock_views_ ||
+	if (std::get<0>(buffer) != m_.clock_ || std::get<1>(buffer) != clock_views_ ||
 		std::get<2>(buffer) != current_level_)
 	{
 
