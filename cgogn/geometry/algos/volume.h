@@ -78,6 +78,41 @@ Scalar volume(const MESH& m, typename mesh_traits<MESH>::Volume v,
 	return result;
 }
 
+template <typename MESH>
+void compute_volume(const MESH& m, const typename mesh_traits<MESH>::template Attribute<Vec3>* vertex_position,
+					typename mesh_traits<MESH>::template Attribute<double>* computed_volume)
+{
+	using Volume = typename mesh_traits<MESH>::Volume;
+
+	foreach_cell(m, [&](Volume v) -> bool {
+		value<double>(m, computed_volume, v) = volume(m, v, vertex_position);
+		return true;
+	});
+}
+
+void compute_volume(const EMR_Map3_Adaptative& m,
+					const typename mesh_traits<EMR_Map3_Adaptative>::template Attribute<Vec3>* vertex_position,
+					typename mesh_traits<EMR_Map3_Adaptative>::template Attribute<double>* computed_volume)
+{
+	using Volume = typename mesh_traits<EMR_Map3_Adaptative>::Volume;
+
+	EMR_Map3 tmp(m.m_);
+	tmp.current_level_ = 0;
+	CellMarker<EMR_Map3, Volume> cm(tmp);
+
+	while (tmp.current_level_ <= tmp.maximum_level_)
+	{
+		foreach_cell(tmp, [&](Volume v) -> bool {
+			if (cm.is_marked(v))
+				return true;
+			cm.mark(v);
+			value<double>(tmp, computed_volume, v) = volume(tmp, v, vertex_position);
+			return true;
+		});
+		tmp.current_level_++;
+	}
+}
+
 } // namespace geometry
 
 } // namespace cgogn

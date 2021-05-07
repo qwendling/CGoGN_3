@@ -268,6 +268,9 @@ public:
 
 	bool update_topo(Attribute<Vec3>* vertex_position)
 	{
+		std::clock_t start;
+		double duration;
+		start = std::clock();
 		std::cout << "nb_current : " << get_size_list(list_volume_current_) << std::endl;
 		std::cout << "nb_coarse : " << get_size_list(list_volume_coarse_) << std::endl;
 		if (list_volume_current_.empty() || list_volume_coarse_.empty())
@@ -385,6 +388,8 @@ public:
 							   Volume(min_coarse->volume_dart));
 			nb_modif++;
 		}
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << "time activation/disable : " << duration << std::endl;
 		for (auto t : list_new_coarse_)
 			list_volume_coarse_.push_front(t);
 		for (auto t : list_new_current_)
@@ -394,6 +399,8 @@ public:
 			sc_coarse_->update_topo(*coarse_meca_mesh_, {});
 			sc_->update_topo(*mecanical_mesh_, {});
 			sc_fine_->update_topo(*fine_meca_mesh_, {});
+			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << "time activation/disable + update topo simu : " << duration << std::endl;
 			pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, vertex_position, nullptr, this->forces_ext_.get(),
 						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(),
 						   [&](Vertex v) -> bool { return !marker.is_marked(v); });

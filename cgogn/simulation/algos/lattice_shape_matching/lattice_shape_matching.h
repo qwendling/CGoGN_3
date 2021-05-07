@@ -33,13 +33,16 @@ public:
 	std::shared_ptr<Attribute<Mat3d>> R_;
 	std::shared_ptr<Attribute<Vec3>> translate_;
 	std::shared_ptr<Attribute<Vec3>> translate_vertex_;
+
+	std::shared_ptr<Attribute<double>> init_volume_;
 	double stiffness_;
 	int id;
 	static inline int nb_solver = 0;
 
 	lattice_shape_matching_constraint_solver(double stiffness)
 		: vertex_init_position_(nullptr), vertex_region_(nullptr), masse_region_(nullptr),
-		  modify_masse_vertex_(nullptr), init_cm_region_(nullptr), stiffness_(stiffness), id(nb_solver++)
+		  modify_masse_vertex_(nullptr), init_cm_region_(nullptr), init_volume_(nullptr), stiffness_(stiffness),
+		  id(nb_solver++)
 	{
 	}
 
@@ -53,6 +56,12 @@ public:
 	{
 		vertex_init_position_ = init_pos;
 		this->masse_ = masse;
+		this->init_volume_ =
+			get_attribute<double, Volume>(m, "lattice_shape_matching_constraint_solver_init_volume" + id);
+		if (this->init_volume_ == nullptr)
+			this->init_volume_ =
+				add_attribute<double, Volume>(m, "lattice_shape_matching_constraint_solver_init_volume" + id);
+		geometry::compute_volume(m, vertex_init_position_.get(), init_volume_.get());
 		init_region(m);
 	}
 
@@ -69,12 +78,20 @@ public:
 				return true;
 			});
 		}
+
+		this->init_volume_ =
+			get_attribute<double, Volume>(m, "lattice_shape_matching_constraint_solver_init_volume" + id);
+		if (this->init_volume_ == nullptr)
+			this->init_volume_ =
+				add_attribute<double, Volume>(m, "lattice_shape_matching_constraint_solver_init_volume" + id);
+		geometry::compute_volume(m, vertex_init_position_.get(), init_volume_.get());
+
 		this->masse_ = get_attribute<double, Vertex>(m, "lattice_shape_matching_constraint_solver_masse" + id);
 		if (this->masse_ == nullptr)
 		{
 			this->masse_ = add_attribute<double, Vertex>(m, "lattice_shape_matching_constraint_solver_masse" + id);
 			foreach_cell(m, [&](Volume v) -> bool {
-				double vol = geometry::volume(m, v, vertex_init_position_.get());
+				double vol = value<double>(m, init_volume_, v) * 100000;
 				std::vector<Vertex> inc_vertices;
 				foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
 					inc_vertices.push_back(w);
@@ -188,68 +205,133 @@ public:
 		});
 	}
 
-	void update_topo(const MAP& m, const std::vector<Vertex>&)
+	void update_topo(const MAP& m, const std::vector<Vertex>& updated_vertices)
 	{
-		parallel_foreach_cell(m, [&](Vertex v) -> bool {
-			value<double>(m, this->masse_.get(), v) = 0;
-			return true;
-		});
-		foreach_cell(m, [&](Volume v) -> bool {
-			double vol = geometry::volume(m, v, vertex_init_position_.get()) * 100000;
-			std::vector<Vertex> inc_vertices;
-			foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-				inc_vertices.push_back(w);
+		if (updated_vertices.size() > 0)
+		{
+			CellMarker<MAP, Vertex> vertex_marker(m);
+			CellMarkerStore<MAP, Volume> volume_marker(m);
+
+			for (auto& v : updated_vertices)
+			{
+				value<double>(m, this->masse_.get(), v) = 0;
+				value<std::vector<Vertex>>(m, vertex_region_.get(), v) = {};
+				vertex_marker.mark(v);
+				CellMarker<MAP, Vertex> marker(m);
+				foreach_incident_volume(m, v, [&](Volume w) -> bool {
+					volume_marker.mark(w);
+					foreach_incident_vertex(m, w, [&](Vertex v2) -> bool {
+						if (!marker.is_marked(v2))
+						{
+							marker.mark(v2);
+							value<std::vector<Vertex>>(m, vertex_region_.get(), v).push_back(v2);
+						}
+						return true;
+					});
+					return true;
+				});
+			}
+
+			for (auto& v : volume_marker.marked_cells())
+			{
+				double vol = value<double>(m, init_volume_, v) * 100000;
+				std::vector<Vertex> inc_vertices;
+				foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
+					inc_vertices.push_back(w);
+					return true;
+				});
+				for (auto w : inc_vertices)
+				{
+					if (vertex_marker.is_marked(w))
+						continue;
+					value<double>(m, this->masse_.get(), w) += vol / inc_vertices.size();
+				}
+			}
+
+			for (auto& v : updated_vertices)
+			{
+				value<double>(m, modify_masse_vertex_.get(), v) =
+					value<double>(m, this->masse_.get(), v) /
+					(double)value<std::vector<Vertex>>(m, vertex_region_.get(), v).size();
+			}
+
+			for (auto& v : updated_vertices)
+			{
+				value<Vec3>(m, init_cm_region_.get(), v) = Vec3::Zero();
+				value<double>(m, masse_region_.get(), v) = 0;
+				auto r = value<std::vector<Vertex>>(m, vertex_region_.get(), v);
+				for (Vertex v2 : r)
+				{
+					value<double>(m, masse_region_.get(), v) += value<double>(m, modify_masse_vertex_.get(), v2);
+					value<Vec3>(m, init_cm_region_.get(), v) += value<double>(m, modify_masse_vertex_.get(), v2) *
+																value<Vec3>(m, vertex_init_position_.get(), v2);
+				}
+				value<Vec3>(m, init_cm_region_.get(), v) /= value<double>(m, masse_region_.get(), v);
+			}
+		}
+		else
+		{
+			parallel_foreach_cell(m, [&](Vertex v) -> bool {
+				value<double>(m, this->masse_.get(), v) = 0;
 				return true;
 			});
-			for (auto w : inc_vertices)
-			{
-				value<double>(m, this->masse_.get(), w) += vol / inc_vertices.size();
-			}
-			return true;
-		});
+			foreach_cell(m, [&](Volume v) -> bool {
+				double vol = value<double>(m, init_volume_, v) * 100000;
+				std::vector<Vertex> inc_vertices;
+				foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
+					inc_vertices.push_back(w);
+					return true;
+				});
+				for (auto w : inc_vertices)
+				{
+					value<double>(m, this->masse_.get(), w) += vol / inc_vertices.size();
+				}
+				return true;
+			});
 
-		parallel_foreach_cell(m, [&](Vertex v) -> bool {
-			value<std::vector<Vertex>>(m, vertex_region_.get(), v) = {};
-			CellMarkerStore<MAP, Vertex> marker(m);
-			foreach_incident_volume(m, v, [&](Volume w) -> bool {
-				foreach_incident_vertex(m, w, [&](Vertex v2) -> bool {
-					if (!marker.is_marked(v2))
-					{
-						marker.mark(v2);
-						value<std::vector<Vertex>>(m, vertex_region_.get(), v).push_back(v2);
-					}
+			parallel_foreach_cell(m, [&](Vertex v) -> bool {
+				value<std::vector<Vertex>>(m, vertex_region_.get(), v) = {};
+				CellMarkerStore<MAP, Vertex> marker(m);
+				foreach_incident_volume(m, v, [&](Volume w) -> bool {
+					foreach_incident_vertex(m, w, [&](Vertex v2) -> bool {
+						if (!marker.is_marked(v2))
+						{
+							marker.mark(v2);
+							value<std::vector<Vertex>>(m, vertex_region_.get(), v).push_back(v2);
+						}
+						return true;
+					});
 					return true;
 				});
 				return true;
 			});
-			return true;
-		});
-		parallel_foreach_cell(m, [&](Vertex v) -> bool {
-			value<double>(m, modify_masse_vertex_.get(), v) =
-				value<double>(m, this->masse_.get(), v) /
-				(double)value<std::vector<Vertex>>(m, vertex_region_.get(), v).size();
-			return true;
-		});
-		parallel_foreach_cell(m, [&](Vertex v) -> bool {
-			value<double>(m, masse_region_.get(), v) = 0;
-			auto r = value<std::vector<Vertex>>(m, vertex_region_.get(), v);
-			for (Vertex v2 : r)
-			{
-				value<double>(m, masse_region_.get(), v) += value<double>(m, modify_masse_vertex_.get(), v2);
-			}
-			return true;
-		});
-		parallel_foreach_cell(m, [&](Vertex v) -> bool {
-			value<Vec3>(m, init_cm_region_.get(), v) = Vec3::Zero();
-			auto r = value<std::vector<Vertex>>(m, vertex_region_.get(), v);
-			for (Vertex v2 : r)
-			{
-				value<Vec3>(m, init_cm_region_.get(), v) +=
-					value<double>(m, modify_masse_vertex_.get(), v2) * value<Vec3>(m, vertex_init_position_.get(), v2);
-			}
-			value<Vec3>(m, init_cm_region_.get(), v) /= value<double>(m, masse_region_.get(), v);
-			return true;
-		});
+			parallel_foreach_cell(m, [&](Vertex v) -> bool {
+				value<double>(m, modify_masse_vertex_.get(), v) =
+					value<double>(m, this->masse_.get(), v) /
+					(double)value<std::vector<Vertex>>(m, vertex_region_.get(), v).size();
+				return true;
+			});
+			parallel_foreach_cell(m, [&](Vertex v) -> bool {
+				value<double>(m, masse_region_.get(), v) = 0;
+				auto r = value<std::vector<Vertex>>(m, vertex_region_.get(), v);
+				for (Vertex v2 : r)
+				{
+					value<double>(m, masse_region_.get(), v) += value<double>(m, modify_masse_vertex_.get(), v2);
+				}
+				return true;
+			});
+			parallel_foreach_cell(m, [&](Vertex v) -> bool {
+				value<Vec3>(m, init_cm_region_.get(), v) = Vec3::Zero();
+				auto r = value<std::vector<Vertex>>(m, vertex_region_.get(), v);
+				for (Vertex v2 : r)
+				{
+					value<Vec3>(m, init_cm_region_.get(), v) += value<double>(m, modify_masse_vertex_.get(), v2) *
+																value<Vec3>(m, vertex_init_position_.get(), v2);
+				}
+				value<Vec3>(m, init_cm_region_.get(), v) /= value<double>(m, masse_region_.get(), v);
+				return true;
+			});
+		}
 	}
 
 	double oneNorm(const Mat3d& A) const
