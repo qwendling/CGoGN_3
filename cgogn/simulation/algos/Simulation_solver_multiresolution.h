@@ -292,13 +292,15 @@ public:
 
 		std::forward_list<tree_volume*> list_new_current_;
 		std::forward_list<tree_volume*> list_new_coarse_;
+		std::vector<Volume> list_new_volume_coarse;
+		std::vector<Volume> list_new_volume_current;
+		std::vector<Volume> list_new_volume_fine;
 
 		CellMarkerStore<MR_MAP, Vertex> marker(*fine_meca_mesh_);
 		foreach_cell(*fine_meca_mesh_, [&](Vertex v) -> bool {
 			marker.mark(v);
 			return true;
 		});
-
 		tree_volume* min_coarse = list_volume_coarse_.front();
 		tree_volume* max_fine = list_volume_current_.front();
 		if (min_coarse == max_fine->pere)
@@ -328,12 +330,21 @@ public:
 				list_volume_coarse_.remove(max_fine->pere);
 				max_fine->pere->is_coarse = false;
 				coarse_meca_mesh_->activate_volume_subdivision(Volume(max_fine->volume_dart));
+				max_fine->pere->for_each_child([&](tree_volume* c) -> bool {
+					list_new_volume_coarse.push_back(Volume(c->volume_dart));
+					return true;
+				});
 			}
 
 			mecanical_mesh_->activate_volume_subdivision(Volume(max_fine->volume_dart));
 			max_fine->for_each_child([&](tree_volume* c) -> bool {
+				list_new_volume_current.push_back(Volume(c->volume_dart));
 				if (c->fils)
 				{
+					c->for_each_child([&](tree_volume* cc) -> bool {
+						list_new_volume_fine.push_back(Volume(cc->volume_dart));
+						return true;
+					});
 					fine_meca_mesh_->activate_volume_subdivision(Volume(c->volume_dart));
 					list_new_current_.push_front(c);
 				}
@@ -346,11 +357,16 @@ public:
 			list_new_current_.push_front(min_coarse);
 
 			mecanical_mesh_->disable_volume_subdivision(Volume(min_coarse->volume_dart), true);
+			list_new_volume_current.push_back(Volume(min_coarse->volume_dart));
 			min_coarse->for_each_child([&](tree_volume* c) -> bool {
 				list_volume_current_.remove(c);
 				c->is_current = false;
+
 				if (c->fils)
+				{
+					list_new_volume_fine.push_back(Volume(c->volume_dart));
 					fine_meca_mesh_->disable_volume_subdivision(Volume(c->volume_dart), true);
+				}
 				return true;
 			});
 
@@ -365,6 +381,7 @@ public:
 				});
 				if (can_be_coarse)
 				{
+					list_new_volume_coarse.push_back(Volume(min_coarse->volume_dart));
 					coarse_meca_mesh_->disable_volume_subdivision(Volume(min_coarse->volume_dart), true);
 					min_coarse->pere->is_coarse = true;
 					list_new_coarse_.push_front(min_coarse->pere);
@@ -394,11 +411,78 @@ public:
 			list_volume_coarse_.push_front(t);
 		for (auto t : list_new_current_)
 			list_volume_current_.push_front(t);
-		if (!list_new_current_.empty() || !list_new_coarse_.empty())
+
+		if (!list_new_volume_current.empty() || !list_new_coarse_.empty())
 		{
-			sc_coarse_->update_topo(*coarse_meca_mesh_, {});
-			sc_->update_topo(*mecanical_mesh_, {});
-			sc_fine_->update_topo(*fine_meca_mesh_, {});
+			CellMarker<MR_MAP, Vertex> coarse_marker(*coarse_meca_mesh_);
+			std::vector<Vertex> list_new_vertices_coarse;
+			uint tmp_cmp = 0;
+
+			for (Volume v : list_new_volume_coarse)
+			{
+				foreach_incident_vertex(*coarse_meca_mesh_, v, [&](Vertex w) -> bool {
+					if (!coarse_marker.is_marked(w))
+					{
+						coarse_marker.mark(w);
+						list_new_vertices_coarse.push_back(w);
+					}
+					return true;
+				});
+				tmp_cmp++;
+			}
+			CellMarker<MR_MAP, Vertex> current_marker(*mecanical_mesh_);
+			std::vector<Vertex> list_new_vertices_current;
+			for (Volume v : list_new_volume_current)
+			{
+				foreach_incident_vertex(*mecanical_mesh_, v, [&](Vertex w) -> bool {
+					if (!current_marker.is_marked(w))
+					{
+						current_marker.mark(w);
+						list_new_vertices_current.push_back(w);
+					}
+					return true;
+				});
+			}
+			CellMarker<MR_MAP, Vertex> fine_marker(*fine_meca_mesh_);
+			std::vector<Vertex> list_new_vertices_fine;
+			for (Volume v : list_new_volume_fine)
+			{
+				foreach_incident_vertex(*fine_meca_mesh_, v, [&](Vertex w) -> bool {
+					if (!fine_marker.is_marked(w))
+					{
+						fine_marker.mark(w);
+						list_new_vertices_fine.push_back(w);
+					}
+					return true;
+				});
+			}
+
+			std::clock_t start_update;
+			start_update = std::clock();
+
+			if (list_new_vertices_coarse.size() > 0)
+			{
+				sc_coarse_->update_topo(*coarse_meca_mesh_, list_new_vertices_coarse);
+				duration = (std::clock() - start_update) / (double)CLOCKS_PER_SEC;
+				std::cout << "time update coarse : " << duration << std::endl;
+			}
+
+			start_update = std::clock();
+			if (list_new_vertices_current.size() > 0)
+			{
+				sc_->update_topo(*mecanical_mesh_, list_new_vertices_current);
+				duration = (std::clock() - start_update) / (double)CLOCKS_PER_SEC;
+				std::cout << "time update current : " << duration << std::endl;
+			}
+
+			start_update = std::clock();
+			if (list_new_vertices_fine.size() > 0)
+			{
+				sc_fine_->update_topo(*fine_meca_mesh_, list_new_vertices_fine);
+				duration = (std::clock() - start_update) / (double)CLOCKS_PER_SEC;
+				std::cout << "time update fine : " << duration << std::endl;
+			}
+
 			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 			std::cout << "time activation/disable + update topo simu : " << duration << std::endl;
 			pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, vertex_position, nullptr, this->forces_ext_.get(),

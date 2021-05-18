@@ -62,6 +62,24 @@ public:
 			this->init_volume_ =
 				add_attribute<double, Volume>(m, "lattice_shape_matching_constraint_solver_init_volume" + id);
 		geometry::compute_volume(m, vertex_init_position_.get(), init_volume_.get());
+		parallel_foreach_cell(m, [&](Vertex v) -> bool {
+			value<double>(m, this->masse_.get(), v) = 0;
+			return true;
+		});
+		foreach_cell(m, [&](Volume v) -> bool {
+			double vol = value<double>(m, init_volume_, v) * 100000;
+			std::vector<Vertex> inc_vertices;
+			foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
+				inc_vertices.push_back(w);
+				return true;
+			});
+			for (auto w : inc_vertices)
+			{
+				value<double>(m, this->masse_.get(), w) += vol / inc_vertices.size();
+			}
+			return true;
+		});
+
 		init_region(m);
 	}
 
@@ -105,7 +123,6 @@ public:
 				return true;
 			});
 		}
-		std::cout << "________________________" << std::endl;
 
 		init_region(m);
 	}
@@ -210,16 +227,48 @@ public:
 		if (updated_vertices.size() > 0)
 		{
 			CellMarker<MAP, Vertex> vertex_marker(m);
-			CellMarkerStore<MAP, Volume> volume_marker(m);
+			CellMarker<MAP, Volume> volume_marker(m);
+			std::vector<Volume> vect_volume;
+
+			std::vector<Vertex> uptated_2;
+
+			std::clock_t start_update;
+			start_update = std::clock();
+			double duration;
 
 			for (auto& v : updated_vertices)
 			{
+				vertex_marker.mark(v);
+				uptated_2.push_back(v);
+			}
+
+			for (auto& v : updated_vertices)
+			{
+				foreach_incident_volume(m, v, [&](Volume w) -> bool {
+					foreach_incident_vertex(m, w, [&](Vertex v2) -> bool {
+						if (!vertex_marker.is_marked(v2))
+						{
+							vertex_marker.mark(v2);
+							uptated_2.push_back(v2);
+						}
+						return true;
+					});
+					return true;
+				});
+			}
+
+			for (auto& v : uptated_2)
+			{
 				value<double>(m, this->masse_.get(), v) = 0;
 				value<std::vector<Vertex>>(m, vertex_region_.get(), v) = {};
-				vertex_marker.mark(v);
 				CellMarker<MAP, Vertex> marker(m);
 				foreach_incident_volume(m, v, [&](Volume w) -> bool {
-					volume_marker.mark(w);
+					if (!volume_marker.is_marked(w))
+					{
+						vect_volume.push_back(w);
+						volume_marker.mark(w);
+					}
+
 					foreach_incident_vertex(m, w, [&](Vertex v2) -> bool {
 						if (!marker.is_marked(v2))
 						{
@@ -228,11 +277,12 @@ public:
 						}
 						return true;
 					});
+					auto tmp_r = value<std::vector<Vertex>>(m, vertex_region_.get(), v);
 					return true;
 				});
 			}
 
-			for (auto& v : volume_marker.marked_cells())
+			for (auto& v : vect_volume)
 			{
 				double vol = value<double>(m, init_volume_, v) * 100000;
 				std::vector<Vertex> inc_vertices;
@@ -242,20 +292,38 @@ public:
 				});
 				for (auto w : inc_vertices)
 				{
-					if (vertex_marker.is_marked(w))
+					if (!vertex_marker.is_marked(w))
 						continue;
 					value<double>(m, this->masse_.get(), w) += vol / inc_vertices.size();
 				}
 			}
 
-			for (auto& v : updated_vertices)
+			for (auto& v : uptated_2)
 			{
 				value<double>(m, modify_masse_vertex_.get(), v) =
 					value<double>(m, this->masse_.get(), v) /
 					(double)value<std::vector<Vertex>>(m, vertex_region_.get(), v).size();
 			}
 
-			for (auto& v : updated_vertices)
+			duration = (std::clock() - start_update) / (double)CLOCKS_PER_SEC;
+			std::cout << "time get modify_masse : " << duration << std::endl;
+
+			std::vector<Vertex> updated_3;
+			CellMarker<MAP, Vertex> marker(m);
+			for (auto& v : uptated_2)
+			{
+				for (auto& w : value<std::vector<Vertex>>(m, vertex_region_.get(), v))
+				{
+					if (!marker.is_marked(w))
+					{
+						marker.mark(w);
+						updated_3.push_back(w);
+					}
+				}
+			}
+
+			// attention probleme
+			for (auto& v : updated_3)
 			{
 				value<Vec3>(m, init_cm_region_.get(), v) = Vec3::Zero();
 				value<double>(m, masse_region_.get(), v) = 0;

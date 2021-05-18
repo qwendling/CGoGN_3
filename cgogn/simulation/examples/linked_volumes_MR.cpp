@@ -155,11 +155,6 @@ int main(int argc, char** argv)
 						cgogn::ui::CellsSet<MRMesh, Vertex>* selected_vertices, cgogn::ui::CellsSet<MRMesh, Edge>*) {
 		switch (k)
 		{
-		case GLFW_KEY_U: {
-			vmrm.changed_connectivity(*mrm, position.get());
-			vmrm.changed_connectivity(*mrm2, position.get());
-			break;
-		}
 		case GLFW_KEY_R: {
 			MRMesh tmp(*selected_mesh);
 			tmp.change_resolution_level(0);

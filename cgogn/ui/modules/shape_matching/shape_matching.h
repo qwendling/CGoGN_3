@@ -290,6 +290,17 @@ protected:
 				});
 			}
 		}
+		if (key_code == GLFW_KEY_U)
+		{
+			if (selected_mesh_)
+			{
+				Parameters& p = parameters_[selected_mesh_];
+				if (p.have_selected_vertex_)
+				{
+					sm_solver_.update_topo(*selected_mesh_, {p.selected_vertex_});
+				}
+			}
+		}
 	}
 
 	void key_release_event(View* v, int32 key_code)
@@ -579,7 +590,7 @@ protected:
 							value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v);
 						return true;
 					});
-					sm_solver_.update_topo(*selected_mesh_, {});
+					sm_solver_.init_solver(*selected_mesh_, p.init_vertex_position_, p.vertex_masse_);
 				}
 			}
 			if (p.vertex_masse_)
@@ -590,7 +601,7 @@ protected:
 						value<double>(*selected_mesh_, p.vertex_masse_.get(), v) = 1.0f;
 						return true;
 					});
-					sm_solver_.update_topo(*selected_mesh_, {});
+					sm_solver_.init_solver(*selected_mesh_, p.init_vertex_position_, p.vertex_masse_);
 				}
 			}
 			if (ImGui::Button("new attribute Vec3"))
