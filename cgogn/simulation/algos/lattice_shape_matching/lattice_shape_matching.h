@@ -22,17 +22,13 @@ class lattice_shape_matching_constraint_solver : public Simulation_constraint<MA
 	using Volume = typename mesh_traits<MAP>::Volume;
 
 public:
+	std::shared_ptr<Attribute<Vec3>> vertex_init_position_;
 	std::shared_ptr<Attribute<std::vector<Vertex>>> vertex_region_;
 	std::shared_ptr<Attribute<double>> masse_region_;
 	std::shared_ptr<Attribute<double>> modify_masse_vertex_;
 	std::shared_ptr<Attribute<Vec3>> init_cm_region_;
-	std::shared_ptr<Attribute<Vec3>> cm_region_;
-	std::shared_ptr<Attribute<Vec3>> vertex_init_position_;
-	std::shared_ptr<Attribute<Vec3>> goals_;
 	std::shared_ptr<Attribute<Mat3d>> A_;
-	std::shared_ptr<Attribute<Mat3d>> R_;
 	std::shared_ptr<Attribute<Vec3>> translate_;
-	std::shared_ptr<Attribute<Vec3>> translate_vertex_;
 
 	std::shared_ptr<Attribute<double>> init_volume_;
 	double stiffness_;
@@ -133,23 +129,9 @@ public:
 		if (translate_ == nullptr)
 			translate_ = add_attribute<Vec3, Vertex>(m, "lattice_shape_matching_constraint_solver_translate" + id);
 
-		translate_vertex_ =
-			get_attribute<Vec3, Vertex>(m, "lattice_shape_matching_constraint_solver_translate_vertex" + id);
-		if (translate_vertex_ == nullptr)
-			translate_vertex_ =
-				add_attribute<Vec3, Vertex>(m, "lattice_shape_matching_constraint_solver_translate_vertex" + id);
-
-		R_ = get_attribute<Mat3d, Vertex>(m, "lattice_shape_matching_constraint_solver_R" + id);
-		if (R_ == nullptr)
-			R_ = add_attribute<Mat3d, Vertex>(m, "lattice_shape_matching_constraint_solver_R" + id);
-
 		A_ = get_attribute<Mat3d, Vertex>(m, "lattice_shape_matching_constraint_solver_A" + id);
 		if (A_ == nullptr)
 			A_ = add_attribute<Mat3d, Vertex>(m, "lattice_shape_matching_constraint_solver_A" + id);
-
-		goals_ = get_attribute<Vec3, Vertex>(m, "lattice_shape_matching_constraint_solver_goals" + id);
-		if (goals_ == nullptr)
-			goals_ = add_attribute<Vec3, Vertex>(m, "lattice_shape_matching_constraint_solver_goals" + id);
 
 		vertex_region_ = get_attribute<std::vector<Vertex>, Vertex>(
 			m, "lattice_shape_matching_constraint_solver_vertex_region" + id);
@@ -173,10 +155,6 @@ public:
 		if (init_cm_region_ == nullptr)
 			init_cm_region_ =
 				add_attribute<Vec3, Vertex>(m, "lattice_shape_matching_constraint_solver_init_cm_region" + id);
-
-		cm_region_ = get_attribute<Vec3, Vertex>(m, "lattice_shape_matching_constraint_solver_cm_region" + id);
-		if (cm_region_ == nullptr)
-			cm_region_ = add_attribute<Vec3, Vertex>(m, "lattice_shape_matching_constraint_solver_cm_region" + id);
 
 		parallel_foreach_cell(m, [&](Vertex v) -> bool {
 			value<std::vector<Vertex>>(m, vertex_region_.get(), v) = {};
@@ -304,10 +282,6 @@ public:
 					value<double>(m, this->masse_.get(), v) /
 					(double)value<std::vector<Vertex>>(m, vertex_region_.get(), v).size();
 			}
-
-			duration = (std::clock() - start_update) / (double)CLOCKS_PER_SEC;
-			std::cout << "time get modify_masse : " << duration << std::endl;
-
 			std::vector<Vertex> updated_3;
 			CellMarker<MAP, Vertex> marker(m);
 			for (auto& v : uptated_2)
@@ -505,60 +479,53 @@ public:
 
 	void solve_constraint(const MAP& m, Attribute<Vec3>* pos, Attribute<Vec3>* result_forces, double time_step) override
 	{
+
+		std::clock_t start;
+		double duration;
+		start = std::clock();
+
 		parallel_foreach_cell(m, [&](Vertex v) -> bool {
-			value<Vec3>(m, cm_region_.get(), v) = Vec3(0, 0, 0);
+			Vec3 cm_region = Vec3(0, 0, 0);
+			Mat3d& A = value<Mat3d>(m, A_.get(), v);
+			A = Mat3d::Zero();
 			auto r = value<std::vector<Vertex>>(m, vertex_region_.get(), v);
 			for (Vertex v2 : r)
 			{
-				value<Vec3>(m, cm_region_.get(), v) +=
-					value<double>(m, modify_masse_vertex_.get(), v2) * value<Vec3>(m, pos, v2);
+				cm_region += value<double>(m, modify_masse_vertex_.get(), v2) * value<Vec3>(m, pos, v2);
+				A += value<double>(m, modify_masse_vertex_.get(), v2) * value<Vec3>(m, pos, v2) *
+					 value<Vec3>(m, vertex_init_position_.get(), v2).transpose();
 			}
-			value<Vec3>(m, cm_region_.get(), v) /= value<double>(m, masse_region_.get(), v);
-			return true;
-		});
-		parallel_foreach_cell(m, [&](Vertex v) -> bool {
-			value<Mat3d>(m, A_.get(), v) = Mat3d::Zero();
-			auto r = value<std::vector<Vertex>>(m, vertex_region_.get(), v);
-			for (Vertex v2 : r)
-			{
-				value<Mat3d>(m, A_.get(), v) += value<double>(m, modify_masse_vertex_.get(), v2) *
-												value<Vec3>(m, pos, v2) *
-												value<Vec3>(m, vertex_init_position_.get(), v2).transpose();
-			}
-			value<Mat3d>(m, A_.get(), v) -= value<double>(m, masse_region_.get(), v) *
-											value<Vec3>(m, cm_region_.get(), v) *
-											value<Vec3>(m, init_cm_region_.get(), v).transpose();
+			cm_region /= value<double>(m, masse_region_.get(), v);
+			A -= value<double>(m, masse_region_.get(), v) * cm_region *
+				 value<Vec3>(m, init_cm_region_.get(), v).transpose();
 			Mat3d Result;
-			polarDecompositionStable(value<Mat3d>(m, A_.get(), v), 1.0e-6, Result);
-			value<Mat3d>(m, A_.get(), v) = Result;
-			value<Vec3>(m, translate_.get(), v) =
-				value<Vec3>(m, cm_region_.get(), v) -
-				value<Mat3d>(m, A_.get(), v) * value<Vec3>(m, init_cm_region_.get(), v);
+			polarDecompositionStable(A, 1.0e-6, Result);
+			A = Result;
+			value<Vec3>(m, translate_.get(), v) = cm_region - A * value<Vec3>(m, init_cm_region_.get(), v);
 			return true;
 		});
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << "\033[1;37mtime solve half lattice shape matching : \033[0m" << duration << std::endl;
 		parallel_foreach_cell(m, [&](Vertex v) -> bool {
-			value<Mat3d>(m, R_.get(), v) = Mat3d::Zero();
-			value<Vec3>(m, translate_vertex_.get(), v) = Vec3::Zero();
+			Mat3d R = Mat3d::Zero();
+			Vec3 translate_vertex = Vec3::Zero();
 			auto r = value<std::vector<Vertex>>(m, vertex_region_.get(), v);
 			for (Vertex v2 : r)
 			{
-				value<Mat3d>(m, R_.get(), v) += value<Mat3d>(m, A_.get(), v2);
-				value<Vec3>(m, translate_vertex_.get(), v) += value<Vec3>(m, translate_.get(), v2);
+				R += value<Mat3d>(m, A_.get(), v2);
+				translate_vertex += value<Vec3>(m, translate_.get(), v2);
 			}
-			value<Mat3d>(m, R_.get(), v) /= (double)r.size();
-			value<Vec3>(m, translate_vertex_.get(), v) /= (double)r.size();
-			value<Vec3>(m, goals_.get(), v) =
-				value<Mat3d>(m, R_.get(), v) * value<Vec3>(m, vertex_init_position_.get(), v) +
-				value<Vec3>(m, translate_vertex_.get(), v);
-			return true;
-		});
-		parallel_foreach_cell(m, [&](Vertex v) -> bool {
-			Vec3 result = value<double>(m, this->masse_, v) * stiffness_ *
-						  (value<Vec3>(m, goals_.get(), v) - value<Vec3>(m, pos, v)) / (time_step * time_step);
+			R /= (double)r.size();
+			translate_vertex /= (double)r.size();
+			Vec3 goals = R * value<Vec3>(m, vertex_init_position_.get(), v) + translate_vertex;
+			Vec3 result = value<double>(m, this->masse_, v) * stiffness_ * (goals - value<Vec3>(m, pos, v)) /
+						  (time_step * time_step);
 			if (result.norm() > 1.0e-10)
 				value<Vec3>(m, result_forces, v) += result;
 			return true;
 		});
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << "\033[1;36mtime solve lattice shape matching : \033[0m" << duration << std::endl;
 	}
 };
 } // namespace simulation

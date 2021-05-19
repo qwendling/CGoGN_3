@@ -42,7 +42,7 @@
 #include <cgogn/ui/modules/volume_render/volume_render.h>
 #include <cgogn/ui/modules/volume_selection/volume_selection.h>
 
-using MRMesh = cgogn::EMR_Map3_Adaptative;
+using MRMesh = cgogn::EMR_Map3;
 using Mesh = MRMesh::BASE;
 using EMR_Map3 = cgogn::EMR_Map3;
 
@@ -118,7 +118,7 @@ int main(int argc, char** argv)
 
 	vmrm.subdivide(*mrm, position.get());
 
-	mrm2->parent = mrm;
+	// mrm2->parent = mrm;
 
 	mrsr.set_vertex_position(*v1, *mrm, position);
 	mrsr.set_vertex_position(*v1, *mrm2, nullptr);
@@ -132,7 +132,7 @@ int main(int argc, char** argv)
 	std::vector<Volume> list_cut_volumes;
 
 	std::srand(164512792);
-	while (std::rand() / ((RAND_MAX + 1u) / 5) > 1)
+	/*while (std::rand() / ((RAND_MAX + 1u) / 5) > 1)
 	{
 		cgogn::foreach_cell(*mrm2, [&list_cut_volumes](Volume v) -> bool {
 			list_cut_volumes.push_back(v);
@@ -148,7 +148,7 @@ int main(int argc, char** argv)
 			}
 		}
 		list_cut_volumes.clear();
-	}
+	}*/
 	vmrm.changed_connectivity(*mrm2, position.get());
 
 	vs.f_keypress = [&](cgogn::ui::View* view, MRMesh* selected_mesh, std::int32_t k,
@@ -171,7 +171,7 @@ int main(int argc, char** argv)
 		case GLFW_KEY_V:
 			if (selected_vertices != nullptr)
 			{
-				selected_vertices->foreach_cell([&](Vertex v) {
+				/*selected_vertices->foreach_cell([&](Vertex v) {
 					std::vector<Volume> vec_volume;
 					cgogn::foreach_incident_volume(*mrm, v, [&](Volume w) -> bool {
 						vec_volume.push_back(w);
@@ -189,7 +189,7 @@ int main(int argc, char** argv)
 							selected_mesh->activate_volume_subdivision(w);
 						}
 					}
-				});
+				});*/
 				vmrm.changed_connectivity(*mrm, position.get());
 				vmrm.changed_connectivity(*mrm2, position.get());
 			}
