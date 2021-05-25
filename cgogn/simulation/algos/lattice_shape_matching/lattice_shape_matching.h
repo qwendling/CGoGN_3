@@ -5,7 +5,6 @@
 #include <cgogn/geometry/algos/volume.h>
 #include <cgogn/geometry/types/vector_traits.h>
 #include <cgogn/simulation/algos/Simulation_constraint.h>
-
 namespace cgogn
 {
 namespace simulation
@@ -484,7 +483,7 @@ public:
 		double duration;
 		start = std::clock();
 
-		parallel_foreach_cell(m, [&](Vertex v) -> bool {
+		foreach_cell(m, [&](Vertex v) -> bool {
 			Vec3 cm_region = Vec3(0, 0, 0);
 			Mat3d& A = value<Mat3d>(m, A_.get(), v);
 			A = Mat3d::Zero();
@@ -506,7 +505,7 @@ public:
 		});
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << "\033[1;37mtime solve half lattice shape matching : \033[0m" << duration << std::endl;
-		parallel_foreach_cell(m, [&](Vertex v) -> bool {
+		foreach_cell(m, [&](Vertex v) -> bool {
 			Mat3d R = Mat3d::Zero();
 			Vec3 translate_vertex = Vec3::Zero();
 			auto r = value<std::vector<Vertex>>(m, vertex_region_.get(), v);
