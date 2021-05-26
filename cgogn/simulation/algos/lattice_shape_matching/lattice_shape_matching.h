@@ -30,6 +30,9 @@ public:
 	std::shared_ptr<Attribute<Vec3>> translate_;
 
 	std::shared_ptr<Attribute<double>> init_volume_;
+	std::vector<Vertex> vertices_cache;
+
+
 	double stiffness_;
 	int id;
 	static inline int nb_solver = 0;
@@ -197,6 +200,13 @@ public:
 			value<Vec3>(m, init_cm_region_.get(), v) /= value<double>(m, masse_region_.get(), v);
 			return true;
 		});
+
+		vertices_cache.clear();
+		foreach_cell(m,[&](Vertex v)->bool{
+			vertices_cache.push_back(v);
+			return true;
+		});
+
 	}
 
 	void update_topo(const MAP& m, const std::vector<Vertex>& updated_vertices)
@@ -373,6 +383,11 @@ public:
 				return true;
 			});
 		}
+		vertices_cache.clear();
+		foreach_cell(m,[&](Vertex v)->bool{
+			vertices_cache.push_back(v);
+			return true;
+		});
 	}
 
 	double oneNorm(const Mat3d& A) const
@@ -483,7 +498,27 @@ public:
 		double duration;
 		start = std::clock();
 
-		foreach_cell(m, [&](Vertex v) -> bool {
+		for(const Vertex& v:vertices_cache){
+			Vec3 cm_region = Vec3(0, 0, 0);
+			Mat3d& A = value<Mat3d>(m, A_.get(), v);
+			A = Mat3d::Zero();
+			auto r = value<std::vector<Vertex>>(m, vertex_region_.get(), v);
+			for (Vertex v2 : r)
+			{
+				cm_region += value<double>(m, modify_masse_vertex_.get(), v2) * value<Vec3>(m, pos, v2);
+				A += value<double>(m, modify_masse_vertex_.get(), v2) * value<Vec3>(m, pos, v2) *
+					 value<Vec3>(m, vertex_init_position_.get(), v2).transpose();
+			}
+			cm_region /= value<double>(m, masse_region_.get(), v);
+			A -= value<double>(m, masse_region_.get(), v) * cm_region *
+				 value<Vec3>(m, init_cm_region_.get(), v).transpose();
+			Mat3d Result;
+			polarDecompositionStable(A, 1.0e-6, Result);
+			A = Result;
+			value<Vec3>(m, translate_.get(), v) = cm_region - A * value<Vec3>(m, init_cm_region_.get(), v);
+		}
+
+		/*foreach_cell(m, [&](Vertex v) -> bool {
 			Vec3 cm_region = Vec3(0, 0, 0);
 			Mat3d& A = value<Mat3d>(m, A_.get(), v);
 			A = Mat3d::Zero();
@@ -502,10 +537,30 @@ public:
 			A = Result;
 			value<Vec3>(m, translate_.get(), v) = cm_region - A * value<Vec3>(m, init_cm_region_.get(), v);
 			return true;
-		});
+		});*/
+
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << "\033[1;37mtime solve half lattice shape matching : \033[0m" << duration << std::endl;
-		foreach_cell(m, [&](Vertex v) -> bool {
+
+		for(const Vertex& v:vertices_cache){
+			Mat3d R = Mat3d::Zero();
+			Vec3 translate_vertex = Vec3::Zero();
+			auto r = value<std::vector<Vertex>>(m, vertex_region_.get(), v);
+			for (Vertex v2 : r)
+			{
+				R += value<Mat3d>(m, A_.get(), v2);
+				translate_vertex += value<Vec3>(m, translate_.get(), v2);
+			}
+			R /= (double)r.size();
+			translate_vertex /= (double)r.size();
+			Vec3 goals = R * value<Vec3>(m, vertex_init_position_.get(), v) + translate_vertex;
+			Vec3 result = value<double>(m, this->masse_, v) * stiffness_ * (goals - value<Vec3>(m, pos, v)) /
+						  (time_step * time_step);
+			if (result.norm() > 1.0e-10)
+				value<Vec3>(m, result_forces, v) += result;
+		}
+
+		/*foreach_cell(m, [&](Vertex v) -> bool {
 			Mat3d R = Mat3d::Zero();
 			Vec3 translate_vertex = Vec3::Zero();
 			auto r = value<std::vector<Vertex>>(m, vertex_region_.get(), v);
@@ -522,7 +577,7 @@ public:
 			if (result.norm() > 1.0e-10)
 				value<Vec3>(m, result_forces, v) += result;
 			return true;
-		});
+		});*/
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << "\033[1;36mtime solve lattice shape matching : \033[0m" << duration << std::endl;
 	}
