@@ -30,8 +30,6 @@ public:
 	std::shared_ptr<Attribute<Vec3>> translate_;
 
 	std::shared_ptr<Attribute<double>> init_volume_;
-	std::vector<Vertex> vertices_cache;
-
 
 	double stiffness_;
 	int id;
@@ -201,12 +199,7 @@ public:
 			return true;
 		});
 
-		vertices_cache.clear();
-		foreach_cell(m,[&](Vertex v)->bool{
-			vertices_cache.push_back(v);
-			return true;
-		});
-
+		this->update_vertices_cache(m);
 	}
 
 	void update_topo(const MAP& m, const std::vector<Vertex>& updated_vertices)
@@ -383,11 +376,7 @@ public:
 				return true;
 			});
 		}
-		vertices_cache.clear();
-		foreach_cell(m,[&](Vertex v)->bool{
-			vertices_cache.push_back(v);
-			return true;
-		});
+		this->update_vertices_cache(m);
 	}
 
 	double oneNorm(const Mat3d& A) const
@@ -498,7 +487,8 @@ public:
 		double duration;
 		start = std::clock();
 
-		for(const Vertex& v:vertices_cache){
+		for (const Vertex& v : this->vertices_cache)
+		{
 			Vec3 cm_region = Vec3(0, 0, 0);
 			Mat3d& A = value<Mat3d>(m, A_.get(), v);
 			A = Mat3d::Zero();
@@ -542,7 +532,8 @@ public:
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << "\033[1;37mtime solve half lattice shape matching : \033[0m" << duration << std::endl;
 
-		for(const Vertex& v:vertices_cache){
+		for (const Vertex& v : this->vertices_cache)
+		{
 			Mat3d R = Mat3d::Zero();
 			Vec3 translate_vertex = Vec3::Zero();
 			auto r = value<std::vector<Vertex>>(m, vertex_region_.get(), v);

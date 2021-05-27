@@ -642,17 +642,18 @@ public:
 
 		bool solve_coarse_is_finish = false;
 		auto solve_coarse = [&]() {
-			parallel_foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
+			for (const Vertex& v : sc_->vertices_cache)
+			{
 				value<Vec3>(*mecanical_mesh_, this->forces_coarse_.get(), v) =
 					value<Vec3>(*coarse_meca_mesh_, this->forces_ext_.get(), v);
-				return true;
-			});
+			}
 
 			sc_coarse_->solve_constraint(*coarse_meca_mesh_, vertex_position, this->forces_coarse_.get(), time_step);
 
-			parallel_foreach_cell(*coarse_meca_mesh_, [&](Vertex v) -> bool {
+			for (const Vertex& v : sc_coarse_->vertices_cache)
+			{
 				if (this->fixed_vertex && value<bool>(*coarse_meca_mesh_, this->fixed_vertex.get(), v))
-					return true;
+					continue;
 				// compute speed
 				Vec3 s = 0.995 * value<Vec3>(*coarse_meca_mesh_, this->speed_.get(), v) +
 						 time_step * value<Vec3>(*coarse_meca_mesh_, this->forces_coarse_.get(), v) /
@@ -660,12 +661,7 @@ public:
 				s += time_step * gravity_;
 				value<Vec3>(*coarse_meca_mesh_, pos_coarse_, v) =
 					value<Vec3>(*coarse_meca_mesh_, vertex_position, v) + time_step * s;
-				return true;
-			});
-			/*if (!pc_)
-				return;
-			pc_->propagate(*coarse_meca_mesh_, *mecanical_mesh_, pos_coarse_.get(), nullptr, this->forces_coarse_.get(),
-						   masse, relative_pos_.get(), parents_.get(), time_step);*/
+			}
 		};
 		solve_coarse();
 		// launch_thread(solve_coarse);
@@ -678,17 +674,17 @@ public:
 
 		bool solve_current_is_finish = false;
 		auto solve_current = [&]() {
-			parallel_foreach_cell(*fine_meca_mesh_, [&](Vertex v) -> bool {
+			for (const Vertex& v : sc_fine_->vertices_cache)
+			{
 				value<Vec3>(*fine_meca_mesh_, this->forces_current_.get(), v) =
 					value<Vec3>(*mecanical_mesh_, this->forces_ext_.get(), v);
-				return true;
-			});
-
+			}
 			sc_->solve_constraint(*mecanical_mesh_, vertex_position, this->forces_current_.get(), time_step);
 
-			parallel_foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
+			for (const Vertex& v : sc_->vertices_cache)
+			{
 				if (this->fixed_vertex && value<bool>(*mecanical_mesh_, this->fixed_vertex.get(), v))
-					return true;
+					continue;
 				// compute speed
 				Vec3 s = 0.995 * value<Vec3>(*mecanical_mesh_, this->speed_.get(), v) +
 						 time_step * value<Vec3>(*mecanical_mesh_, this->forces_current_.get(), v) /
@@ -696,13 +692,7 @@ public:
 				s += time_step * gravity_;
 				value<Vec3>(*mecanical_mesh_, pos_current_, v) =
 					value<Vec3>(*mecanical_mesh_, vertex_position, v) + time_step * s;
-				return true;
-			});
-
-			/*if (!pc_)
-				return;
-			pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, pos_current_.get(), nullptr, this->forces_current_.get(),
-						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(), time_step);*/
+			}
 		};
 
 		solve_current();
@@ -718,9 +708,10 @@ public:
 		auto solve_fine = [&]() {
 			sc_fine_->solve_constraint(*fine_meca_mesh_, vertex_position, this->forces_ext_.get(), time_step);
 
-			parallel_foreach_cell(*fine_meca_mesh_, [&](Vertex v) -> bool {
+			for (const Vertex& v : sc_fine_->vertices_cache)
+			{
 				if (this->fixed_vertex && value<bool>(*fine_meca_mesh_, this->fixed_vertex.get(), v))
-					return true;
+					continue;
 				// compute speed
 				value<Vec3>(*fine_meca_mesh_, this->speed_.get(), v) =
 					0.995 * value<Vec3>(*fine_meca_mesh_, this->speed_.get(), v) +
@@ -730,8 +721,7 @@ public:
 				value<Vec3>(*fine_meca_mesh_, vertex_position, v) =
 					value<Vec3>(*fine_meca_mesh_, vertex_position, v) +
 					time_step * value<Vec3>(*fine_meca_mesh_, this->speed_.get(), v);
-				return true;
-			});
+			}
 		};
 
 		solve_fine();
@@ -745,7 +735,7 @@ public:
 						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(), time_step);
 		}
 
-		parallel_foreach_cell(mecanical_mesh_->m_, [&](Vertex v) -> bool {
+		foreach_cell(mecanical_mesh_->m_, [&](Vertex v) -> bool {
 			value<Vec3>(m_geom, this->forces_ext_.get(), v) = Vec3(0, 0, 0);
 			return true;
 		});

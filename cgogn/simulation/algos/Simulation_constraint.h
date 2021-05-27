@@ -17,12 +17,22 @@ class Simulation_constraint
 	using Vertex = typename mesh_traits<MAP>::Vertex;
 
 public:
+	std::vector<Vertex> vertices_cache;
 	std::shared_ptr<Attribute<double>> masse_;
 	virtual void solve_constraint(const MAP& m, Attribute<Vec3>* pos, Attribute<Vec3>* result_forces,
 								  double time_step) = 0;
 	virtual void update_topo(const MAP&, const std::vector<Vertex>&){};
 	virtual void init_solver(MAP&, Attribute<Vec3>*){};
 	virtual Simulation_constraint<MAP>* get_new_ptr(){};
+	inline void update_vertices_cache(const MAP& m)
+	{
+		vertices_cache.clear();
+		foreach_cell(m, [&](Vertex v) -> bool {
+			vertices_cache.push_back(v);
+			return true;
+		});
+		return;
+	}
 };
 } // namespace simulation
 } // namespace cgogn
