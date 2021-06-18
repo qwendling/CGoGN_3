@@ -85,7 +85,7 @@ int main(int argc, char** argv)
 	v1->link_module(&am);
 	v1->link_module(&lv);
 
-	cgogn::ui::View* v2 = app.add_view();
+	/*cgogn::ui::View* v2 = app.add_view();
 	v2->link_module(&mrmp);
 	v2->link_module(&mrsr);
 	v2->link_module(&vs);
@@ -97,7 +97,7 @@ int main(int argc, char** argv)
 	v3->link_module(&mrsr);
 	v3->link_module(&vs);
 	v3->link_module(&am);
-	v3->link_module(&lv);
+	v3->link_module(&lv);*/
 
 	/*cgogn::ui::View* v4 = app.add_view();
 	v4->link_module(&mrmp);
@@ -143,7 +143,7 @@ int main(int argc, char** argv)
 		for (Volume v : list_cut_volumes)
 		{
 
-			int tmp = std::rand() / ((RAND_MAX + 1u) / 2);
+			int tmp = std::rand() / ((RAND_MAX + 1u) / 4);
 			if (tmp == 1)
 			{
 				meca_mesh->activate_volume_subdivision(v);
@@ -166,10 +166,10 @@ int main(int argc, char** argv)
 
 	mrsr.set_vertex_position(*v1, *topo_mesh, position);
 	mrsr.set_vertex_position(*v1, *meca_mesh, nullptr);
-	mrsr.set_vertex_position(*v2, *topo_mesh, nullptr);
-	mrsr.set_vertex_position(*v2, *meca_mesh, position);
-	mrsr.set_vertex_position(*v3, *topo_mesh, nullptr);
-	mrsr.set_vertex_position(*v3, *meca_mesh, nullptr);
+	// mrsr.set_vertex_position(*v2, *topo_mesh, nullptr);
+	// mrsr.set_vertex_position(*v2, *meca_mesh, position);
+	// mrsr.set_vertex_position(*v3, *topo_mesh, nullptr);
+	// mrsr.set_vertex_position(*v3, *meca_mesh, nullptr);
 	/*mrsr.set_vertex_position(*v4, *cph1, position);
 	mrsr.set_vertex_position(*v4, *cph2, position);*/
 

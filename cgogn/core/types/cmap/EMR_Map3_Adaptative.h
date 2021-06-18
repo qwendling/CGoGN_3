@@ -31,9 +31,11 @@ struct EMR_Map3_Adaptative : EMR_Map3
 	mutable std::shared_ptr<Attribute<std::tuple<uint32, uint32, uint32, Dart>>> volume_dart_buffer_;
 	static uint32 nb_views;
 	EMR_Map3_Adaptative* parent;
-	uint32 clock_views_;
 
-	EMR_Map3_Adaptative(EMR_Map3_T<CMap3>& m) : EMR_Map3(m), parent(nullptr), clock_views_(0)
+	mutable uint32 clock_views_;
+	mutable uint32 clock_parent_;
+
+	EMR_Map3_Adaptative(EMR_Map3_T<CMap3>& m) : EMR_Map3(m), parent(nullptr), clock_views_(0), clock_parent_(0)
 	{
 		nb_views++;
 		dart_visibility_ =

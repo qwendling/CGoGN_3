@@ -42,7 +42,7 @@
 #include <cgogn/ui/modules/volume_render/volume_render.h>
 #include <cgogn/ui/modules/volume_selection/volume_selection.h>
 
-using MRMesh = cgogn::EMR_Map3;
+using MRMesh = cgogn::EMR_Map3_Adaptative;
 using Mesh = MRMesh::BASE;
 using EMR_Map3 = cgogn::EMR_Map3;
 
@@ -118,7 +118,7 @@ int main(int argc, char** argv)
 
 	vmrm.subdivide(*mrm, position.get());
 
-	// mrm2->parent = mrm;
+	mrm2->parent = mrm;
 
 	mrsr.set_vertex_position(*v1, *mrm, position);
 	mrsr.set_vertex_position(*v1, *mrm2, nullptr);
@@ -190,9 +190,9 @@ int main(int argc, char** argv)
 						}
 					}
 				});*/
-				vmrm.changed_connectivity(*mrm, position.get());
-				vmrm.changed_connectivity(*mrm2, position.get());
 			}
+			vmrm.changed_connectivity(*mrm, position.get());
+			vmrm.changed_connectivity(*mrm2, position.get());
 			cgogn_message_assert(mrm->check_integrity(), "check_integrity failed");
 			cgogn_message_assert(mrm2->check_integrity(), "check_integrity failed");
 			std::cout << "hello" << std::endl;

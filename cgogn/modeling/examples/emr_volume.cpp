@@ -103,6 +103,7 @@ int main(int argc, char** argv)
 	MRMesh* mrm = vmrm.create_mrmesh(*m, mp.mesh_name(m));
 	// MRMesh* mrm2 = vmrm.create_mrmesh(*m, mp.mesh_name(m));
 	MRMesh* mrm2 = mrm->get_copy();
+	mrm2->parent = mrm;
 	mrmp.register_mesh(mrm2, "copy");
 	vs.selected_mesh_ = mrm;
 	cgogn::index_cells<Mesh::Face>(*mrm);

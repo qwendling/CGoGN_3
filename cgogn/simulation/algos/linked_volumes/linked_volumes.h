@@ -78,6 +78,111 @@ public:
 		}
 	}
 };
+
+/*template <>
+template <typename FUNC>
+inline void Linked_volumes<EMR_Map3_Adaptative>::compute_cut_plan(Vec3 dir_plan, double w, Attribute<Vec3>* pos,
+																  const FUNC& callback_vertices, bool compute_centroid)
+{
+	std::cout << "hello speci emr cut" << std::endl;
+	// Ajout plan de coupe en parametre
+	if (compute_centroid)
+	{
+		geometry::compute_centroid<Vec3, Volume>(*m_, pos, centroid_.get());
+	}
+	parallel_foreach_cell(*m_, [&](Volume v) -> bool {
+		value<double>(*m_, this->distance_plan_.get(), v) = dir_plan.dot(value<Vec3>(*m_, this->centroid_.get(), v));
+		return true;
+	});
+	CellMarker<EMR_Map3_Adaptative, Face> face_marker(*m_);
+	std::vector<Face> face_vect;
+	foreach_cell(*m_, [&](Face f) -> bool {
+		if (is_incident_to_boundary(*m_, f))
+		{
+			return true;
+		}
+		double v1 = value<double>(*m_, this->distance_plan_.get(), Volume(f.dart)) - w;
+		double v2 = value<double>(*m_, this->distance_plan_.get(), Volume(phi3(*m_, f.dart))) - w;
+		if (v1 * v2 < 0)
+		{
+			face_vect.push_back(f);
+		}
+		face_marker.mark(f);
+		return true;
+	});
+	CellMarker<EMR_Map3_Adaptative, Volume> vol_marker(*m_);
+	std::vector<Volume> volume_vect;
+	std::vector<Volume> vect_new_volume;
+
+	while (!face_vect.empty())
+	{
+		for (auto f : face_vect)
+		{
+			if (!vol_marker.is_marked(Volume(f.dart)))
+			{
+				vol_marker.mark(Volume(f.dart));
+				volume_vect.push_back(Volume(f.dart));
+			}
+			if (!vol_marker.is_marked(Volume(phi3(*m_, f.dart))))
+			{
+				vol_marker.mark(Volume(phi3(*m_, f.dart)));
+				volume_vect.push_back(Volume(phi3(*m_, f.dart)));
+			}
+		}
+		for (auto v : volume_vect)
+		{
+			foreach_incident_vertex(*m_, v, [&](Vertex w) -> bool {
+				vect_new_volume.push_back(Volume(w.dart));
+				return true;
+			});
+			m_->activate_volume_subdivision(v);
+		}
+		geometry::compute_centroid<Vec3, Volume>(*m_, pos, centroid_.get());
+		parallel_foreach_cell(*m_, [&](Volume v) -> bool {
+			value<double>(*m_, this->distance_plan_.get(), v) =
+				dir_plan.dot(value<Vec3>(*m_, this->centroid_.get(), v));
+			return true;
+		});
+		face_vect.clear();
+
+		foreach_cell(*m_, [&](Face f) -> bool {
+			if (is_incident_to_boundary(*m_, f) || face_marker.is_marked(f))
+			{
+				return true;
+			}
+			double v1 = value<double>(*m_, this->distance_plan_.get(), Volume(f.dart)) - w;
+			double v2 = value<double>(*m_, this->distance_plan_.get(), Volume(phi3(*m_, f.dart))) - w;
+			if (v1 * v2 < 0)
+			{
+				face_vect.push_back(f);
+			}
+			face_marker.mark(f);
+			return true;
+		});
+	}
+
+	face_vect.clear();
+	foreach_cell(*m_, [&](Face f) -> bool {
+		if (is_incident_to_boundary(*m_, f))
+		{
+			return true;
+		}
+		double v1 = value<double>(*m_, this->distance_plan_.get(), Volume(f.dart)) - w;
+		double v2 = value<double>(*m_, this->distance_plan_.get(), Volume(phi3(*m_, f.dart))) - w;
+		if (v1 * v2 < 0)
+		{
+			face_vect.push_back(f);
+		}
+		return true;
+	});
+
+	// unsew faces
+	for (auto f : face_vect)
+	{
+		unsew_volume(*m_, f, callback_vertices, true);
+	}
+}*/
+
 } // namespace simulation
 } // namespace cgogn
 

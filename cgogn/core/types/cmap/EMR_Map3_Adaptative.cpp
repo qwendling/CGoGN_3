@@ -60,6 +60,11 @@ bool EMR_Map3_Adaptative::check_integrity() const
 Dart EMR_Map3_Adaptative::get_phi1_buffer(Dart d) const
 {
 	auto& buffer = (*phi1_buffer_)[d.index];
+	if (parent && clock_parent_ != parent->clock_views_)
+	{
+		clock_views_++;
+		clock_parent_ = parent->clock_views_;
+	}
 
 	if (std::get<0>(buffer) != m_.clock_ || std::get<1>(buffer) != clock_views_ ||
 		std::get<2>(buffer) != current_level_)
@@ -110,6 +115,12 @@ Dart EMR_Map3_Adaptative::get_phi2_buffer(Dart d) const
 {
 	auto& buffer = (*phi2_buffer_)[d.index];
 
+	if (parent && clock_parent_ != parent->clock_views_)
+	{
+		clock_views_++;
+		clock_parent_ = parent->clock_views_;
+	}
+
 	if (std::get<0>(buffer) != m_.clock_ || std::get<1>(buffer) != clock_views_ ||
 		std::get<2>(buffer) != current_level_)
 	{
@@ -139,6 +150,12 @@ Dart EMR_Map3_Adaptative::get_phi2_buffer(Dart d) const
 Dart EMR_Map3_Adaptative::get_phi3_buffer(Dart d) const
 {
 	auto& buffer = (*phi3_buffer_)[d.index];
+
+	if (parent && clock_parent_ != parent->clock_views_)
+	{
+		clock_views_++;
+		clock_parent_ = parent->clock_views_;
+	}
 
 	if (std::get<0>(buffer) != m_.clock_ || std::get<1>(buffer) != clock_views_ ||
 		std::get<2>(buffer) != current_level_)
