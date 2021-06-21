@@ -57,6 +57,7 @@ using Vec3 = cgogn::geometry::Vec3;
 
 int main(int argc, char** argv)
 {
+	setlocale(LC_ALL, "fr-FR");
 	std::string filename;
 	if (argc < 2)
 	{
@@ -198,6 +199,34 @@ int main(int argc, char** argv)
 			std::cout << "hello" << std::endl;
 
 			break;
+		case GLFW_KEY_M: {
+			if (selected_vertices != nullptr)
+			{
+				cgogn::CellMarker<MRMesh, Vertex> cc_marker(*selected_mesh);
+				std::vector<Vertex> cc_vect;
+				selected_vertices->foreach_cell([&](Vertex v) {
+					cc_vect.push_back(v);
+					cc_marker.mark(v);
+				});
+				while (!cc_vect.empty())
+				{
+					Vertex v = cc_vect.back();
+					cc_vect.pop_back();
+					cgogn::value<Vec3>(*selected_mesh, position.get(), v) += Vec3(0.1, 0.1, 0.1);
+					cgogn::foreach_adjacent_vertex_through_edge(*selected_mesh, v, [&](Vertex w) -> bool {
+						if (!cc_marker.is_marked(w))
+						{
+							cc_vect.push_back(w);
+							cc_marker.mark(w);
+						}
+						return true;
+					});
+				}
+				vmrm.changed_connectivity(*mrm, position.get());
+				vmrm.changed_connectivity(*mrm2, position.get());
+			}
+			break;
+		}
 		}
 	};
 
