@@ -79,7 +79,7 @@ public:
 	}
 };
 
-/*template <>
+template <>
 template <typename FUNC>
 inline void Linked_volumes<EMR_Map3_Adaptative>::compute_cut_plan(Vec3 dir_plan, double w, Attribute<Vec3>* pos,
 																  const FUNC& callback_vertices, bool compute_centroid)
@@ -181,7 +181,7 @@ inline void Linked_volumes<EMR_Map3_Adaptative>::compute_cut_plan(Vec3 dir_plan,
 	{
 		unsew_volume(*m_, f, callback_vertices, true);
 	}
-}*/
+}
 
 } // namespace simulation
 } // namespace cgogn

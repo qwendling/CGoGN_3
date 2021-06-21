@@ -171,7 +171,7 @@ int main(int argc, char** argv)
 		case GLFW_KEY_V:
 			if (selected_vertices != nullptr)
 			{
-				/*selected_vertices->foreach_cell([&](Vertex v) {
+				selected_vertices->foreach_cell([&](Vertex v) {
 					std::vector<Volume> vec_volume;
 					cgogn::foreach_incident_volume(*mrm, v, [&](Volume w) -> bool {
 						vec_volume.push_back(w);
@@ -189,7 +189,7 @@ int main(int argc, char** argv)
 							selected_mesh->activate_volume_subdivision(w);
 						}
 					}
-				});*/
+				});
 			}
 			vmrm.changed_connectivity(*mrm, position.get());
 			vmrm.changed_connectivity(*mrm2, position.get());

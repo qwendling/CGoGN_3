@@ -210,6 +210,8 @@ EMR_Map3_Adaptative* EMR_Map3_Adaptative::get_copy()
 
 Dart EMR_Map3_Adaptative::get_representative(Dart d) const
 {
+	if (parent)
+		return parent->get_representative(d);
 	auto& p = (*dart_representative_)[d.index];
 	if (!p.first)
 	{
@@ -516,6 +518,12 @@ uint32 EMR_Map3_Adaptative::face_level(Dart d) const
 Dart EMR_Map3_Adaptative::volume_youngest_dart(Dart d) const
 {
 	cgogn_message_assert(get_dart_visibility(d) <= current_level_, "Access to a dart introduced after current level");
+
+	if (parent && clock_parent_ != parent->clock_views_)
+	{
+		clock_views_++;
+		clock_parent_ = parent->clock_views_;
+	}
 
 	if (edge_level(d) == 0)
 	{

@@ -260,6 +260,23 @@ template <typename FUNC>
 void unsew_volume(EMR_Map3& m, const mesh_traits<EMR_Map3>::Face f, const FUNC& callback_vertices,
 				  bool set_indices = true)
 {
+	using Face = typename mesh_traits<EMR_Map3>::Face;
+	EMR_Map3 m2(m);
+	uint32 tmp_f_level = m.face_level(f.dart);
+	Dart tmp_old = m.face_oldest_dart(f.dart);
+	if (m.dart_level(tmp_old) != tmp_f_level)
+	{
+		m2.current_level_ = m.dart_level(tmp_old);
+		unsew_volume(m2, Face(tmp_old), callback_vertices, set_indices);
+		return;
+	}
+	unsew_volume_aux(m, f, callback_vertices, set_indices);
+}
+
+template <typename FUNC>
+void unsew_volume_aux(EMR_Map3& m, const mesh_traits<EMR_Map3>::Face f, const FUNC& callback_vertices,
+					  bool set_indices = true)
+{
 	using Vertex = typename mesh_traits<EMR_Map3>::Vertex;
 	using Edge = typename mesh_traits<EMR_Map3>::Edge;
 	using Face = typename mesh_traits<EMR_Map3>::Face;
@@ -341,7 +358,7 @@ void unsew_volume(EMR_Map3& m, const mesh_traits<EMR_Map3>::Face f, const FUNC& 
 		Dart it = f_rep;
 		do
 		{
-			unsew_volume(m2, Face(it), callback_vertices, set_indices);
+			unsew_volume_aux(m2, Face(it), callback_vertices, set_indices);
 			it = phi1(m, it);
 		} while (it != f_rep);
 	}
@@ -430,9 +447,9 @@ void unsew_volume(EMR_Map3& m, const mesh_traits<EMR_Map3>::Face f, const FUNC& 
 	m.m_.clock_++;
 }
 
-//////////////
-// EMR_Map3 //
-//////////////
+/////////////////////////
+// EMR_Map3_Adaptative //
+/////////////////////////
 
 template <typename FUNC>
 void unsew_volume(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3_Adaptative>::Face f, const FUNC& callback_vertices,
