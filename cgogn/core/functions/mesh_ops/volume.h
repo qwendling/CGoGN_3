@@ -185,7 +185,7 @@ void unsew_volume(CMap3& m, const mesh_traits<CMap3>::Face f, const FUNC& callba
 		phi3_unsew(m, d);
 		return true;
 	});
-
+	// close(m, false);
 	close_hole(m, f.dart, false);
 	foreach_dart_of_orbit(m, Face2(phi3(m, f.dart)), [&](Dart d) -> bool {
 		set_boundary(m, d, true);
@@ -347,10 +347,10 @@ void unsew_volume_aux(EMR_Map3& m, const mesh_traits<EMR_Map3>::Face f, const FU
 		Dart it3 = f3_rep;
 		do
 		{
-			m.set_dart_level(phi3(m, it), m.dart_level(phi2(m, it)));
-			m.set_dart_level(phi3(m, it3), m.dart_level(phi2(m, it3)));
+			m.set_dart_level(phi3(m, it), m.dart_level(it3));
+			m.set_dart_level(phi3(m, it3), m.dart_level(it));
 			it = phi1(m, it);
-			it3 = phi1(m, it3);
+			it3 = phi_1(m, it3);
 		} while (it != f_rep);
 	}
 	else
@@ -423,6 +423,13 @@ void unsew_volume_aux(EMR_Map3& m, const mesh_traits<EMR_Map3>::Face f, const FU
 					}
 					return true;
 				});
+				foreach_dart_of_orbit(m, Edge(it), [&](Dart dd) -> bool {
+					if (m.dart_level(dd) == e_level)
+					{
+						set_index<Edge>(m, dd, index_of(m, Edge(it)));
+					}
+					return true;
+				});
 			}
 			if (is_indexed<Face>(m))
 			{
@@ -469,7 +476,7 @@ void unsew_volume(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3_Adaptative>
 	uint32 f_level = m.face_level(f.dart);
 	EMR_Map3 m2(m);
 	m2.current_level_ = f_level;
-	unsew_volume(m2, Face(m.face_oldest_dart(f.dart)), callback_vertices, set_indices);
+	unsew_volume_aux(m2, Face(m.face_oldest_dart(f.dart)), callback_vertices, set_indices);
 }
 
 } // namespace cgogn

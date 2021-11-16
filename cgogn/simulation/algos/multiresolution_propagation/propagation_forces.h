@@ -24,9 +24,8 @@ public:
 	Propagation_Forces()
 	{
 	}
-	void propagate(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>*, Attribute<Vec3>*, Attribute<Vec3>* result_forces,
-				   Attribute<double>*, Attribute<Vec3>*, Attribute<std::array<Vertex, 3>>* parent,
-				   double) const override
+	void propagate(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>*, Attribute<Vec3>* result_forces, Attribute<double>*,
+				   Attribute<Vec3>*, Attribute<std::array<Vertex, 3>>* parent, double) const override
 	{
 
 		std::vector<std::vector<Vertex>> vect_vertex_per_resolution;

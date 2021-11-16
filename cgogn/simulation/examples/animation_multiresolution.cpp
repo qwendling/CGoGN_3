@@ -122,7 +122,7 @@ int main(int argc, char** argv)
 	mrmp.register_mesh(meca_mesh, "mecanic");
 	mrmp.register_mesh(geometry_mesh, "geometry");
 
-	vmrm.selected_vertex_parents_ = cgogn::add_attribute<std::array<Vertex, 3>, Vertex>(*m, "parents");
+	vmrm.selected_vertex_parents_ = cgogn::add_attribute<std::array<Vertex, 4>, Vertex>(*m, "parents");
 	vmrm.selected_vertex_relative_position_ = cgogn::add_attribute<Vec3, Vertex>(*m, "relative_position");
 
 	cgogn::index_cells<Mesh::Volume>(*m);
@@ -179,6 +179,13 @@ int main(int argc, char** argv)
 						cgogn::ui::CellsSet<MRMesh, Vertex>* selected_vertices, cgogn::ui::CellsSet<MRMesh, Edge>*) {
 		switch (k)
 		{
+		case GLFW_KEY_1:
+			mrmp.foreach_mesh([&](MRMesh* m, const std::string&) { mrsr.set_vertex_position(*v1, *m, nullptr); });
+			mrsr.set_vertex_position(*v1, *selected_mesh, position);
+			break;
+		case GLFW_KEY_2:
+			mrmp.foreach_mesh([&](MRMesh* m, const std::string&) { vmrm.changed_connectivity(*m, position.get()); });
+			break;
 		case GLFW_KEY_R: {
 			selected_vertices->foreach_cell([&](Vertex v) {
 				cgogn::value<Vec3>(*selected_mesh, position.get(), v) =

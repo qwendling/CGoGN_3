@@ -232,8 +232,8 @@ protected:
 
 			if (ImGui::BeginCombo("Parents", selected_vertex_parents_name_.c_str()))
 			{
-				foreach_attribute<std::array<Vertex, 3>, Vertex>(
-					*selected_cph3_, [this](const std::shared_ptr<Attribute<std::array<Vertex, 3>>>& attribute) {
+				foreach_attribute<std::array<Vertex, 4>, Vertex>(
+					*selected_cph3_, [this](const std::shared_ptr<Attribute<std::array<Vertex, 4>>>& attribute) {
 						bool is_selected = attribute == selected_vertex_parents_;
 						if (ImGui::Selectable(attribute->name().c_str(), is_selected))
 							selected_vertex_parents_ = attribute;
@@ -279,7 +279,7 @@ protected:
 
 public:
 	std::shared_ptr<Attribute<Vec3>> selected_vertex_relative_position_;
-	std::shared_ptr<Attribute<std::array<Vertex, 3>>> selected_vertex_parents_;
+	std::shared_ptr<Attribute<std::array<Vertex, 4>>> selected_vertex_parents_;
 
 private:
 	CPH* selected_cph3_;

@@ -167,10 +167,13 @@ inline void Linked_volumes<EMR_Map3_Adaptative>::compute_cut_plan(Vec3 dir_plan,
 		{
 			return true;
 		}
-		double v1 = value<double>(*m_, this->distance_plan_.get(), Volume(f.dart)) - w;
-		double v2 = value<double>(*m_, this->distance_plan_.get(), Volume(phi3(*m_, f.dart))) - w;
+
+		Dart y = m_->face_youngest_dart(f.dart);
+		double v1 = value<double>(*m_, this->distance_plan_.get(), Volume(y)) - w;
+		double v2 = value<double>(*m_, this->distance_plan_.get(), Volume(phi3(*m_, y))) - w;
 		if (v1 * v2 < 0)
 		{
+
 			face_vect.push_back(f);
 		}
 		return true;
@@ -179,6 +182,9 @@ inline void Linked_volumes<EMR_Map3_Adaptative>::compute_cut_plan(Vec3 dir_plan,
 	// unsew faces
 	for (auto f : face_vect)
 	{
+		std::cout << "face level : " << m_->face_level(f.dart) << std::endl;
+		std::cout << "volume 1 level : " << m_->volume_level(f.dart) << std::endl;
+		std::cout << "volume 2 level : " << m_->volume_level(phi3(*m_, f.dart)) << std::endl;
 		unsew_volume(*m_, f, callback_vertices, true);
 	}
 }

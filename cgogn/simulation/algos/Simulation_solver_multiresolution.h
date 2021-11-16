@@ -70,7 +70,7 @@ public:
 	Simulation_constraint<MR_MAP>* sc_;
 	std::shared_ptr<Simulation_constraint<MR_MAP>> sc_fine_;
 	std::shared_ptr<Simulation_constraint<MR_MAP>> sc_coarse_;
-	std::shared_ptr<Attribute<std::array<Vertex, 3>>> parents_;
+	std::shared_ptr<Attribute<std::array<Vertex, 4>>> parents_;
 	std::shared_ptr<Attribute<Vec3>> relative_pos_;
 	MR_MAP* mecanical_mesh_;
 	MR_MAP* fine_meca_mesh_;
@@ -475,7 +475,10 @@ public:
 
 			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 			std::cout << "time activation/disable + update topo simu : " << duration << std::endl;
-			pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, vertex_position, nullptr, this->forces_ext_.get(),
+			pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, vertex_position, this->forces_ext_.get(),
+						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(),
+						   [&](Vertex v) -> bool { return !marker.is_marked(v); });
+			pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, this->speed_.get(), this->forces_ext_.get(),
 						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(),
 						   [&](Vertex v) -> bool { return !marker.is_marked(v); });
 			return true;
@@ -488,9 +491,9 @@ public:
 
 		if (pc_)
 		{
-			pc_->propagate(*coarse_meca_mesh_, *mecanical_mesh_, pos_coarse_.get(), nullptr, this->forces_coarse_.get(),
-						   masse, relative_pos_.get(), parents_.get(), time_step);
-			pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, pos_current_.get(), nullptr, this->forces_current_.get(),
+			pc_->propagate(*coarse_meca_mesh_, *mecanical_mesh_, pos_coarse_.get(), this->forces_coarse_.get(), masse,
+						   relative_pos_.get(), parents_.get(), time_step);
+			pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, pos_current_.get(), this->forces_current_.get(),
 						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(), time_step);
 		}
 
@@ -752,8 +755,8 @@ public:
 
 		if (pc_)
 		{
-			pc_->propagate(*fine_meca_mesh_, m_geom, vertex_position, this->speed_.get(), this->forces_ext_.get(),
-						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(), time_step);
+			pc_->propagate(*fine_meca_mesh_, m_geom, vertex_position, this->forces_ext_.get(), sc_fine_->masse_.get(),
+						   relative_pos_.get(), parents_.get(), time_step);
 		}
 
 		foreach_cell(mecanical_mesh_->m_, [&](Vertex v) -> bool {

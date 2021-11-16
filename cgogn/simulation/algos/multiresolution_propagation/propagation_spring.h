@@ -29,8 +29,8 @@ public:
 	Propagation_Spring(double alpha) : alpha_(alpha)
 	{
 	}
-	void propagate(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>* pos, Attribute<Vec3>* speed,
-				   Attribute<Vec3>* result_forces, Attribute<double>* masse, Attribute<Vec3>* pos_relative,
+	void propagate(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>* pos, Attribute<Vec3>* result_forces,
+				   Attribute<double>* masse, Attribute<Vec3>* pos_relative,
 				   Attribute<std::pair<Vertex, Vertex>>* parent, double timestep) const override
 	{
 
@@ -62,8 +62,6 @@ public:
 				Vec3 cur_pos = value<Vec3>(m_geom, pos, v);
 				value<Vec3>(m_geom, result_forces, v) += alpha_ * (dest - cur_pos);
 				double s = timestep * value<Vec3>(m_geom, result_forces, v) / value<double>(m_geom, masse, v);
-				if (speed != nullptr)
-					value<Vec3>(m_geom, speed, v) += s;
 				// value<Vec3>(m_geom, pos, v) = dest;
 			}
 		}

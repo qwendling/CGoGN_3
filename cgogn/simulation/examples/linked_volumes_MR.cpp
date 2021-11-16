@@ -89,12 +89,12 @@ int main(int argc, char** argv)
 	v1->link_module(&sm);
 	v1->link_module(&lv);
 
-	cgogn::ui::View* v2 = app.add_view();
+	/*cgogn::ui::View* v2 = app.add_view();
 	v2->link_module(&mp);
 	v2->link_module(&mrsr);
 	v2->link_module(&vs);
 	v2->link_module(&sm);
-	v2->link_module(&lv);
+	v2->link_module(&lv);*/
 
 	app.init_modules();
 
@@ -125,9 +125,9 @@ int main(int argc, char** argv)
 	mrsr.set_vertex_position(*v1, *mrm2, nullptr);
 	v1->scene_bb_locked_ = true;
 
-	mrsr.set_vertex_position(*v2, *mrm, nullptr);
+	/*mrsr.set_vertex_position(*v2, *mrm, nullptr);
 	mrsr.set_vertex_position(*v2, *mrm2, position);
-	v2->scene_bb_locked_ = true;
+	v2->scene_bb_locked_ = true;*/
 
 	vmrm.changed_connectivity(*mrm2, position.get());
 	std::vector<Volume> list_cut_volumes;
@@ -208,11 +208,12 @@ int main(int argc, char** argv)
 					cc_vect.push_back(v);
 					cc_marker.mark(v);
 				});
+
 				while (!cc_vect.empty())
 				{
 					Vertex v = cc_vect.back();
 					cc_vect.pop_back();
-					cgogn::value<Vec3>(*selected_mesh, position.get(), v) += Vec3(0.1, 0.1, 0.1);
+					cgogn::value<Vec3>(*selected_mesh, position.get(), v) += Vec3(-0.2, 0.2, 0);
 					cgogn::foreach_adjacent_vertex_through_edge(*selected_mesh, v, [&](Vertex w) -> bool {
 						if (!cc_marker.is_marked(w))
 						{
@@ -222,6 +223,30 @@ int main(int argc, char** argv)
 						return true;
 					});
 				}
+				/*std::vector<Vertex> test_vect;
+				selected_vertices->foreach_cell([&](Vertex v) { test_vect.push_back(v); });
+				for (auto v : test_vect)
+				{
+					cgogn::foreach_adjacent_vertex_through_edge(*selected_mesh, v, [&](Vertex w) -> bool {
+						selected_vertices->select(w);
+						return true;
+					});
+					cgogn::foreach_dart_of_orbit(*selected_mesh, v, [&](cgogn::Dart d) -> bool {
+						cgogn::Dart d_1 = phi_1(*selected_mesh, d);
+						cgogn::Dart d3 = phi3(*selected_mesh, d);	  // change volume
+						cgogn::Dart d2_1 = phi2(*selected_mesh, d_1); // turn in volume
+						cgogn::Dart d3_1 = phi3(*selected_mesh, d_1); // change volume
+						std::cout << "d : " << d.index << std::endl;
+						std::cout << "d3 : " << d3.index << std::endl;
+						std::cout << "d_1 : " << d_1.index << std::endl;
+						std::cout << "d2_1 : " << d2_1.index << std::endl;
+						std::cout << "d3_1 : " << d3_1.index << std::endl;
+
+						return true;
+					});
+					std::cout << "_______________________" << std::endl;
+				}*/
+
 				vmrm.changed_connectivity(*mrm, position.get());
 				vmrm.changed_connectivity(*mrm2, position.get());
 			}

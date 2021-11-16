@@ -72,6 +72,18 @@ Dart EMR_Map3_Adaptative::get_phi1_buffer(Dart d) const
 		auto fn = [&]() -> Dart {
 			if (current_level_ == maximum_level_)
 				return (*((*m_.MR_phi1_)[current_level_]))[d.index];
+			if (is_boundary(*this, d))
+			{
+				Dart d3 = phi3(*this, d);
+				Dart it = d3;
+				Dart it2 = phi1(*this, d3);
+				while (it2 != d3)
+				{
+					it = it2;
+					it2 = phi1(*this, it2);
+				}
+				return phi3(*this, it);
+			}
 			EMR_Map3 emr = EMR_Map3(*this);
 			Dart d3 = phi3(*this, d);
 			uint32 l_d3 = dart_level(d3);
@@ -94,7 +106,14 @@ Dart EMR_Map3_Adaptative::get_phi1_buffer(Dart d) const
 				return phi_1(emr, tmp);
 			}
 			emr.current_level_ = l_d - 1;
-			Dart d_1 = phi3(emr, d3);
+			// Dart d_1 = phi3(emr, d3);
+
+			////////test////////
+			emr.current_level_ = l_d;
+			Dart d_1 = phi2(emr, d);
+			emr.current_level_ = l_d - 1;
+			d_1 = phi2(emr, d_1);
+			////////////////////
 			Dart tmp = phi1(emr, d_1);
 			if (get_dart_visibility(tmp) <= current_level_)
 				return tmp;
@@ -398,12 +417,13 @@ bool EMR_Map3_Adaptative::edge_is_subdivided(Dart d) const
 Dart EMR_Map3_Adaptative::face_youngest_dart(Dart d) const
 {
 	cgogn_message_assert(get_dart_visibility(d) <= current_level_, "Access to a dart introduced after current level");
+
 	if (edge_level(d) == 0)
 	{
 		return d;
 	}
 
-	if (is_indexed<Face>(*this))
+	if (false && is_indexed<Face>(*this))
 	{
 		std::unordered_set<uint32> cell_id;
 		Dart result = d;

@@ -1147,11 +1147,12 @@ auto butterflySubdivisionVolumeRegular(MESH& m, double angle_threshold,
 template <typename MRMESH>
 auto butterflyMultiresolution(
 	MRMESH& m, double angle_threshold, std::vector<typename mesh_traits<MRMESH>::template Attribute<Vec3>*> attributes,
-	typename mesh_traits<MRMESH>::template Attribute<std::array<typename mesh_traits<MRMESH>::Vertex, 3>>* parents =
+	typename mesh_traits<MRMESH>::template Attribute<std::array<typename mesh_traits<MRMESH>::Vertex, 4>>* parents =
 		nullptr,
 	typename mesh_traits<MRMESH>::template Attribute<Vec3>* position_relative = nullptr)
 {
 	using Vertex = typename mesh_traits<MRMESH>::Vertex;
+	using Vertex2 = typename mesh_traits<MRMESH>::Vertex2;
 	using Volume = typename mesh_traits<MRMESH>::Volume;
 	std::vector<Vertex> new_vertices;
 
@@ -1169,12 +1170,17 @@ auto butterflyMultiresolution(
 		Dart old = m2.volume_oldest_dart(v.dart);
 		m2.current_level_--;
 		int i = 0;
-		std::array<Vertex, 3> p;
-		foreach_incident_vertex(m2, Volume(old), [&](Vertex w) -> bool {
-			p[i++] = w;
-			return i < 3;
+		std::array<Vertex, 4> p;
+		p[i++] = Vertex(old);
+		foreach_dart_of_orbit(m2, Vertex2(old), [&](Dart w) -> bool {
+			p[i++] = Vertex(phi2(m2, w));
+			return i < 4;
 		});
-		value<std::array<Vertex, 3>>(m2, parents, v) = p;
+		/*foreach_incident_vertex(m2, Volume(old), [&](Vertex w) -> bool {
+			p[i++] = w;
+			return i < 4;
+		});*/
+		value<std::array<Vertex, 4>>(m2, parents, v) = p;
 		new_vertices.push_back(v);
 		m2.current_level_++;
 	};
@@ -1184,15 +1190,18 @@ auto butterflyMultiresolution(
 	for (auto v : new_vertices)
 	{
 		auto pos = attributes[0];
-		std::array<Vertex, 3> p = value<std::array<Vertex, 3>>(m, parents, v);
+		std::array<Vertex, 4> p = value<std::array<Vertex, 4>>(m, parents, v);
 		Vec3 A = value<Vec3>(m, pos, p[0]);
 		Vec3 B = value<Vec3>(m, pos, p[1]);
 		Vec3 C = value<Vec3>(m, pos, p[2]);
+		Vec3 D = value<Vec3>(m, pos, p[3]);
 
-		Vec3 X = (B - A).normalized();
+		/*Vec3 X = (B - A).normalized();
 		Vec3 Y = (C - A).normalized();
-		Vec3 Z = (X.cross(Y));
-		Z = Z.normalized();
+		Vec3 Z = (D - A).normalized();*/
+		Vec3 X = (B - A);
+		Vec3 Y = (C - A);
+		Vec3 Z = (D - A);
 		Eigen::Matrix3d mb;
 		mb.col(0) = X;
 		mb.col(1) = Y;

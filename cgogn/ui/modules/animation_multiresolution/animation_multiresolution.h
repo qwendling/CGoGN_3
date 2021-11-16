@@ -114,7 +114,7 @@ class AnimationMultiresolution : public ViewModule
 		std::shared_ptr<Attribute<Vec3>> init_vertex_position_;
 		std::shared_ptr<Attribute<Vec3>> vertex_forces_;
 		std::shared_ptr<Attribute<double>> vertex_masse_;
-		std::shared_ptr<Attribute<std::array<Vertex, 3>>> vertex_parents_;
+		std::shared_ptr<Attribute<std::array<Vertex, 4>>> vertex_parents_;
 		std::shared_ptr<Attribute<bool>> fixed_vertex;
 
 		std::unique_ptr<rendering::ShaderPointSprite::Param> param_move_vertex_;
@@ -199,7 +199,7 @@ public:
 		p.vertex_masse_ = vertex_masse;
 	}
 
-	void set_vertex_parents(const MR_MESH& m, const std::shared_ptr<Attribute<std::array<Vertex, 3>>>& vertex_parents)
+	void set_vertex_parents(const MR_MESH& m, const std::shared_ptr<Attribute<std::array<Vertex, 4>>>& vertex_parents)
 	{
 		Parameters& p = parameters_[&m];
 
@@ -627,8 +627,8 @@ protected:
 			if (ImGui::BeginCombo("vertex parent",
 								  p.vertex_parents_ ? p.vertex_parents_->name().c_str() : "-- select --"))
 			{
-				foreach_attribute<std::array<Vertex, 3>, Vertex>(
-					*mecanical_mesh_, [&](const std::shared_ptr<Attribute<std::array<Vertex, 3>>>& attribute) {
+				foreach_attribute<std::array<Vertex, 4>, Vertex>(
+					*mecanical_mesh_, [&](const std::shared_ptr<Attribute<std::array<Vertex, 4>>>& attribute) {
 						bool is_selected = attribute == p.vertex_parents_;
 						if (ImGui::Selectable(attribute->name().c_str(), is_selected))
 							set_vertex_parents(*mecanical_mesh_, attribute);
@@ -676,14 +676,14 @@ protected:
 					p.update_move_vertex_vbo();
 					mesh_provider_->foreach_mesh([&](MR_MESH* m, const std::string&) {
 						mesh_provider_->emit_attribute_changed(m, p.vertex_position_.get());
-						mesh_provider_->emit_attribute_changed(m, simu_solver.diff_volume_current_fine_.get());
+						/*mesh_provider_->emit_attribute_changed(m, simu_solver.diff_volume_current_fine_.get());
 						mesh_provider_->emit_attribute_changed(m, simu_solver.diff_volume_coarse_current_.get());
 						mesh_provider_->emit_attribute_changed(m, simu_solver.pos_current_.get());
 						mesh_provider_->emit_attribute_changed(m, simu_solver.pos_coarse_.get());
 						if (modif_topo_)
 						{
 							mesh_provider_->emit_connectivity_changed(m);
-						}
+						}*/
 					});
 					map.end_reader();
 					need_update_ = false;

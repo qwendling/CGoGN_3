@@ -18,16 +18,16 @@ class Propagation_Constraint
 	using Vertex = typename mesh_traits<MR_MAP>::Vertex;
 
 public:
-	virtual void propagate(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>* pos, Attribute<Vec3>* speed,
-						   Attribute<Vec3>* result_forces, Attribute<double>* masse, Attribute<Vec3>* pos_relative,
-						   Attribute<std::array<Vertex, 3>>* parent, const std::function<bool(Vertex)>& filter,
+	virtual void propagate(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>* pos, Attribute<Vec3>* result_forces,
+						   Attribute<double>* masse, Attribute<Vec3>* pos_relative,
+						   Attribute<std::array<Vertex, 4>>* parent, const std::function<bool(Vertex)>& filter,
 						   double time_step = 0.005f) const = 0;
-	void propagate(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>* pos, Attribute<Vec3>* speed,
-				   Attribute<Vec3>* result_forces, Attribute<double>* masse, Attribute<Vec3>* pos_relative,
-				   Attribute<std::array<Vertex, 3>>* parent, double time_step = 0.005f) const
+	void propagate(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>* pos, Attribute<Vec3>* result_forces,
+				   Attribute<double>* masse, Attribute<Vec3>* pos_relative, Attribute<std::array<Vertex, 4>>* parent,
+				   double time_step = 0.005f) const
 	{
 		propagate(
-			m_meca, m_geom, pos, speed, result_forces, masse, pos_relative, parent, [](Vertex) -> bool { return true; },
+			m_meca, m_geom, pos, result_forces, masse, pos_relative, parent, [](Vertex) -> bool { return true; },
 			time_step);
 	};
 };

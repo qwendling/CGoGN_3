@@ -29,8 +29,8 @@ public:
 	Propagation_Plastique(double alpha) : alpha_(alpha)
 	{
 	}
-	void propagate(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>* pos, Attribute<Vec3>* speed, Attribute<Vec3>*,
-				   Attribute<double>*, Attribute<Vec3>* pos_relative, Attribute<std::array<Vertex, 3>>* parent,
+	void propagate(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>* pos, Attribute<Vec3>*, Attribute<double>*,
+				   Attribute<Vec3>* pos_relative, Attribute<std::array<Vertex, 4>>* parent,
 				   const std::function<bool(Vertex)>& filter, double time_step) const override
 	{
 
@@ -47,10 +47,11 @@ public:
 			vect_vertex_per_resolution[m_geom.dart_level(v.dart)].push_back(v);
 
 			list_vertices.insert(index_of(m_meca, v));
-			std::array<Vertex, 3> p = value<std::array<Vertex, 3>>(m_geom, parent, v);
+			std::array<Vertex, 4> p = value<std::array<Vertex, 4>>(m_geom, parent, v);
 			add_vertex(p[0]);
 			add_vertex(p[1]);
 			add_vertex(p[2]);
+			add_vertex(p[3]);
 		};
 
 		foreach_cell(m_geom, [&](Vertex v) -> bool {
@@ -66,19 +67,22 @@ public:
 		{
 			for (auto& v : vect_vertex_per_resolution[i])
 			{
-				std::array<Vertex, 3>& p = value<std::array<Vertex, 3>>(m_geom, parent, v);
+				std::array<Vertex, 4>& p = value<std::array<Vertex, 4>>(m_geom, parent, v);
 				Vec3 A = value<Vec3>(m_geom, pos, p[0]);
 				Vec3 B = value<Vec3>(m_geom, pos, p[1]);
 				Vec3 C = value<Vec3>(m_geom, pos, p[2]);
-				Vec3 V1 = (B - A).normalized();
+				Vec3 D = value<Vec3>(m_geom, pos, p[3]);
+
+				/*Vec3 V1 = (B - A).normalized();
 				Vec3 V2 = (C - A).normalized();
-				Vec3 V3 = (V1.cross(V2));
-				V3 = V3.normalized();
+				Vec3 V3 = (D - A).normalized();*/
+
+				Vec3 V1 = (B - A);
+				Vec3 V2 = (C - A);
+				Vec3 V3 = (D - A);
+
 				Vec3 p_r = value<Vec3>(m_geom, pos_relative, v);
 				Vec3 dest = A + V1 * p_r[0] + V2 * p_r[1] + V3 * p_r[2];
-				Vec3 cur_pos = value<Vec3>(m_geom, pos, v);
-				if (speed != nullptr)
-					value<Vec3>(m_geom, speed, v) = (dest - cur_pos) / time_step;
 				value<Vec3>(m_geom, pos, v) = dest;
 			}
 		}
