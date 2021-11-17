@@ -7,6 +7,7 @@
 #include <cgogn/core/types/mesh_traits.h>
 #include <cgogn/geometry/algos/centroid.h>
 #include <cgogn/geometry/types/vector_traits.h>
+#include <cgogn/simulation/algos/linked_volumes/cutting_tools.h>
 
 namespace cgogn
 {
@@ -84,7 +85,6 @@ template <typename FUNC>
 inline void Linked_volumes<EMR_Map3_Adaptative>::compute_cut_plan(Vec3 dir_plan, double w, Attribute<Vec3>* pos,
 																  const FUNC& callback_vertices, bool compute_centroid)
 {
-	std::cout << "hello speci emr cut" << std::endl;
 	// Ajout plan de coupe en parametre
 	if (compute_centroid)
 	{
