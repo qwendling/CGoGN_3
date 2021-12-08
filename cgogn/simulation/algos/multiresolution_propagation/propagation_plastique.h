@@ -31,7 +31,7 @@ public:
 	}
 	void propagate(MR_MAP& m_meca, MR_MAP& m_geom, Attribute<Vec3>* pos, Attribute<Vec3>*, Attribute<double>*,
 				   Attribute<Vec3>* pos_relative, Attribute<std::array<Vertex, 4>>* parent,
-				   const std::function<bool(Vertex)>& filter, double time_step) const override
+				   const std::function<bool(Vertex)>& filter, double) const override
 	{
 
 		std::vector<std::vector<Vertex>> vect_vertex_per_resolution;

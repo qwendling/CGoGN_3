@@ -36,6 +36,11 @@ class Simulation_solver_multiresolution : public Simulation_solver<MR_MAP>
 	using Face = typename mesh_traits<MR_MAP>::Face;
 	using Volume = typename mesh_traits<MR_MAP>::Volume;
 
+	struct Module
+	{
+		Simulation_solver_multiresolution* ssm_;
+	};
+
 	struct tree_volume
 	{
 		tree_volume* fils;
@@ -75,6 +80,8 @@ public:
 	MR_MAP* mecanical_mesh_;
 	MR_MAP* fine_meca_mesh_;
 	MR_MAP* coarse_meca_mesh_;
+	MR_MAP* topology_;
+
 	std::forward_list<tree_volume*> list_volume_coarse_;
 	std::forward_list<tree_volume*> list_volume_current_;
 
@@ -119,6 +126,7 @@ public:
 		mecanical_mesh_ = &m;
 		fine_meca_mesh_ = m.get_copy();
 		coarse_meca_mesh_ = m.get_copy();
+		topology_ = new MR_MAP(m.m_);
 
 		if (cache_current_vol_ != nullptr)
 			delete cache_current_vol_;
@@ -653,6 +661,16 @@ public:
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << "\033[1;35m time error current fine : \033[0m" << duration << std::endl;
 		std::cout << "temps total compute volume : " << duration_volume << std::endl;
+	}
+
+	void add_new_vertices_in_simulation(MR_MAP& view, Attribute<Vec3>* vertex_position)
+	{
+		CellMarkerStore<MR_MAP, Vertex> marker(view);
+		foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool { return true; });
+		pc_->propagate(*mecanical_mesh_, view, vertex_position, nullptr, nullptr, relative_pos_.get(), parents_.get(),
+					   [&](Vertex v) -> bool { return !marker.is_marked(v); });
+		pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, this->speed_.get(), this->forces_ext_.get(), nullptr,
+					   relative_pos_.get(), parents_.get(), [&](Vertex v) -> bool { return !marker.is_marked(v); });
 	}
 
 	void compute_time_step(MR_MAP& m_geom, Attribute<Vec3>* vertex_position, Attribute<double>* masse, double time_step,
