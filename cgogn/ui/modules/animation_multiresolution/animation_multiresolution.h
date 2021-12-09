@@ -582,6 +582,7 @@ protected:
 							simu_solver.init_solver(*mecanical_mesh_, &sm_solver_, p.vertex_position_.get(), &ps_);
 							mesh_provider_->register_mesh(simu_solver.coarse_meca_mesh_, "coarse_mesh");
 							mesh_provider_->register_mesh(simu_solver.fine_meca_mesh_, "fine_mesh");
+							mesh_provider_->register_mesh(simu_solver.topology_, "topology_mesh");
 							p.vertex_masse_ = sm_solver_.masse_;
 							p.init_vertex_position_ = sm_solver_.vertex_init_position_;
 							p.vertex_forces_ = simu_solver.forces_ext_;
