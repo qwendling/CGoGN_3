@@ -11,6 +11,7 @@
 #include <cgogn/simulation/algos/Simulation_solver.h>
 #include <cgogn/simulation/algos/multiresolution_propagation/propagation_constraint.h>
 #include <forward_list>
+#include <string>
 
 #define QUOTA_VOLUME 1000
 #define PROPORTION_QUOTA 0.1f
@@ -43,6 +44,7 @@ class Simulation_solver_multiresolution : public Simulation_solver<MR_MAP>
 
 	enum tree_volume_node
 	{
+		ROOT,
 		NONE,
 		CURRENT,
 		COARSE,
@@ -51,15 +53,16 @@ class Simulation_solver_multiresolution : public Simulation_solver<MR_MAP>
 
 	struct tree_volume
 	{
+		int id;
 		tree_volume* fils;
 		tree_volume* pere;
 		tree_volume* frere;
 		Dart volume_dart;
-		bool is_current;
-		bool is_coarse;
+		/*bool is_current;
+		bool is_coarse;*/
 		tree_volume_node type;
 		int clock;
-		tree_volume() : fils(nullptr), pere(nullptr), frere(nullptr), is_current(false), is_coarse(false), clock(0)
+		tree_volume() : fils(nullptr), pere(nullptr), frere(nullptr), clock(0)
 		{
 		}
 
@@ -76,6 +79,76 @@ class Simulation_solver_multiresolution : public Simulation_solver<MR_MAP>
 					return;
 				it = it->frere;
 			}
+		}
+
+		void print()
+		{
+			if (!fils)
+			{
+				return;
+			}
+
+			switch (type)
+			{
+			case ROOT:
+				std::cout << "ROOT_" + std::to_string(id);
+				break;
+			case NONE:
+				std::cout << "NONE_" + std::to_string(id);
+				break;
+			case CURRENT:
+				std::cout << "CURRENT_" + std::to_string(id);
+				break;
+			case COARSE:
+				std::cout << "COARSE_" + std::to_string(id);
+				break;
+			case TOPOLOGY:
+				std::cout << "TOPOLOGY_" + std::to_string(id);
+				break;
+			}
+
+			std::cout << "->";
+			tree_volume* it = fils->frere;
+			while (it != nullptr)
+			{
+				switch (it->type)
+				{
+				case NONE:
+					std::cout << "NONE_";
+					break;
+				case CURRENT:
+					std::cout << "CURRENT_";
+					break;
+				case COARSE:
+					std::cout << "COARSE_";
+					break;
+				case TOPOLOGY:
+					std::cout << "TOPOLOGY_";
+					break;
+				}
+				std::cout << std::to_string(it->id) + ",";
+				it = it->frere;
+			}
+			switch (fils->type)
+			{
+			case NONE:
+				std::cout << "NONE_";
+				break;
+			case CURRENT:
+				std::cout << "CURRENT_";
+				break;
+			case COARSE:
+				std::cout << "COARSE_";
+				break;
+			case TOPOLOGY:
+				std::cout << "TOPOLOGY_";
+				break;
+			}
+			std::cout << std::to_string(fils->id) + ";" << std::endl;
+			for_each_child([&](tree_volume* c) -> bool {
+				c->print();
+				return true;
+			});
 		}
 	};
 
@@ -130,10 +203,11 @@ public:
 
 	void create_coarse_view()
 	{
+		list_volume_coarse_.clear();
 		coarse_meca_mesh_ = mecanical_mesh_->get_copy();
 		std::vector<Volume> volume_coarse;
-		foreach_cell(coarse_meca_mesh_, [&](Volume v) -> bool {
-			tree_volume* t = value<tree_volume*>(coarse_meca_mesh_, hierarchy_node_, v);
+		foreach_cell(*coarse_meca_mesh_, [&](Volume v) -> bool {
+			tree_volume* t = value<tree_volume*>(*coarse_meca_mesh_, hierarchy_node_, v);
 			if (t->pere->clock != clock)
 			{
 				t->pere->clock = clock;
@@ -143,6 +217,7 @@ public:
 				{
 					t->pere->type = COARSE;
 					volume_coarse.push_back(Volume(t->pere->volume_dart));
+					list_volume_coarse_.push_front(t->pere);
 				}
 			}
 			return true;
@@ -150,6 +225,7 @@ public:
 		clock++;
 		for (Volume v : volume_coarse)
 		{
+			std::cout << "disable volume lvl : " << coarse_meca_mesh_->volume_level(v.dart) << std::endl;
 			coarse_meca_mesh_->disable_volume_subdivision(v, true);
 		}
 	}
@@ -157,7 +233,7 @@ public:
 	void create_fine_view()
 	{
 		fine_meca_mesh_ = mecanical_mesh_->get_copy();
-		foreach_cell(mecanical_mesh_, [&](Volume v) -> bool {
+		foreach_cell(*mecanical_mesh_, [&](Volume v) -> bool {
 			fine_meca_mesh_->activate_volume_subdivision(v);
 			return true;
 		});
@@ -179,26 +255,30 @@ public:
 		std::vector<tree_volume*> tmp_watcher;
 		std::forward_list<tree_volume*> list_volume_current_tmp;
 
-		list_volume_coarse_.clear();
-		list_volume_current_.clear();
-
 		// Construction de la hierarchie de volume
 
 		MR_Base tmp(m);
 		tmp.current_level_ = m.current_level_;
 		std::function<void(tree_volume*, MR_Base&)> progress_tree;
+
+		int nb_node = 0;
+
 		progress_tree = [&](tree_volume* p, MR_Base& cph) -> void {
+			if (cph.current_level_ == cph.maximum_level_)
+				return;
 			foreach_incident_vertex(cph, Volume(p->volume_dart), [&](Vertex v) -> bool {
 				cph.current_level_++;
 
 				tree_volume* t = new tree_volume();
+				t->id = nb_node++;
 				t->volume_dart = cph.volume_oldest_dart(v.dart);
 				t->frere = p->fils;
 				p->fils = t;
 				t->pere = p;
 				t->type = NONE;
-				value<tree_volume*>(tmp, hierarchy_node_, Volume(v.dart)) = t;
-				progress_tree(t, cph);
+				value<tree_volume*>(cph, hierarchy_node_, Volume(v.dart)) = t;
+				if (cph.volume_is_subdivided(v.dart))
+					progress_tree(t, cph);
 
 				cph.current_level_--;
 
@@ -211,10 +291,13 @@ public:
 			hierarchy_node_ = add_attribute<tree_volume*, Volume>(m, "Solver_multiresolution_hierarchy_node");
 
 		hierarchy_ = new tree_volume();
+		hierarchy_->type = ROOT;
+		hierarchy_->id = nb_node++;
 
 		foreach_cell(tmp, [&](typename MR_Base::Volume v) -> bool {
 			MR_Base tmp2(tmp);
 			tree_volume* t = new tree_volume();
+			t->id = nb_node++;
 			t->frere = hierarchy_->fils;
 			hierarchy_->fils = t;
 			t->pere = hierarchy_;
@@ -228,14 +311,21 @@ public:
 
 		// Construction des vues
 
+		list_volume_current_.clear();
+
 		foreach_cell(m, [&](Volume v) -> bool {
-			tree_volume* t = value<tree_volume*>(tmp, hierarchy_node_, v);
+			tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
 			t->type = CURRENT;
+			std::cout << "current volume lvl : " << m.volume_level(v.dart) << std::endl;
+			if (t->fils)
+				list_volume_current_.push_front(t);
 			return true;
 		});
 
 		create_coarse_view();
 		create_fine_view();
+
+		hierarchy_->print();
 
 		fine_meca_mesh_->current_level_ = mecanical_mesh_->current_level_;
 		reset_forces(*fine_meca_mesh_);
@@ -351,14 +441,17 @@ public:
 			list_volume_coarse_.pop_front();
 
 			// Activation
-			max_fine->is_current = false;
-			max_fine->is_coarse = true;
+			/*max_fine->is_current = false;
+			max_fine->is_coarse = true;*/
+			max_fine->type = COARSE;
 			list_new_coarse_.push_front(max_fine);
 
-			if (max_fine->pere && max_fine->pere->is_coarse)
+			// if (max_fine->pere && max_fine->pere->is_coarse)
+			if (max_fine->pere && max_fine->pere->type == COARSE)
 			{
 				list_volume_coarse_.remove(max_fine->pere);
-				max_fine->pere->is_coarse = false;
+				// max_fine->pere->is_coarse = false;
+				max_fine->pere->type = NONE;
 				coarse_meca_mesh_->activate_volume_subdivision(Volume(max_fine->volume_dart));
 				max_fine->pere->for_each_child([&](tree_volume* c) -> bool {
 					list_new_volume_coarse.push_back(Volume(c->volume_dart));
@@ -378,11 +471,13 @@ public:
 					fine_meca_mesh_->activate_volume_subdivision(Volume(c->volume_dart));
 					list_new_current_.push_front(c);
 				}
-				c->is_current = true;
+				// c->is_current = true;
+				c->type = CURRENT;
 				return true;
 			});
 			// Disable
-			min_coarse->is_current = true;
+			// min_coarse->is_current = true;
+			min_coarse->type = CURRENT;
 
 			list_new_current_.push_front(min_coarse);
 
@@ -390,7 +485,8 @@ public:
 			list_new_volume_current.push_back(Volume(min_coarse->volume_dart));
 			min_coarse->for_each_child([&](tree_volume* c) -> bool {
 				list_volume_current_.remove(c);
-				c->is_current = false;
+				// c->is_current = false;
+				c->type = NONE;
 
 				if (c->fils)
 				{
@@ -405,7 +501,8 @@ public:
 
 				bool can_be_coarse = true;
 				min_coarse->pere->for_each_child([&](tree_volume* c) {
-					if (!c->is_current)
+					// if (!c->is_current)
+					if (c->type != CURRENT)
 						can_be_coarse = false;
 					return can_be_coarse;
 				});
@@ -413,7 +510,8 @@ public:
 				{
 					list_new_volume_coarse.push_back(Volume(min_coarse->volume_dart));
 					coarse_meca_mesh_->disable_volume_subdivision(Volume(min_coarse->volume_dart), true);
-					min_coarse->pere->is_coarse = true;
+					// min_coarse->pere->is_coarse = true;
+					min_coarse->pere->type = COARSE;
 					list_new_coarse_.push_front(min_coarse->pere);
 				}
 			}
@@ -601,7 +699,8 @@ public:
 			}
 			for (tree_volume* t : list_volume_coarse_)
 			{
-				if (t->is_current)
+				// if (t->is_current)
+				if (t->type == CURRENT)
 					continue;
 				Volume v = Volume(t->volume_dart);
 				value<double>(*coarse_meca_mesh_, this->diff_volume_coarse_current_.get(), v) = 0;
