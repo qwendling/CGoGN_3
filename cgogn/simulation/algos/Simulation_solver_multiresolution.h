@@ -58,11 +58,12 @@ class Simulation_solver_multiresolution : public Simulation_solver<MR_MAP>
 		tree_volume* pere;
 		tree_volume* frere;
 		Dart volume_dart;
-		/*bool is_current;
-		bool is_coarse;*/
+
+		bool is_topo;
+
 		tree_volume_node type;
 		int clock;
-		tree_volume() : fils(nullptr), pere(nullptr), frere(nullptr), clock(0)
+		tree_volume() : fils(nullptr), pere(nullptr), frere(nullptr), is_topo(false), clock(0)
 		{
 		}
 
@@ -208,6 +209,8 @@ public:
 		std::vector<Volume> volume_coarse;
 		foreach_cell(*coarse_meca_mesh_, [&](Volume v) -> bool {
 			tree_volume* t = value<tree_volume*>(*coarse_meca_mesh_, hierarchy_node_, v);
+			if (t->is_topo)
+				return true;
 			if (t->pere->clock != clock)
 			{
 				t->pere->clock = clock;
@@ -225,7 +228,6 @@ public:
 		clock++;
 		for (Volume v : volume_coarse)
 		{
-			std::cout << "disable volume lvl : " << coarse_meca_mesh_->volume_level(v.dart) << std::endl;
 			coarse_meca_mesh_->disable_volume_subdivision(v, true);
 		}
 	}
@@ -303,6 +305,7 @@ public:
 			t->pere = hierarchy_;
 			t->volume_dart = tmp.volume_oldest_dart(v.dart);
 			t->type = TOPOLOGY;
+			t->is_topo = true;
 			value<tree_volume*>(tmp, hierarchy_node_, v) = t;
 			progress_tree(t, tmp2);
 			return true;
@@ -316,7 +319,6 @@ public:
 		foreach_cell(m, [&](Volume v) -> bool {
 			tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
 			t->type = CURRENT;
-			std::cout << "current volume lvl : " << m.volume_level(v.dart) << std::endl;
 			if (t->fils)
 				list_volume_current_.push_front(t);
 			return true;
@@ -324,8 +326,6 @@ public:
 
 		create_coarse_view();
 		create_fine_view();
-
-		hierarchy_->print();
 
 		fine_meca_mesh_->current_level_ = mecanical_mesh_->current_level_;
 		reset_forces(*fine_meca_mesh_);
