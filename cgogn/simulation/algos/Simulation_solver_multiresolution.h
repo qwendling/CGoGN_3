@@ -11,6 +11,7 @@
 #include <cgogn/simulation/algos/Simulation_solver.h>
 #include <cgogn/simulation/algos/multiresolution_propagation/propagation_constraint.h>
 #include <forward_list>
+#include <stack>
 #include <string>
 
 #define QUOTA_VOLUME 1000
@@ -241,6 +242,49 @@ public:
 		});
 	}
 
+	void update_tree_volume(MR_MAP& new_topo)
+	{
+		foreach_cell(new_topo, [&](typename MR_MAP::Volume v) -> bool {
+			tree_volume* t = value<tree_volume*>(new_topo, hierarchy_node_, v);
+			std::stack<tree_volume*> stack_tree;
+			t->is_topo = true;
+			while (t->pere != nullptr && t->pere->is_topo == false)
+			{
+				t = t->parent;
+
+				// MECA
+				stack_tree.push(t);
+				if (t->type == CURRENT)
+				{
+					while (!stack_tree.empty())
+					{
+						tree_volume* it = stack_tree.top();
+
+						mecanical_mesh_->activate_volume_subdivision(Volume(t->volume_dart));
+
+						t->for_each_child([&](tree_volume* c) -> bool {
+							c->type = CURRENT;
+							return true;
+						});
+
+						stack_tree.pop();
+					}
+				}
+
+				// TOPOLOGY
+				t->is_topo = true;
+				t->for_each_child([&](tree_volume* c) -> bool {
+					c->is_topo = true;
+					return true;
+				});
+				t->type = TOPOLOGY;
+			}
+			return true;
+		});
+		create_coarse_view();
+		create_fine_view();
+	}
+
 	void init_solver(MR_MAP& m, Simulation_constraint<MR_MAP>* sc, Attribute<Vec3>* pos,
 					 Propagation_Constraint<MR_MAP>* pc = nullptr,
 					 const std::shared_ptr<Attribute<Vec3>>& speed = nullptr,
@@ -260,7 +304,7 @@ public:
 		// Construction de la hierarchie de volume
 
 		MR_Base tmp(m);
-		tmp.current_level_ = m.current_level_;
+		tmp.current_level_ = 0;
 		std::function<void(tree_volume*, MR_Base&)> progress_tree;
 
 		int nb_node = 0;
