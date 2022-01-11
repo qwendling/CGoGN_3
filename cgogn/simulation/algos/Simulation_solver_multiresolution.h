@@ -242,8 +242,12 @@ public:
 		});
 	}
 
-	void update_tree_volume(MR_MAP& new_topo)
+	void update_tree_volume(MR_MAP& new_topo, Attribute<Vec3>* pos)
 	{
+		pc_->propagate(*mecanical_mesh_, new_topo, pos, this->forces_ext_.get(), sc_fine_->masse_.get(),
+					   relative_pos_.get(), parents_.get());
+		pc_->propagate(*mecanical_mesh_, new_topo, this->speed_.get(), this->forces_ext_.get(), sc_fine_->masse_.get(),
+					   relative_pos_.get(), parents_.get());
 		foreach_cell(new_topo, [&](typename MR_MAP::Volume v) -> bool {
 			tree_volume* t = value<tree_volume*>(new_topo, hierarchy_node_, v);
 			std::stack<tree_volume*> stack_tree;
@@ -283,6 +287,11 @@ public:
 		});
 		create_coarse_view();
 		create_fine_view();
+
+		pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, pos, this->forces_ext_.get(), sc_fine_->masse_.get(),
+					   relative_pos_.get(), parents_.get());
+		pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, this->speed_.get(), this->forces_ext_.get(),
+					   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get());
 	}
 
 	void init_solver(MR_MAP& m, Simulation_constraint<MR_MAP>* sc, Attribute<Vec3>* pos,
