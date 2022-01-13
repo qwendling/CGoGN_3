@@ -102,6 +102,7 @@ struct EMR_Map3_Adaptative : EMR_Map3
 
 	EMR_Map3_Adaptative* get_child();
 	EMR_Map3_Adaptative* get_copy();
+	void copy_visibility(const EMR_Map3_Adaptative& other);
 
 	/***************************************************
 	 *                  EDGE INFO                      *

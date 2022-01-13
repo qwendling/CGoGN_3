@@ -227,6 +227,15 @@ EMR_Map3_Adaptative* EMR_Map3_Adaptative::get_copy()
 	return result;
 }
 
+void EMR_Map3_Adaptative::copy_visibility(const EMR_Map3_Adaptative& other)
+{
+	for (Dart it = m_.begin(); it != m_.end(); it = m_.next(it))
+	{
+		(*dart_visibility_)[it.index] = (*other.dart_visibility_)[it.index];
+	}
+	clock_views_++;
+};
+
 Dart EMR_Map3_Adaptative::get_representative(Dart d) const
 {
 	if (parent)

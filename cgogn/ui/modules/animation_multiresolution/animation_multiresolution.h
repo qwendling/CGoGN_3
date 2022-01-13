@@ -285,6 +285,16 @@ protected:
 		{
 			ground_ = !ground_;
 		}
+		if (key_code == GLFW_KEY_L)
+		{
+			Parameters& p = parameters_[mecanical_mesh_];
+			simu_solver.update_tree_volume(*simu_solver.fine_meca_mesh_, p.vertex_position_.get());
+			mesh_provider_->foreach_mesh([&](MR_MESH* m, const std::string&) {
+				mesh_provider_->emit_attribute_changed(m, p.vertex_position_.get());
+				mesh_provider_->emit_connectivity_changed(m);
+			});
+			std::cout << "ok" << std::endl;
+		}
 		if (key_code == GLFW_KEY_P)
 		{
 			if (simu_solver.gravity_[1] == 0)

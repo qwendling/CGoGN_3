@@ -206,7 +206,7 @@ public:
 	void create_coarse_view()
 	{
 		list_volume_coarse_.clear();
-		coarse_meca_mesh_ = mecanical_mesh_->get_copy();
+		coarse_meca_mesh_->copy_visibility(*mecanical_mesh_);
 		std::vector<Volume> volume_coarse;
 		foreach_cell(*coarse_meca_mesh_, [&](Volume v) -> bool {
 			tree_volume* t = value<tree_volume*>(*coarse_meca_mesh_, hierarchy_node_, v);
@@ -235,7 +235,7 @@ public:
 
 	void create_fine_view()
 	{
-		fine_meca_mesh_ = mecanical_mesh_->get_copy();
+		fine_meca_mesh_->copy_visibility(*mecanical_mesh_);
 		foreach_cell(*mecanical_mesh_, [&](Volume v) -> bool {
 			fine_meca_mesh_->activate_volume_subdivision(v);
 			return true;
@@ -252,9 +252,9 @@ public:
 			tree_volume* t = value<tree_volume*>(new_topo, hierarchy_node_, v);
 			std::stack<tree_volume*> stack_tree;
 			t->is_topo = true;
-			while (t->pere != nullptr && t->pere->is_topo == false)
+			while (t->pere != nullptr)
 			{
-				t = t->parent;
+				t = t->pere;
 
 				// MECA
 				stack_tree.push(t);
@@ -292,6 +292,7 @@ public:
 					   relative_pos_.get(), parents_.get());
 		pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, this->speed_.get(), this->forces_ext_.get(),
 					   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get());
+		topology_->copy_visibility(new_topo);
 	}
 
 	void init_solver(MR_MAP& m, Simulation_constraint<MR_MAP>* sc, Attribute<Vec3>* pos,
@@ -347,6 +348,7 @@ public:
 
 		hierarchy_ = new tree_volume();
 		hierarchy_->type = ROOT;
+		hierarchy_->is_topo = true;
 		hierarchy_->id = nb_node++;
 
 		foreach_cell(tmp, [&](typename MR_Base::Volume v) -> bool {
@@ -378,6 +380,7 @@ public:
 		});
 
 		create_coarse_view();
+
 		create_fine_view();
 
 		fine_meca_mesh_->current_level_ = mecanical_mesh_->current_level_;
