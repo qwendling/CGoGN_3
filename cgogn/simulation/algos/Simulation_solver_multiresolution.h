@@ -288,6 +288,10 @@ public:
 		create_coarse_view();
 		create_fine_view();
 
+		sc_coarse_->update_topo(*coarse_meca_mesh_, {});
+		sc_->update_topo(*mecanical_mesh_, {});
+		sc_fine_->update_topo(*fine_meca_mesh_, {});
+
 		pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, pos, this->forces_ext_.get(), sc_fine_->masse_.get(),
 					   relative_pos_.get(), parents_.get());
 		pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, this->speed_.get(), this->forces_ext_.get(),

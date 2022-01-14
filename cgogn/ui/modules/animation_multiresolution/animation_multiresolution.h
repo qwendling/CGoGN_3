@@ -80,7 +80,8 @@ class AnimationMultiresolution : public ViewModule
 			: vertex_position_(nullptr), vertex_relative_position_(nullptr), init_vertex_position_(nullptr),
 			  vertex_forces_(nullptr), vertex_masse_(nullptr), vertex_parents_(nullptr), fixed_vertex(nullptr),
 			  vertex_scale_factor_(1.0), sphere_scale_factor_(10.0), have_selected_vertex_(false),
-			  move_vertex_(0, 0, 0), show_frame_manipulator_(false), manipulating_frame_(false)
+			  move_vertex_(0, 0, 0), show_frame_manipulator_(false), manipulating_frame_(false),
+			  show_cut_manipulator_(false), manipulating_cut_(false)
 		{
 			param_move_vertex_ = rendering::ShaderPointSprite::generate_param();
 			param_move_vertex_->color_ = rendering::GLColor(1, 1, 0, 0.65);
@@ -133,6 +134,10 @@ class AnimationMultiresolution : public ViewModule
 		rendering::FrameManipulator frame_manipulator_;
 		bool show_frame_manipulator_;
 		bool manipulating_frame_;
+
+		rendering::FrameManipulator cut_manipulator_;
+		bool show_cut_manipulator_;
+		bool manipulating_cut_;
 	};
 
 public:
@@ -242,6 +247,12 @@ protected:
 			p.frame_manipulator_.pick(x, y, P, Q);
 			view->request_update();
 		}
+		if (p.manipulating_cut_)
+		{
+			auto [P, Q] = view->pixel_ray(x, y);
+			p.cut_manipulator_.pick(x, y, P, Q);
+			view->request_update();
+		}
 		view->pixel_ray(x, y);
 		if (mecanical_mesh_ && view->shift_pressed())
 		{
@@ -281,6 +292,15 @@ protected:
 					p.manipulating_frame_ = true;
 			}
 		}
+		if (key_code == GLFW_KEY_V)
+		{
+			if (mecanical_mesh_)
+			{
+				Parameters& p = parameters_[mecanical_mesh_];
+				if (p.show_cut_manipulator_)
+					p.manipulating_cut_ = true;
+			}
+		}
 		if (key_code == GLFW_KEY_G)
 		{
 			ground_ = !ground_;
@@ -293,7 +313,6 @@ protected:
 				mesh_provider_->emit_attribute_changed(m, p.vertex_position_.get());
 				mesh_provider_->emit_connectivity_changed(m);
 			});
-			std::cout << "ok" << std::endl;
 		}
 		if (key_code == GLFW_KEY_P)
 		{
@@ -340,6 +359,14 @@ protected:
 				p.manipulating_frame_ = false;
 			}
 		}
+		if (key_code == GLFW_KEY_V)
+		{
+			if (mecanical_mesh_)
+			{
+				Parameters& p = parameters_[mecanical_mesh_];
+				p.manipulating_cut_ = false;
+			}
+		}
 	}
 
 	void mouse_release_event(View* view, int32, int32, int32) override
@@ -348,6 +375,7 @@ protected:
 		{
 			Parameters& p = parameters_[mecanical_mesh_];
 			p.frame_manipulator_.release();
+			p.cut_manipulator_.release();
 			view->request_update();
 		}
 	}
@@ -367,6 +395,12 @@ protected:
 		if (p.manipulating_frame_ && (rightpress || leftpress))
 		{
 			p.frame_manipulator_.drag(leftpress, x, y);
+			view->stop_event();
+			view->request_update();
+		}
+		if (p.manipulating_cut_ && (rightpress || leftpress))
+		{
+			p.cut_manipulator_.drag(leftpress, x, y);
 			view->stop_event();
 			view->request_update();
 		}
@@ -527,6 +561,12 @@ protected:
 				p.frame_manipulator_.set_size(size);
 				p.frame_manipulator_.draw(true, true, proj_matrix, view_matrix);
 			}
+			if (p.show_cut_manipulator_)
+			{
+				Scalar size = (md->bb_max_ - md->bb_min_).norm() / 10;
+				p.cut_manipulator_.set_size(size);
+				p.cut_manipulator_.draw(true, true, proj_matrix, view_matrix);
+			}
 			map.end_reader();
 		}
 	}
@@ -581,6 +621,7 @@ protected:
 			Parameters& p = parameters_[mecanical_mesh_];
 
 			need_update_ |= ImGui::Checkbox("Show ground", &p.show_frame_manipulator_);
+			need_update_ |= ImGui::Checkbox("Show cut", &p.show_cut_manipulator_);
 			if (ImGui::BeginCombo("Position", p.vertex_position_ ? p.vertex_position_->name().c_str() : "-- select --"))
 			{
 				foreach_attribute<Vec3, Vertex>(
