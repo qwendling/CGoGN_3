@@ -567,7 +567,7 @@ public:
 				return true;
 			});
 
-			if (min_coarse->pere)
+			if (!min_coarse->is_topo && min_coarse->pere)
 			{
 
 				bool can_be_coarse = true;
