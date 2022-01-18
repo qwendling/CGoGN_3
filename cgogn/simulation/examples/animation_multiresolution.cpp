@@ -116,11 +116,8 @@ int main(int argc, char** argv)
 
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*m, "position");
 
-	MRMesh* topo_mesh = vmrm.create_mrmesh(*m, "topology");
-	MRMesh* meca_mesh = topo_mesh->get_child();
-	MRMesh* geometry_mesh = topo_mesh->get_child();
-	mrmp.register_mesh(meca_mesh, "mecanic");
-	mrmp.register_mesh(geometry_mesh, "geometry");
+	MRMesh* meca_mesh = vmrm.create_mrmesh(*m, "mecanic");
+	MRMesh* geometry_mesh = vmrm.create_mrmesh(*m, "geometry");
 
 	vmrm.selected_vertex_parents_ = cgogn::add_attribute<std::array<Vertex, 4>, Vertex>(*m, "parents");
 	vmrm.selected_vertex_relative_position_ = cgogn::add_attribute<Vec3, Vertex>(*m, "relative_position");
@@ -164,7 +161,6 @@ int main(int argc, char** argv)
 	vmrm.changed_connectivity(*meca_mesh, position.get());
 	vmrm.changed_connectivity(*geometry_mesh, position.get());
 
-	mrsr.set_vertex_position(*v1, *topo_mesh, position);
 	mrsr.set_vertex_position(*v1, *meca_mesh, nullptr);
 	// mrsr.set_vertex_position(*v2, *topo_mesh, nullptr);
 	// mrsr.set_vertex_position(*v2, *meca_mesh, position);
@@ -195,17 +191,6 @@ int main(int argc, char** argv)
 			});
 			break;
 		}
-		case GLFW_KEY_V:
-			cgogn::foreach_cell(*selected_mesh, [&list_cut_volumes](Volume v) -> bool {
-				list_cut_volumes.push_back(v);
-				return true;
-			});
-			for (Volume v : list_cut_volumes)
-			{
-				selected_mesh->activate_volume_subdivision(v);
-			}
-			vmrm.changed_connectivity(*selected_mesh, position.get());
-			break;
 		case GLFW_KEY_U:
 			vmrm.changed_connectivity(*selected_mesh, position.get());
 			break;

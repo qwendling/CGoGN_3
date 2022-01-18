@@ -285,6 +285,17 @@ public:
 			}
 			return true;
 		});
+
+		list_volume_current_.clear();
+
+		foreach_cell(*mecanical_mesh_, [&](Volume v) -> bool {
+			tree_volume* t = value<tree_volume*>(*mecanical_mesh_, hierarchy_node_, v);
+			t->type = CURRENT;
+			if (t->fils)
+				list_volume_current_.push_front(t);
+			return true;
+		});
+
 		create_coarse_view();
 		create_fine_view();
 

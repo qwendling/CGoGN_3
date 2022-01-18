@@ -332,6 +332,10 @@ inline void Linked_volumes<EMR_Map3_Adaptative>::compute_cut_plan_in_framework(
 	{
 		unsew_volume(*m_, f, callback_vertices, true);
 	}
+
+	ssm->sc_coarse_->update_topo(*ssm->coarse_meca_mesh_, {});
+	ssm->sc_->update_topo(*ssm->mecanical_mesh_, {});
+	ssm->sc_fine_->update_topo(*ssm->fine_meca_mesh_, {});
 }
 
 } // namespace simulation

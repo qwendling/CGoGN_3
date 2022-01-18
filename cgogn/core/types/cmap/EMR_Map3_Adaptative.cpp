@@ -273,6 +273,12 @@ uint32 EMR_Map3_Adaptative::get_dart_visibility(Dart d) const
 		for (int i = maximum_level_; i >= int(d_level); --i)
 		{
 			Dart tmp = (*((*m_.MR_phi3_)[i]))[d.index];
+			if (tmp.index == d.index)
+			{
+				cgogn_message_assert(i != int(maximum_level_), "Boundary phi3 fixpoint at maximum level");
+				result = get_dart_visibility((*((*m_.MR_phi3_)[i + 1]))[d.index]);
+				break;
+			}
 			if (get_dart_visibility(tmp) <= current_level_)
 			{
 				Dart tmp_2 = (*((*m_.MR_phi2_)[i]))[tmp.index];

@@ -45,6 +45,7 @@
 #include <cgogn/simulation/algos/Simulation_solver.h>
 #include <cgogn/simulation/algos/Simulation_solver_multiresolution.h>
 #include <cgogn/simulation/algos/lattice_shape_matching/lattice_shape_matching.h>
+#include <cgogn/simulation/algos/linked_volumes/linked_volumes.h>
 #include <cgogn/simulation/algos/multiresolution_propagation/propagation_forces.h>
 #include <cgogn/simulation/algos/multiresolution_propagation/propagation_plastique.h>
 #include <cgogn/simulation/algos/multiresolution_propagation/propagation_spring.h>
@@ -342,6 +343,43 @@ protected:
 				});
 			}
 		}
+		if (key_code == GLFW_KEY_T)
+		{
+			if (mecanical_mesh_)
+			{
+				Parameters& p = parameters_[mecanical_mesh_];
+				Vec3 pos;
+				p.cut_manipulator_.get_position(pos);
+				Vec3 a;
+				p.cut_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, a);
+				double d = pos.dot(a);
+				mecanical_mesh_->start_writer();
+				std::cout << "Début découpe" << std::endl;
+				lv_.compute_cut_plan_in_framework(
+					a, d, p.vertex_position_.get(),
+					[&](std::pair<Vertex, Vertex> p) -> bool {
+						foreach_attribute<Vec3, Vertex>(*mecanical_mesh_,
+														[&](const std::shared_ptr<Attribute<Vec3>>& attr) {
+															value<Vec3>(*mecanical_mesh_, attr, p.second) =
+																value<Vec3>(*mecanical_mesh_, attr, p.first);
+														});
+						foreach_attribute<std::array<Vertex, 4>, Vertex>(
+							*mecanical_mesh_, [&](const std::shared_ptr<Attribute<std::array<Vertex, 4>>>& attr) {
+								value<std::array<Vertex, 4>>(*mecanical_mesh_, attr, p.second) =
+									value<std::array<Vertex, 4>>(*mecanical_mesh_, attr, p.first);
+							});
+						return true;
+					},
+					&simu_solver);
+				std::cout << "Fin découpe" << std::endl;
+
+				foreach_attribute<Vec3, Vertex>(*mecanical_mesh_, [&](const std::shared_ptr<Attribute<Vec3>>& attr) {
+					mesh_provider_->emit_attribute_changed(mecanical_mesh_, attr.get());
+				});
+				mesh_provider_->emit_connectivity_changed(mecanical_mesh_);
+				mecanical_mesh_->end_writer();
+			}
+		}
 	}
 
 	void key_release_event(View* v, int32 key_code)
@@ -631,6 +669,7 @@ protected:
 						{
 							set_vertex_position(*mecanical_mesh_, attribute);
 							simu_solver.init_solver(*mecanical_mesh_, &sm_solver_, p.vertex_position_.get(), &ps_);
+							geometric_mesh_->parent = simu_solver.topology_;
 							mesh_provider_->register_mesh(simu_solver.coarse_meca_mesh_, "coarse_mesh");
 							mesh_provider_->register_mesh(simu_solver.fine_meca_mesh_, "fine_mesh");
 							mesh_provider_->register_mesh(simu_solver.topology_, "topology_mesh");
@@ -773,6 +812,7 @@ public:
 	simulation::Simulation_solver_multiresolution<MR_MESH> simu_solver;
 	simulation::Propagation_Plastique<MR_MESH> ps_;
 	std::condition_variable cv;
+	simulation::Linked_volumes<MR_MESH> lv_;
 	std::mutex cv_m;
 	bool running_;
 	bool need_update_;
