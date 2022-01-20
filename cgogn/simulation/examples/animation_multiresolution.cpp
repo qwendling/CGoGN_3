@@ -176,6 +176,7 @@ int main(int argc, char** argv)
 		switch (k)
 		{
 		case GLFW_KEY_1:
+			std::cout << "ok vs" << std::endl;
 			mrmp.foreach_mesh([&](MRMesh* m, const std::string&) { mrsr.set_vertex_position(*v1, *m, nullptr); });
 			mrsr.set_vertex_position(*v1, *selected_mesh, position);
 			break;

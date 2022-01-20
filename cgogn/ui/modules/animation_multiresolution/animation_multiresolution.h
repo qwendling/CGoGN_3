@@ -145,7 +145,7 @@ public:
 	AnimationMultiresolution(const App& app)
 		: ViewModule(app, "Animation_multiresolution (" + std::string{mesh_traits<MR_MESH>::name} + ")"),
 		  mecanical_mesh_(nullptr), selected_view_(app.current_view()), sm_solver_(0.9f), running_(false), ps_(0.9f),
-		  geometric_mesh_(nullptr), modif_topo_(false), ground_(false)
+		  geometric_mesh_(nullptr), modif_topo_(false), ground_(false), animation_cut(false), cut_animation_timer(0)
 	{
 		f_keypress = [](View*, MR_MESH*, int32, CellsSet<MR_MESH, Vertex>*, CellsSet<MR_MESH, Edge>*) {};
 	}
@@ -293,6 +293,41 @@ protected:
 					p.manipulating_frame_ = true;
 			}
 		}
+		if (key_code == GLFW_KEY_I)
+		{
+
+			Parameters& p = parameters_[mecanical_mesh_];
+			if (p.show_frame_manipulator_)
+			{
+				Vec3 pos;
+				p.frame_manipulator_.get_position(pos);
+				std::cout << "pos ground : " << pos << std::endl;
+				Vec3 n;
+				p.frame_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, n);
+				std::cout << "normal ground : " << n << std::endl;
+			}
+		}
+		if (key_code == GLFW_KEY_S)
+		{
+
+			Parameters& p = parameters_[mecanical_mesh_];
+			if (mecanical_mesh_)
+			{
+				typename MR_MESH::Inherit tmp(mecanical_mesh_->m_);
+				tmp.current_level_ = tmp.maximum_level_;
+				Vec3 pos(0, 0, 13.9);
+				Vec3 a(0, 0, -1);
+				double d = pos.dot(a);
+				parallel_foreach_cell(tmp, [&](Vertex v) -> bool {
+					if (value<Vec3>(tmp, p.vertex_position_.get(), v).dot(a) < d)
+					{
+						value<bool>(tmp, p.fixed_vertex.get(), v) = true;
+					}
+					return true;
+				});
+				animation_cut = true;
+			}
+		}
 		if (key_code == GLFW_KEY_V)
 		{
 			if (mecanical_mesh_)
@@ -377,6 +412,7 @@ protected:
 					mesh_provider_->emit_attribute_changed(mecanical_mesh_, attr.get());
 				});
 				mesh_provider_->emit_connectivity_changed(mecanical_mesh_);
+				mesh_provider_->emit_connectivity_changed(geometric_mesh_);
 				mecanical_mesh_->end_writer();
 			}
 		}
@@ -454,6 +490,48 @@ protected:
 			typename MR_MESH::CMAP& map = static_cast<typename MR_MESH::CMAP&>(*mecanical_mesh_);
 			while (this->running_)
 			{
+
+				if (animation_cut)
+				{
+
+					cut_animation_timer++;
+					if (cut_animation_timer % 50 == 0)
+					{
+						Parameters& p = parameters_[mecanical_mesh_];
+						Vec3 pos(0, 0, (cut_animation_timer / 50) + 0.1);
+						Vec3 a(0, 0, 1);
+						double d = pos.dot(a);
+						mecanical_mesh_->start_writer();
+						std::cout << "Début découpe" << std::endl;
+						lv_.compute_cut_plan_in_framework(
+							a, d, p.vertex_position_.get(),
+							[&](std::pair<Vertex, Vertex> p) -> bool {
+								foreach_attribute<Vec3, Vertex>(*mecanical_mesh_,
+																[&](const std::shared_ptr<Attribute<Vec3>>& attr) {
+																	value<Vec3>(*mecanical_mesh_, attr, p.second) =
+																		value<Vec3>(*mecanical_mesh_, attr, p.first);
+																});
+								foreach_attribute<std::array<Vertex, 4>, Vertex>(
+									*mecanical_mesh_,
+									[&](const std::shared_ptr<Attribute<std::array<Vertex, 4>>>& attr) {
+										value<std::array<Vertex, 4>>(*mecanical_mesh_, attr, p.second) =
+											value<std::array<Vertex, 4>>(*mecanical_mesh_, attr, p.first);
+									});
+								return true;
+							},
+							&simu_solver);
+						std::cout << "Fin découpe" << std::endl;
+
+						foreach_attribute<Vec3, Vertex>(
+							*mecanical_mesh_, [&](const std::shared_ptr<Attribute<Vec3>>& attr) {
+								mesh_provider_->emit_attribute_changed(mecanical_mesh_, attr.get());
+							});
+						mesh_provider_->emit_connectivity_changed(mecanical_mesh_);
+						mesh_provider_->emit_connectivity_changed(geometric_mesh_);
+						mecanical_mesh_->end_writer();
+					}
+				}
+
 				if (meca_update_)
 				{
 					need_update_ = true;
@@ -821,6 +899,9 @@ public:
 	bool modif_topo_;
 	View* selected_view_;
 	bool ground_;
+
+	bool animation_cut;
+	uint32 cut_animation_timer;
 };
 
 } // namespace ui
