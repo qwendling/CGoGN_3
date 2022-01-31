@@ -322,6 +322,7 @@ public:
 		fine_meca_mesh_ = m.get_copy();
 		coarse_meca_mesh_ = m.get_copy();
 		topology_ = new MR_MAP(m.m_);
+		topology_->topology_ = topology_;
 
 		std::vector<tree_volume*> tmp_watcher;
 		std::forward_list<tree_volume*> list_volume_current_tmp;

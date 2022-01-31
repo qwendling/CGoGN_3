@@ -297,13 +297,13 @@ protected:
 		{
 
 			Parameters& p = parameters_[mecanical_mesh_];
-			if (p.show_frame_manipulator_)
+			if (p.show_cut_manipulator_)
 			{
 				Vec3 pos;
-				p.frame_manipulator_.get_position(pos);
+				p.cut_manipulator_.get_position(pos);
 				std::cout << "pos ground : " << pos << std::endl;
 				Vec3 n;
-				p.frame_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, n);
+				p.cut_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, n);
 				std::cout << "normal ground : " << n << std::endl;
 			}
 		}
@@ -325,7 +325,7 @@ protected:
 					}
 					return true;
 				});
-				animation_cut = true;
+				// animation_cut = true;
 			}
 		}
 		if (key_code == GLFW_KEY_V)
@@ -352,10 +352,11 @@ protected:
 		}
 		if (key_code == GLFW_KEY_P)
 		{
-			if (simu_solver.gravity_[1] == 0)
-				simu_solver.gravity_ = Vec3(0, -9.81, 0);
+			if (simu_solver.gravity_[2] == 0)
+				simu_solver.gravity_ = Vec3(0, 0, -9.81);
 			else
 				simu_solver.gravity_ = Vec3(0, 0, 0);
+			std::cout << simu_solver.gravity_ << std::endl;
 		}
 		if (key_code == GLFW_KEY_F)
 		{
@@ -521,13 +522,14 @@ protected:
 							},
 							&simu_solver);
 						std::cout << "Fin découpe" << std::endl;
+						modif_topo_ = true;
 
-						foreach_attribute<Vec3, Vertex>(
+						/*foreach_attribute<Vec3, Vertex>(
 							*mecanical_mesh_, [&](const std::shared_ptr<Attribute<Vec3>>& attr) {
 								mesh_provider_->emit_attribute_changed(mecanical_mesh_, attr.get());
 							});
 						mesh_provider_->emit_connectivity_changed(mecanical_mesh_);
-						mesh_provider_->emit_connectivity_changed(geometric_mesh_);
+						mesh_provider_->emit_connectivity_changed(geometric_mesh_);*/
 						mecanical_mesh_->end_writer();
 					}
 				}
@@ -551,7 +553,7 @@ protected:
 
 				parallel_foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool {
 					double m = value<double>(*mecanical_mesh_, p.vertex_masse_.get(), v);
-					value<Vec3>(*mecanical_mesh_, p.vertex_forces_.get(), v) += m * Vec3(0, 0, -9.81);
+					value<Vec3>(*mecanical_mesh_, p.vertex_forces_.get(), v) += m * simu_solver.gravity_;
 					return true;
 				});
 

@@ -1,4 +1,5 @@
 #include "EMR_Map3.h"
+#include <cgogn/core/types/cmap/cmap_info.h>
 #include <cgogn/core/types/cmap/orbit_traversal.h>
 
 namespace cgogn

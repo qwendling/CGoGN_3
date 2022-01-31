@@ -34,8 +34,11 @@ struct EMR_Map3_Adaptative : EMR_Map3
 
 	mutable uint32 clock_views_;
 	mutable uint32 clock_parent_;
+	EMR_Map3_Adaptative*& topology_;
 
-	EMR_Map3_Adaptative(EMR_Map3_T<CMap3>& m) : EMR_Map3(m), parent(nullptr), clock_views_(0), clock_parent_(0)
+	EMR_Map3_Adaptative(EMR_Map3_T<CMap3>& m)
+		: EMR_Map3(m), parent(nullptr), clock_views_(0), clock_parent_(0),
+		  topology_(m.template get_attribute<EMR_Map3_Adaptative*>("emr_topology"))
 	{
 		nb_views++;
 		dart_visibility_ =
@@ -89,6 +92,7 @@ struct EMR_Map3_Adaptative : EMR_Map3
 	bool dart_is_visible(Dart d) const;
 
 	Dart get_representative(Dart d) const;
+	EMR_Map3_Adaptative* get_parent() const;
 
 	Dart get_phi1_buffer(Dart d) const;
 	Dart get_phi2_buffer(Dart d) const;

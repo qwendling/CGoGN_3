@@ -60,10 +60,10 @@ bool EMR_Map3_Adaptative::check_integrity() const
 Dart EMR_Map3_Adaptative::get_phi1_buffer(Dart d) const
 {
 	auto& buffer = (*phi1_buffer_)[d.index];
-	if (parent && clock_parent_ != parent->clock_views_)
+	if (get_parent() && clock_parent_ != get_parent()->clock_views_)
 	{
 		clock_views_++;
-		clock_parent_ = parent->clock_views_;
+		clock_parent_ = get_parent()->clock_views_;
 	}
 
 	if (std::get<0>(buffer) != m_.clock_ || std::get<1>(buffer) != clock_views_ ||
@@ -134,10 +134,10 @@ Dart EMR_Map3_Adaptative::get_phi2_buffer(Dart d) const
 {
 	auto& buffer = (*phi2_buffer_)[d.index];
 
-	if (parent && clock_parent_ != parent->clock_views_)
+	if (get_parent() && clock_parent_ != get_parent()->clock_views_)
 	{
 		clock_views_++;
-		clock_parent_ = parent->clock_views_;
+		clock_parent_ = get_parent()->clock_views_;
 	}
 
 	if (std::get<0>(buffer) != m_.clock_ || std::get<1>(buffer) != clock_views_ ||
@@ -170,10 +170,10 @@ Dart EMR_Map3_Adaptative::get_phi3_buffer(Dart d) const
 {
 	auto& buffer = (*phi3_buffer_)[d.index];
 
-	if (parent && clock_parent_ != parent->clock_views_)
+	if (get_parent() && clock_parent_ != get_parent()->clock_views_)
 	{
 		clock_views_++;
-		clock_parent_ = parent->clock_views_;
+		clock_parent_ = get_parent()->clock_views_;
 	}
 
 	if (std::get<0>(buffer) != m_.clock_ || std::get<1>(buffer) != clock_views_ ||
@@ -236,10 +236,19 @@ void EMR_Map3_Adaptative::copy_visibility(const EMR_Map3_Adaptative& other)
 	clock_views_++;
 };
 
+EMR_Map3_Adaptative* EMR_Map3_Adaptative::get_parent() const
+{
+	if (parent != nullptr)
+		return parent;
+	if (topology_ != this)
+		return topology_;
+	return nullptr;
+}
+
 Dart EMR_Map3_Adaptative::get_representative(Dart d) const
 {
-	if (parent)
-		return parent->get_representative(d);
+	if (get_parent())
+		return get_parent()->get_representative(d);
 	auto& p = (*dart_representative_)[d.index];
 	if (!p.first)
 	{
@@ -273,12 +282,12 @@ uint32 EMR_Map3_Adaptative::get_dart_visibility(Dart d) const
 		for (int i = maximum_level_; i >= int(d_level); --i)
 		{
 			Dart tmp = (*((*m_.MR_phi3_)[i]))[d.index];
-			if (tmp.index == d.index)
+			/*if (tmp.index == d.index)
 			{
 				cgogn_message_assert(i != int(maximum_level_), "Boundary phi3 fixpoint at maximum level");
 				result = get_dart_visibility((*((*m_.MR_phi3_)[i + 1]))[d.index]);
 				break;
-			}
+			}*/
 			if (get_dart_visibility(tmp) <= current_level_)
 			{
 				Dart tmp_2 = (*((*m_.MR_phi2_)[i]))[tmp.index];
@@ -303,9 +312,9 @@ uint32 EMR_Map3_Adaptative::get_dart_visibility(Dart d) const
 	if (p.first)
 		result = std::min(result, p.second);
 
-	if (parent != nullptr)
+	if (get_parent() != nullptr)
 	{
-		result = std::min(parent->get_dart_visibility(d), result);
+		result = std::min(get_parent()->get_dart_visibility(d), result);
 	}
 
 	Dart r = get_representative(d);
@@ -326,9 +335,9 @@ uint32 EMR_Map3_Adaptative::get_dart_visibility_fast(Dart d) const
 	if (p.first)
 		result = std::min(result, p.second);
 
-	if (parent != nullptr)
+	if (get_parent() != nullptr)
 	{
-		result = std::min(parent->get_dart_visibility_fast(d), result);
+		result = std::min(get_parent()->get_dart_visibility_fast(d), result);
 	}
 	return result;
 	/*uint32 d_level = this->dart_level(d);
@@ -554,10 +563,10 @@ Dart EMR_Map3_Adaptative::volume_youngest_dart(Dart d) const
 {
 	cgogn_message_assert(get_dart_visibility(d) <= current_level_, "Access to a dart introduced after current level");
 
-	if (parent && clock_parent_ != parent->clock_views_)
+	if (get_parent() && clock_parent_ != get_parent()->clock_views_)
 	{
 		clock_views_++;
-		clock_parent_ = parent->clock_views_;
+		clock_parent_ = get_parent()->clock_views_;
 	}
 
 	if (edge_level(d) == 0)
