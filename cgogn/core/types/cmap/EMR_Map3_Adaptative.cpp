@@ -38,9 +38,19 @@ bool EMR_Map3_Adaptative::check_integrity() const
 			std::cerr << "phi2 must be an involution" << std::endl;
 			return false;
 		}
+		if (phi2(*this, d) == d)
+		{
+			std::cerr << "phi2 have a fixpoint" << std::endl;
+			return false;
+		}
 		if (phi3(*this, phi3(*this, d)) != d)
 		{
 			std::cerr << "phi3 must be an involution" << std::endl;
+			return false;
+		}
+		if (phi3(*this, d) == d)
+		{
+			std::cerr << "phi3 have a fixpoint" << std::endl;
 			return false;
 		}
 		if (phi1(*this, phi3(*this, phi1(*this, phi3(*this, d)))) != d)
@@ -51,6 +61,11 @@ bool EMR_Map3_Adaptative::check_integrity() const
 		if (phi1(*this, phi_1(*this, d)) != d || phi1(*this, phi_1(*this, d)) != phi_1(*this, phi1(*this, d)))
 		{
 			std::cerr << "phi1(phi_1(d)) must be an involution" << std::endl;
+			return false;
+		}
+		if (is_boundary(*this, d) != is_boundary(*this, phi1(*this, d)))
+		{
+			std::cerr << "Face must be only boundary or not" << std::endl;
 			return false;
 		}
 	}
@@ -282,12 +297,12 @@ uint32 EMR_Map3_Adaptative::get_dart_visibility(Dart d) const
 		for (int i = maximum_level_; i >= int(d_level); --i)
 		{
 			Dart tmp = (*((*m_.MR_phi3_)[i]))[d.index];
-			/*if (tmp.index == d.index)
+			if (tmp.index == d.index)
 			{
-				cgogn_message_assert(i != int(maximum_level_), "Boundary phi3 fixpoint at maximum level");
-				result = get_dart_visibility((*((*m_.MR_phi3_)[i + 1]))[d.index]);
+				// cgogn_message_assert(i != int(maximum_level_), "Boundary phi3 fixpoint at maximum level");
+				result = dart_level(d);
 				break;
-			}*/
+			}
 			if (get_dart_visibility(tmp) <= current_level_)
 			{
 				Dart tmp_2 = (*((*m_.MR_phi2_)[i]))[tmp.index];
@@ -398,6 +413,10 @@ Dart EMR_Map3_Adaptative::next(Dart d) const
 Dart EMR_Map3_Adaptative::edge_youngest_dart(Dart d) const
 {
 	cgogn_message_assert(get_dart_visibility(d) <= current_level_, "Access to a dart introduced after current level");
+	if (is_boundary(*this, d))
+	{
+		return edge_youngest_dart(phi3(*this, d));
+	}
 	Dart it = phi2(*this, d);
 	if (m_.dart_level(d) > m_.dart_level(it))
 		return d;
@@ -432,6 +451,18 @@ bool EMR_Map3_Adaptative::edge_is_subdivided(Dart d) const
 		return false;
 	}
 	return true;
+}
+
+bool EMR_Map3_Adaptative::is_topologycal_edge(Dart d) const
+{
+	uint32 e_level = edge_level(d);
+	if (topology_ == nullptr)
+	{
+		return e_level == 0;
+	}
+	if (topology_->dart_is_visible(d))
+		return e_level == topology_->edge_level(d);
+	return false;
 }
 
 /***************************************************
@@ -553,6 +584,18 @@ uint32 EMR_Map3_Adaptative::face_level(Dart d) const
 		cgogn_message_assert(m2.current_level_ <= maximum_level_, "Pb algo face level");
 	} while (!result);
 	return m2.current_level_;
+}
+
+bool EMR_Map3_Adaptative::is_topologycal_face(Dart d) const
+{
+	uint32 f_level = face_level(d);
+	if (topology_ == nullptr)
+	{
+		return f_level == 0;
+	}
+	if (topology_->dart_is_visible(d))
+		return f_level == topology_->face_level(d);
+	return false;
 }
 
 /***************************************************
@@ -680,6 +723,18 @@ uint32 EMR_Map3_Adaptative::volume_level(Dart d) const
 	return m2.current_level_;
 }
 
+bool EMR_Map3_Adaptative::is_topologycal_volume(Dart d) const
+{
+	uint32 v_level = volume_level(d);
+	if (topology_ == nullptr)
+	{
+		return v_level == 0;
+	}
+	if (topology_->dart_is_visible(d))
+		return v_level == topology_->volume_level(d);
+	return false;
+}
+
 /***************************************************
  *            ADAPTATIVE SUBDIVISION               *
  ***************************************************/
@@ -785,6 +840,10 @@ bool EMR_Map3_Adaptative::disable_edge_subdivision(Edge e)
 	uint32 e_level = edge_level(e.dart);
 	if (e_level <= current_level_)
 		return false;
+	if (is_topologycal_edge(e.dart))
+	{
+		return false;
+	}
 	Dart old = edge_oldest_dart(e.dart);
 	if (dart_level(old) == e_level)
 		return false;
@@ -828,6 +887,10 @@ bool EMR_Map3_Adaptative::disable_face_subdivision(Face f, bool disable_edge, bo
 	uint32 f_level = face_level(f.dart);
 	if (f_level == 0)
 		return false;
+	if (is_topologycal_face(f.dart))
+	{
+		return false;
+	}
 	EMR_Map3 m2(m_);
 	m2.current_level_ = f_level;
 	Dart old = face_oldest_dart(f.dart);
@@ -897,6 +960,11 @@ bool EMR_Map3_Adaptative::disable_volume_subdivision(Volume v, bool disable_face
 	uint32 v_level = volume_level(v.dart);
 	if (v_level <= current_level_)
 		return false;
+	if (is_topologycal_volume(v.dart))
+	{
+		return false;
+	}
+
 	EMR_Map3 m2(m_);
 	m2.current_level_ = v_level;
 	Dart old;
@@ -968,7 +1036,7 @@ bool EMR_Map3_Adaptative::disable_volume_subdivision(Volume v, bool disable_face
 		}
 	}
 
-	return false;
+	return true;
 }
 
 } // namespace cgogn

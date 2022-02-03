@@ -116,6 +116,7 @@ struct EMR_Map3_Adaptative : EMR_Map3
 	Dart edge_oldest_dart(Dart d) const;
 	bool edge_is_subdivided(Dart d) const;
 	uint32 edge_level(Dart d) const;
+	bool is_topologycal_edge(Dart d) const;
 
 	/***************************************************
 	 *                  FACE INFO                      *
@@ -125,6 +126,7 @@ struct EMR_Map3_Adaptative : EMR_Map3
 	Dart face_oldest_dart(Dart d) const;
 	bool face_is_subdivided(Dart d) const;
 	uint32 face_level(Dart d) const;
+	bool is_topologycal_face(Dart d) const;
 
 	/***************************************************
 	 *                 VOLUME INFO                     *
@@ -133,6 +135,7 @@ struct EMR_Map3_Adaptative : EMR_Map3
 	Dart volume_oldest_dart(Dart d) const;
 	bool volume_is_subdivided(Dart d) const;
 	uint32 volume_level(Dart d) const;
+	bool is_topologycal_volume(Dart d) const;
 
 	/***************************************************
 	 *            ADAPTATIVE SUBDIVISION               *

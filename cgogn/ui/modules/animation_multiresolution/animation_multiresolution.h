@@ -325,7 +325,7 @@ protected:
 					}
 					return true;
 				});
-				// animation_cut = true;
+				animation_cut = true;
 			}
 		}
 		if (key_code == GLFW_KEY_V)
@@ -384,10 +384,11 @@ protected:
 			if (mecanical_mesh_)
 			{
 				Parameters& p = parameters_[mecanical_mesh_];
-				Vec3 pos;
-				p.cut_manipulator_.get_position(pos);
-				Vec3 a;
-				p.cut_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, a);
+				Vec3 pos(0, 0, 3.1);
+				// p.cut_manipulator_.get_position(pos);
+				Vec3 a(0, -0.7, 0.7);
+				a.normalize();
+				// p.cut_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, a);
 				double d = pos.dot(a);
 				mecanical_mesh_->start_writer();
 				std::cout << "Début découpe" << std::endl;
@@ -499,8 +500,10 @@ protected:
 					if (cut_animation_timer % 50 == 0)
 					{
 						Parameters& p = parameters_[mecanical_mesh_];
-						Vec3 pos(0, 0, (cut_animation_timer / 50) + 0.1);
-						Vec3 a(0, 0, 1);
+						Vec3 pos(0, 0, (cut_animation_timer / 25) + 0.1);
+						std::cout << pos << std::endl;
+						Vec3 a(0, -0.7, 0.7);
+						a.normalize();
 						double d = pos.dot(a);
 						mecanical_mesh_->start_writer();
 						std::cout << "Début découpe" << std::endl;
@@ -523,13 +526,6 @@ protected:
 							&simu_solver);
 						std::cout << "Fin découpe" << std::endl;
 						modif_topo_ = true;
-
-						/*foreach_attribute<Vec3, Vertex>(
-							*mecanical_mesh_, [&](const std::shared_ptr<Attribute<Vec3>>& attr) {
-								mesh_provider_->emit_attribute_changed(mecanical_mesh_, attr.get());
-							});
-						mesh_provider_->emit_connectivity_changed(mecanical_mesh_);
-						mesh_provider_->emit_connectivity_changed(geometric_mesh_);*/
 						mecanical_mesh_->end_writer();
 					}
 				}

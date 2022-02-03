@@ -510,6 +510,7 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 	std::pair<Vertex, Vertex> p_rep = {Vertex(f_rep), Vertex(phi3(m, f_rep))};
 	EMR_Map3_Adaptative m2(m.m_);
 	m2.current_level_ = std::min(m.current_level_ + 1, m.maximum_level_);
+	std::array<Dart, 2> ar_dart = {m.face_oldest_dart(f_rep), m.face_oldest_dart(f3_rep)};
 
 	auto same_orbit = [&](auto mo, auto v1, auto v2) -> bool {
 		bool result = false;
@@ -555,6 +556,7 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 				it2 = phi_1(m, it2);
 			} while (it != f_rep);
 		}
+		m.m_.clock_++;
 
 		for (auto p : list_pair_vertex)
 		{
@@ -566,6 +568,7 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 		{
 			m.set_dart_level(phi3(m, it), m.dart_level(it3));
 			m.set_dart_level(phi3(m, it3), m.dart_level(it));
+			m.m_.clock_++;
 			it = phi1(m, it);
 			it3 = phi_1(m, it3);
 		} while (it != f_rep);
@@ -584,8 +587,8 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 			unsew_volume_aux(m2, Face(it), callback_vertices, set_indices);
 		}
 	}
+	m.m_.clock_++;
 
-	std::array<Dart, 2> ar_dart = {m.face_oldest_dart(f_rep), m.face_oldest_dart(f3_rep)};
 	int nb_dart = 0;
 	Dart it;
 	while (nb_dart < 2)
@@ -597,6 +600,225 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 			Dart d3 = phi<23>(m2, phi2(m, it));
 			(*((*m.m_.MR_phi3_)[m.current_level_]))[it.index] = d3;
 			(*((*m.m_.MR_phi3_)[m.current_level_]))[d3.index] = it;
+			m.m_.clock_++;
+			it = phi1(m, it);
+		} while (it != ar_dart[nb_dart]);
+		// phi2
+		do
+		{
+
+			// Dart tmp = phi<32>(m2, it);
+			Dart tmp = phi3(m2, it);
+			tmp = (*((*m.m_.MR_phi2_)[m2.current_level_]))[tmp.index];
+			Dart d3 = phi3(m, it);
+
+			(*((*m.m_.MR_phi2_)[m.current_level_]))[tmp.index] = d3;
+
+			(*((*m.m_.MR_phi2_)[m.current_level_]))[d3.index] = tmp;
+
+			m.m_.clock_++;
+
+			uint32 e_level = m.edge_level(it);
+			if (e_level == m2.edge_level(it))
+			{
+				(*((*m.m_.MR_phi2_)[e_level]))[tmp.index] = (*((*m.m_.MR_phi2_)[m.current_level_]))[tmp.index];
+				(*((*m.m_.MR_phi2_)[e_level]))[d3.index] = (*((*m.m_.MR_phi2_)[m.current_level_]))[d3.index];
+				// std::cout << "hello" << std::endl;
+			}
+			m.m_.clock_++;
+
+			/*std::cout << "m lvl = " << m.current_level_ << std::endl;
+			std::cout << "phi2 " << d3.index << " = " << tmp.index << std::endl;
+			std::cout << "phi2 EMR " << d3.index << " = " << phi2(m, d3).index << std::endl;
+			std::cout << "phi2 EMR " << tmp.index << " = " << phi2(m, tmp).index << std::endl;*/
+
+			it = phi1(m, it);
+		} while (it != ar_dart[nb_dart]);
+		// phi1
+		do
+		{
+			Dart d3_1 = phi<13>(m, it);
+			Dart d3 = phi3(m, it);
+			(*((*m.m_.MR_phi1_)[m.current_level_]))[d3_1.index] = d3;
+			(*((*m.m_.MR_phi_1_)[m.current_level_]))[d3.index] = d3_1;
+			m.m_.clock_++;
+			it = phi1(m, it);
+		} while (it != ar_dart[nb_dart]);
+		nb_dart++;
+		// std::cout << "___________________________" << std::endl;
+	}
+	// std::cout << "####################" << std::endl;
+	cgogn_message_assert(m.check_integrity(), "map invalid");
+
+	if (set_indices)
+	{
+		Face f1 = Face(p_rep.first.dart);
+		Face f2 = Face(p_rep.second.dart);
+		Dart d = f1.dart;
+		Dart it = d;
+		Dart it2 = f2.dart;
+		uint32 new_id = new_index<Face>(m);
+		uint32 f1_id = index_of(m, Face(d));
+		uint32 f_level = m.face_level(f.dart);
+		do
+		{
+			if (is_indexed<Edge>(m))
+			{
+				if (!same_orbit(m, Edge(it), Edge(it2)))
+				{
+					set_index<Edge>(m, it2, new_index<Edge>(m));
+				}
+				uint32 e_level = m.edge_level(it2);
+				foreach_dart_of_orbit(m, Edge(it2), [&](Dart dd) -> bool {
+					if (m.dart_level(dd) == e_level)
+					{
+						set_index<Edge>(m, dd, index_of(m, Edge(it2)));
+					}
+					return true;
+				});
+				foreach_dart_of_orbit(m, Edge(it), [&](Dart dd) -> bool {
+					if (m.dart_level(dd) == e_level)
+					{
+						set_index<Edge>(m, dd, index_of(m, Edge(it)));
+					}
+					return true;
+				});
+			}
+			if (is_indexed<Face>(m))
+			{
+
+				if (m.dart_level(it2) >= f_level)
+				{
+					set_index<Face>(m, it2, new_id);
+				}
+				if (m.dart_level(phi3(m, it2)) >= f_level)
+				{
+					set_index<Face>(m, phi3(m, it2), new_id);
+				}
+				if (m.dart_level(phi3(m, it)) >= f_level)
+				{
+					set_index<Face>(m, phi3(m, it), f1_id);
+				}
+			}
+			it = phi1(m, it);
+			it2 = phi_1(m, it2);
+		} while (it != d);
+	}
+	m.m_.clock_++;
+}
+
+template <typename FUNC>
+void unsew_volume_aux(EMR_Map3_Adaptative& m, EMR_Map3_Adaptative& topo, const mesh_traits<EMR_Map3>::Face f,
+					  const FUNC& callback_vertices, bool set_indices = true)
+{
+	using Vertex = typename mesh_traits<EMR_Map3>::Vertex;
+	using Edge = typename mesh_traits<EMR_Map3>::Edge;
+	using Face = typename mesh_traits<EMR_Map3>::Face;
+
+	static_assert(is_func_parameter_same<FUNC, std::pair<Vertex, Vertex>>::value,
+				  "Function must have std::pair<Vertex, Vertex> as a parameter");
+	static_assert(is_func_return_same<FUNC, bool>::value, "Given function should return a bool");
+	if (is_incident_to_boundary(m, f))
+	{
+		return;
+	}
+
+	Dart f_rep = f.dart;
+	Dart f3_rep = phi3(m, f_rep);
+	std::pair<Vertex, Vertex> p_rep = {Vertex(f_rep), Vertex(phi3(m, f_rep))};
+	EMR_Map3_Adaptative m2(m.m_);
+	m2.current_level_ = std::min(m.current_level_ + 1, m.maximum_level_);
+	std::array<Dart, 2> ar_dart = {m.face_oldest_dart(f_rep), m.face_oldest_dart(f3_rep)};
+
+	auto same_orbit = [&](auto mo, auto v1, auto v2) -> bool {
+		bool result = false;
+		foreach_dart_of_orbit(mo, v1, [&](Dart d) -> bool {
+			if (v2.dart == d)
+			{
+				result = true;
+				return false;
+			}
+			return true;
+		});
+		return result;
+	};
+
+	if (m.current_level_ == m.maximum_level_)
+	{
+		std::vector<std::pair<Vertex, Vertex>> list_pair_vertex;
+		auto get_list_pair_vertex = [&list_pair_vertex](std::pair<Vertex, Vertex> p) -> bool {
+			list_pair_vertex.push_back(p);
+			return true;
+		};
+		unsew_volume(*m.get_map(), f, get_list_pair_vertex, false);
+		m.m_.clock_++;
+		if (set_indices && is_indexed<CMap3::Vertex>(m))
+		{
+			Dart it = f_rep;
+			Dart it2 = phi1(m, f3_rep);
+			do
+			{
+				Dart it_3 = phi3(m, it);
+				Dart it2_3 = phi3(m, it2);
+				if (!same_orbit(m, Vertex(it), Vertex(it2)))
+				{
+					auto tmp = new_index<Vertex>(m);
+					set_index(m, Vertex(it2), tmp);
+				}
+				else
+				{
+					copy_index<CMap3::Vertex>(m, phi1(m, it2_3), it2);
+				}
+				copy_index<CMap3::Vertex>(m, phi1(m, it_3), it);
+				it = phi1(m, it);
+				it2 = phi_1(m, it2);
+			} while (it != f_rep);
+		}
+		m.m_.clock_++;
+
+		for (auto p : list_pair_vertex)
+		{
+			callback_vertices(p);
+		}
+		Dart it = f_rep;
+		Dart it3 = f3_rep;
+		do
+		{
+			m.set_dart_level(phi3(m, it), m.dart_level(it3));
+			m.set_dart_level(phi3(m, it3), m.dart_level(it));
+			m.m_.clock_++;
+			it = phi1(m, it);
+			it3 = phi_1(m, it3);
+		} while (it != f_rep);
+	}
+	else
+	{
+		std::vector<Dart> vect_dart_unsew;
+		Dart it = f_rep;
+		do
+		{
+			vect_dart_unsew.push_back(it);
+			it = phi1(m, it);
+		} while (it != f_rep);
+		for (auto it : vect_dart_unsew)
+		{
+			unsew_volume_aux(m2, Face(it), callback_vertices, set_indices);
+		}
+	}
+	m.m_.clock_++;
+
+	int nb_dart = 0;
+	Dart it;
+	while (nb_dart < 2)
+	{
+		it = ar_dart[nb_dart];
+		// phi3
+		do
+		{
+			Dart d3 = phi<23>(m2, phi2(m, it));
+			(*((*m.m_.MR_phi3_)[m.current_level_]))[it.index] = d3;
+			(*((*m.m_.MR_phi3_)[m.current_level_]))[d3.index] = it;
+			m.m_.clock_++;
 			it = phi1(m, it);
 		} while (it != ar_dart[nb_dart]);
 		// phi2
@@ -609,6 +831,11 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 			(*((*m.m_.MR_phi2_)[m.current_level_]))[tmp.index] = d3;
 
 			(*((*m.m_.MR_phi2_)[m.current_level_]))[d3.index] = tmp;
+			m.m_.clock_++;
+
+			std::cout << "phi2 " << d3.index << " = " << tmp.index << std::endl;
+			std::cout << "phi2 EMR " << d3.index << " = " << phi2(m, d3).index << std::endl;
+			std::cout << "phi2 EMR " << tmp.index << " = " << phi2(m, tmp).index << std::endl;
 
 			it = phi1(m, it);
 		} while (it != ar_dart[nb_dart]);
@@ -619,10 +846,14 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 			Dart d3 = phi3(m, it);
 			(*((*m.m_.MR_phi1_)[m.current_level_]))[d3_1.index] = d3;
 			(*((*m.m_.MR_phi_1_)[m.current_level_]))[d3.index] = d3_1;
+			m.m_.clock_++;
 			it = phi1(m, it);
 		} while (it != ar_dart[nb_dart]);
 		nb_dart++;
+		std::cout << "___________________________" << std::endl;
 	}
+	std::cout << "####################" << std::endl;
+	cgogn_message_assert(m.check_integrity(), "map invalid");
 	if (set_indices)
 	{
 		Face f1 = Face(p_rep.first.dart);

@@ -32,6 +32,7 @@
 #include <GLFW/glfw3.h>
 #include <cgogn/core/functions/traversals/edge.h>
 #include <cgogn/core/functions/traversals/volume.h>
+#include <cgogn/core/types/cmap/phi.h>
 #include <cgogn/modeling/algos/subdivision.h>
 #include <cgogn/ui/modules/animation_multiresolution/animation_multiresolution.h>
 #include <cgogn/ui/modules/linked_volumes/linked_volumes.h>
@@ -194,6 +195,51 @@ int main(int argc, char** argv)
 		}
 		case GLFW_KEY_U:
 			vmrm.changed_connectivity(*selected_mesh, position.get());
+			break;
+		case GLFW_KEY_K:
+			if (selected_vertices != nullptr)
+			{
+				std::vector<Vertex> new_vertices;
+				selected_vertices->foreach_cell([&](Vertex e) {
+					/*selected_vertices->unselect(e);
+					selected_vertices->select(Vertex(phi1(*selected_mesh, e.dart)));*/
+
+					cgogn::foreach_adjacent_vertex_through_edge(*selected_mesh, e, [&](Vertex w) -> bool {
+						new_vertices.push_back(w);
+						return true;
+					});
+				});
+				for (auto v : new_vertices)
+				{
+					selected_vertices->select(v);
+				}
+
+				vs.mesh_provider_->emit_cells_set_changed(selected_mesh, selected_vertices);
+			}
+			break;
+		case GLFW_KEY_B:
+			if (selected_vertices != nullptr)
+			{
+				std::vector<Vertex> new_vertices;
+				selected_vertices->foreach_cell([&](Vertex e) {
+					selected_vertices->unselect(e);
+					selected_vertices->select(Vertex(phi2(*selected_mesh, e.dart)));
+				});
+
+				vs.mesh_provider_->emit_cells_set_changed(selected_mesh, selected_vertices);
+			}
+			break;
+		case GLFW_KEY_J:
+			if (selected_vertices != nullptr)
+			{
+				std::vector<Vertex> new_vertices;
+				selected_vertices->foreach_cell([&](Vertex e) {
+					selected_vertices->unselect(e);
+					selected_vertices->select(Vertex(phi3(*selected_mesh, e.dart)));
+				});
+
+				vs.mesh_provider_->emit_cells_set_changed(selected_mesh, selected_vertices);
+			}
 			break;
 		case GLFW_KEY_L:
 			if (selected_vertices != nullptr)
