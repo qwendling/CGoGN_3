@@ -385,10 +385,10 @@ protected:
 			{
 				Parameters& p = parameters_[mecanical_mesh_];
 				Vec3 pos(0, 0, 3.1);
-				// p.cut_manipulator_.get_position(pos);
+				p.cut_manipulator_.get_position(pos);
 				Vec3 a(0, -0.7, 0.7);
-				a.normalize();
-				// p.cut_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, a);
+				// a.normalize();
+				p.cut_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, a);
 				double d = pos.dot(a);
 				mecanical_mesh_->start_writer();
 				std::cout << "Début découpe" << std::endl;
@@ -553,8 +553,9 @@ protected:
 					return true;
 				});
 
+				bool tmp;
 				simu_solver.compute_time_step(*geometric_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(),
-											  TIME_STEP, modif_topo_);
+											  TIME_STEP, tmp);
 				if (ground_)
 				{
 					Vec3 position;
@@ -846,11 +847,11 @@ protected:
 						/*mesh_provider_->emit_attribute_changed(m, simu_solver.diff_volume_current_fine_.get());
 						mesh_provider_->emit_attribute_changed(m, simu_solver.diff_volume_coarse_current_.get());
 						mesh_provider_->emit_attribute_changed(m, simu_solver.pos_current_.get());
-						mesh_provider_->emit_attribute_changed(m, simu_solver.pos_coarse_.get());
+						mesh_provider_->emit_attribute_changed(m, simu_solver.pos_coarse_.get());*/
 						if (modif_topo_)
 						{
 							mesh_provider_->emit_connectivity_changed(m);
-						}*/
+						}
 					});
 					map.end_reader();
 					need_update_ = false;

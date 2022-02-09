@@ -84,6 +84,15 @@ struct EMR_Map3_Adaptative : EMR_Map3
 		}
 	}
 
+	~EMR_Map3_Adaptative()
+	{
+		m_.darts_->remove_attribute(dart_visibility_);
+		m_.darts_->remove_attribute(phi1_buffer_);
+		m_.darts_->remove_attribute(phi2_buffer_);
+		m_.darts_->remove_attribute(phi3_buffer_);
+		m_.darts_->remove_attribute(volume_dart_buffer_);
+	}
+
 	virtual bool check_integrity() const;
 
 	uint32 get_dart_visibility(Dart d) const;
