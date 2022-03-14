@@ -62,6 +62,15 @@ Scalar convex_area(const MESH& m, typename mesh_traits<MESH>::Face f,
 			face_area += area(center, value<Vec3>(m, vertex_position, vertices[i]),
 							  value<Vec3>(m, vertex_position, vertices[(i + 1) % size]));
 		}
+
+		/*std::vector<Vertex> vertices = incident_vertices(m, f);
+		for (uint32 i = 0, size = uint32(vertices.size()); i < size-1; ++i)
+		{
+			Vec3
+			face_area += value<Vec3>(m, vertex_position, vertices[i])
+					   .cross(value<Vec3>(m, vertex_position, vertices[(i + 1) % size]));
+		}*/
+
 		/*Vec3 n = normal(m, f, vertex_position);
 		// std::vector<Vertex> vertices = incident_vertices(m, f);
 		Vec3 tmp = Vec3::Zero();

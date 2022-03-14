@@ -36,11 +36,43 @@ class Simulation_solver_multiresolution : public Simulation_solver<MR_MAP>
 	using Vec3 = geometry::Vec3;
 	using Vertex = typename mesh_traits<MR_MAP>::Vertex;
 	using Face = typename mesh_traits<MR_MAP>::Face;
+	using Face2 = typename mesh_traits<MR_MAP>::Face2;
 	using Volume = typename mesh_traits<MR_MAP>::Volume;
 
 	struct Module
 	{
 		Simulation_solver_multiresolution* ssm_;
+	};
+
+	struct face_list
+	{
+		face_list* next;
+		face_list* pred;
+		Dart face_dart;
+
+		face_list()
+		{
+			next = nullptr;
+			pred = nullptr;
+			face_dart = Dart();
+		}
+
+		void remove()
+		{
+			if (next != nullptr)
+				next->pred = pred;
+			if (pred != nullptr)
+				pred->next = next;
+			pred = nullptr;
+			next = nullptr;
+		};
+
+		void insert_after(face_list* other)
+		{
+			other->pred = this;
+			other->next = next;
+			next = other;
+		}
 	};
 
 	enum tree_volume_node
@@ -182,7 +214,13 @@ public:
 	std::shared_ptr<Attribute<double>> diff_volume_coarse_current_;
 	std::shared_ptr<Attribute<double>> volume_coarse_;
 
+	std::shared_ptr<Attribute<face_list>> list_face_it_current;
+	std::shared_ptr<Attribute<face_list>> list_face_it_fine;
 	std::shared_ptr<Attribute<double>> area_face_;
+
+	face_list* list_face_current;
+	face_list* list_face_fine;
+
 	Vec3 gravity_;
 
 	CellCache<MR_MAP>* cache_current_vol_;
@@ -190,7 +228,7 @@ public:
 
 	Simulation_solver_multiresolution()
 		: Simulation_solver<MR_MAP>(), pc_(nullptr), parents_(nullptr), relative_pos_(nullptr), hierarchy_(nullptr),
-		  gravity_(0, 0, 0), cache_current_vol_(nullptr), clock(1)
+		  gravity_(0, 0, 0), cache_current_vol_(nullptr), clock(1), list_face_current(nullptr), list_face_fine(nullptr)
 	{
 	}
 
@@ -200,6 +238,119 @@ public:
 		for (auto t : lv)
 		{
 			cc.add(Volume(t->volume_dart));
+		}
+	}
+
+	void reset_list_face()
+	{
+
+		auto reset = [](face_list* it) {
+			while (it != nullptr)
+			{
+				face_list* tmp = it->next;
+				it->next = nullptr;
+				it->pred = nullptr;
+				it = tmp;
+			}
+		};
+
+		reset(list_face_current);
+		list_face_current = nullptr;
+
+		reset(list_face_fine);
+		list_face_fine = nullptr;
+
+		for (tree_volume* tv : list_volume_coarse_)
+		{
+			tv->for_each_child([&](tree_volume* c) -> bool {
+				foreach_incident_face(*mecanical_mesh_, Volume(c->volume_dart), [this](Face f) -> bool {
+					face_list& fl = value<face_list>(*mecanical_mesh_, list_face_it_current, f);
+
+					if (list_face_current == &fl)
+					{
+						if (list_face_current->next != nullptr)
+							list_face_current->next->pred = nullptr;
+						list_face_current = list_face_current->next;
+					}
+
+					if (fl.next != nullptr)
+					{
+						face_list* tmp = fl.next;
+						tmp->pred = fl.pred;
+						if (fl.pred != nullptr)
+						{
+							fl.pred->next = tmp;
+						}
+					}
+					if (fl.pred != nullptr)
+					{
+						face_list* tmp = fl.pred;
+						tmp->next = fl.next;
+						if (fl.next != nullptr)
+						{
+							fl.next->pred = tmp;
+						}
+					}
+
+					fl.face_dart = f.dart;
+					fl.next = list_face_current;
+					fl.pred = nullptr;
+					if (list_face_current != nullptr)
+					{
+						list_face_current->pred = &fl;
+					}
+					list_face_current = &fl;
+					return true;
+				});
+				return true;
+			});
+		}
+
+		for (tree_volume* tv : list_volume_current_)
+		{
+			tv->for_each_child([&](tree_volume* c) -> bool {
+				foreach_incident_face(*fine_meca_mesh_, Volume(c->volume_dart), [this](Face f) -> bool {
+					face_list& fl = value<face_list>(*fine_meca_mesh_, list_face_it_fine, f);
+
+					if (list_face_fine == &fl)
+					{
+						if (list_face_fine->next != nullptr)
+							list_face_fine->next->pred = nullptr;
+						list_face_fine = list_face_fine->next;
+					}
+
+					if (fl.next != nullptr)
+					{
+						face_list* tmp = fl.next;
+						tmp->pred = fl.pred;
+						if (fl.pred != nullptr)
+						{
+							fl.pred->next = tmp;
+						}
+					}
+					if (fl.pred != nullptr)
+					{
+						face_list* tmp = fl.pred;
+						tmp->next = fl.next;
+						if (fl.next != nullptr)
+						{
+							fl.next->pred = tmp;
+						}
+					}
+
+					fl.face_dart = f.dart;
+					fl.next = list_face_fine;
+					fl.pred = nullptr;
+
+					if (list_face_fine != nullptr)
+					{
+						list_face_fine->pred = &fl;
+					}
+					list_face_fine = &fl;
+					return true;
+				});
+				return true;
+			});
 		}
 	}
 
@@ -441,6 +592,16 @@ public:
 		area_face_ = get_attribute<double, Face>(m, "Solver_multiresolution_area_face");
 		if (area_face_ == nullptr)
 			area_face_ = add_attribute<double, Face>(m, "Solver_multiresolution_area_face");
+
+		list_face_it_current = get_attribute<face_list, Face>(m, "Solver_multiresolution_list_face_it_current");
+		if (list_face_it_current == nullptr)
+			list_face_it_current = add_attribute<face_list, Face>(m, "Solver_multiresolution_list_face_it_current");
+
+		list_face_it_fine = get_attribute<face_list, Face>(m, "Solver_multiresolution_list_face_it_fine");
+		if (list_face_it_fine == nullptr)
+			list_face_it_fine = add_attribute<face_list, Face>(m, "Solver_multiresolution_list_face_it_fine");
+
+		reset_list_face();
 	}
 
 	void reset_forces(MR_MAP& m)
@@ -858,6 +1019,124 @@ public:
 		std::cout << "temps total compute volume : " << duration_volume << std::endl;
 	}
 
+	void compute_error2(Attribute<Vec3>* vertex_position, Attribute<double>* masse, double time_step)
+	{
+
+		if (pc_)
+		{
+			pc_->propagate(*coarse_meca_mesh_, *mecanical_mesh_, pos_coarse_.get(), this->forces_coarse_.get(), masse,
+						   relative_pos_.get(), parents_.get(), time_step);
+			pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, pos_current_.get(), this->forces_current_.get(),
+						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(), time_step);
+		}
+
+		std::clock_t start_volume;
+		double duration_volume = 0;
+
+		std::clock_t start;
+		double duration;
+		start = std::clock();
+
+		bool volume_current_is_finish = false;
+		auto compute_stress_volume = [&]() {
+			for (tree_volume* tp : list_volume_current_)
+			{
+				start_volume = std::clock();
+
+				Vec3 sum_forces = Vec3(0, 0, 0);
+				double sum_norme = 0.0f;
+				foreach_incident_vertex(*mecanical_mesh_, Volume(tp->volume_dart), [&](Vertex w) -> bool {
+					Vec3 f = value<Vec3>(*mecanical_mesh_, this->forces_ext_.get(), w);
+					sum_forces += f;
+					sum_norme += f.norm();
+					return true;
+				});
+
+				double d = sum_forces.norm() / sum_norme;
+				value<double>(*mecanical_mesh_, this->diff_volume_coarse_current_.get(), Volume(tp->volume_dart)) = d;
+				value<double>(*mecanical_mesh_, this->diff_volume_current_fine_.get(), Volume(tp->volume_dart)) = d;
+				duration_volume += (std::clock() - start_volume) / (double)CLOCKS_PER_SEC;
+			}
+			volume_current_is_finish = true;
+		};
+
+		start = std::clock();
+		compute_stress_volume();
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << "\033[1;32m time stress : \033[0m" << duration << std::endl;
+
+		bool volume_fine_is_finish = false;
+		auto compute_diff_pos_volume_fine = [&]() {
+			CellMarker<MR_MAP, Vertex> vertex_marker(*fine_meca_mesh_);
+
+			double norm_error;
+
+			auto fn = [&](tree_volume* t) -> bool {
+				foreach_incident_vertex(*fine_meca_mesh_, Volume(t->volume_dart), [&](Vertex w) -> bool {
+					if (!vertex_marker.is_marked(w))
+					{
+						Vec3 pos_x = value<Vec3>(*fine_meca_mesh_, vertex_position, w);
+						Vec3 pos_Px = value<Vec3>(*fine_meca_mesh_, pos_current_.get(), w);
+
+						norm_error += ((pos_x - pos_Px) / value<double>(*fine_meca_mesh_, sc_fine_->masse_, w)).norm();
+						vertex_marker.mark(w);
+					}
+					return true;
+				});
+				return true;
+			};
+			for (tree_volume* tp : list_volume_current_)
+			{
+				vertex_marker.unmark_all();
+				norm_error = 0.0f;
+				tp->for_each_child(fn);
+				value<double>(*mecanical_mesh_, this->diff_volume_current_fine_.get(), Volume(tp->volume_dart)) *=
+					norm_error;
+			}
+			volume_fine_is_finish = true;
+		};
+
+		start = std::clock();
+		compute_diff_pos_volume_fine();
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << "\033[1;33m time error current fine : \033[0m" << duration << std::endl;
+
+		auto compute_diff_pos_volume_current = [&]() {
+			CellMarker<MR_MAP, Vertex> vertex_marker(*fine_meca_mesh_);
+
+			double norm_error;
+
+			auto fn = [&](tree_volume* t) -> bool {
+				foreach_incident_vertex(*mecanical_mesh_, Volume(t->volume_dart), [&](Vertex w) -> bool {
+					if (!vertex_marker.is_marked(w))
+					{
+						Vec3 pos_x = value<Vec3>(*mecanical_mesh_, pos_current_.get(), w);
+						Vec3 pos_Px = value<Vec3>(*mecanical_mesh_, pos_coarse_.get(), w);
+
+						norm_error += ((pos_x - pos_Px) / value<double>(*mecanical_mesh_, sc_->masse_, w)).norm();
+						vertex_marker.mark(w);
+					}
+					return true;
+				});
+				return true;
+			};
+			for (tree_volume* tp : list_volume_coarse_)
+			{
+				vertex_marker.unmark_all();
+				norm_error = 0.0f;
+				tp->for_each_child(fn);
+				value<double>(*mecanical_mesh_, this->diff_volume_coarse_current_.get(), Volume(tp->volume_dart)) *=
+					norm_error;
+			}
+		};
+
+		start = std::clock();
+		compute_diff_pos_volume_current();
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << "\033[1;35m time error coarse current : \033[0m" << duration << std::endl;
+		std::cout << "temps total compute volume : " << duration_volume << std::endl;
+	}
+
 	void add_new_vertices_in_simulation(MR_MAP& view, Attribute<Vec3>* vertex_position)
 	{
 		CellMarkerStore<MR_MAP, Vertex> marker(view);
@@ -980,7 +1259,7 @@ public:
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << "\033[1;31m time step : \033[0m" << duration << std::endl;
 		start = std::clock();
-		compute_error(vertex_position, masse, time_step);
+		compute_error2(vertex_position, masse, time_step);
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << "error : " << duration << std::endl;
 		start = std::clock();
