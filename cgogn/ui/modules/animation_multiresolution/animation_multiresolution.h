@@ -145,7 +145,8 @@ public:
 	AnimationMultiresolution(const App& app)
 		: ViewModule(app, "Animation_multiresolution (" + std::string{mesh_traits<MR_MESH>::name} + ")"),
 		  mecanical_mesh_(nullptr), selected_view_(app.current_view()), sm_solver_(0.9f), running_(false), ps_(0.9f),
-		  geometric_mesh_(nullptr), modif_topo_(false), ground_(false), animation_cut(false), cut_animation_timer(0)
+		  geometric_mesh_(nullptr), modif_topo_(false), ground_(false), animation_cut(false), cut_animation_timer(0),
+		  animation_cylinder(false), animation_cylinder_timer(0)
 	{
 		f_keypress = [](View*, MR_MESH*, int32, CellsSet<MR_MESH, Vertex>*, CellsSet<MR_MESH, Edge>*) {};
 	}
@@ -418,6 +419,10 @@ protected:
 				mecanical_mesh_->end_writer();
 			}
 		}
+		if (key_code == GLFW_KEY_Q)
+		{
+			animation_cylinder = !animation_cylinder;
+		}
 	}
 
 	void key_release_event(View* v, int32 key_code)
@@ -528,6 +533,28 @@ protected:
 						modif_topo_ = true;
 						mecanical_mesh_->end_writer();
 					}
+				}
+
+				if (animation_cylinder)
+				{
+
+					double taille_cylindre = 3 + 2 * cos(double(animation_cylinder_timer) / 100.0f);
+
+					parallel_foreach_cell(mecanical_mesh_->m_, [&](Vertex v) -> bool {
+						Vec3& pos = value<Vec3>(*mecanical_mesh_, p.vertex_position_.get(), v);
+						Vec3 axis_z;
+						p.frame_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, axis_z);
+
+						double dist = axis_z.cross(pos).norm() - taille_cylindre;
+
+						if (dist > 0)
+						{
+							Vec3 dir_collision = (axis_z * (axis_z.dot(pos)) - pos).normalized() * dist;
+							pos += dir_collision;
+						}
+						return true;
+					});
+					animation_cylinder_timer++;
 				}
 
 				if (meca_update_)
@@ -901,6 +928,9 @@ public:
 
 	bool animation_cut;
 	uint32 cut_animation_timer;
+
+	bool animation_cylinder;
+	uint32 animation_cylinder_timer;
 };
 
 } // namespace ui

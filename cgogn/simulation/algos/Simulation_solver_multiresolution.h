@@ -210,6 +210,8 @@ public:
 	std::shared_ptr<Attribute<Vec3>> forces_coarse_;
 	std::shared_ptr<Attribute<Vec3>> forces_current_;
 
+	std::shared_ptr<Attribute<std::array<Vec3, 9>>> RK_coeff;
+
 	std::shared_ptr<Attribute<double>> diff_volume_current_fine_;
 	std::shared_ptr<Attribute<double>> diff_volume_coarse_current_;
 	std::shared_ptr<Attribute<double>> volume_coarse_;
@@ -601,7 +603,9 @@ public:
 		if (list_face_it_fine == nullptr)
 			list_face_it_fine = add_attribute<face_list, Face>(m, "Solver_multiresolution_list_face_it_fine");
 
-		reset_list_face();
+		RK_coeff = get_attribute<std::array<Vec3, 9>, Vertex>(m, "Solver_multiresolution_RK_coeff");
+		if (RK_coeff == nullptr)
+			RK_coeff = add_attribute<std::array<Vec3, 9>, Vertex>(m, "Solver_multiresolution_RK_coeff");
 	}
 
 	void reset_forces(MR_MAP& m)
@@ -1052,8 +1056,7 @@ public:
 					return true;
 				});
 
-				double d = sum_forces.norm() / sum_norme;
-				value<double>(*mecanical_mesh_, this->diff_volume_coarse_current_.get(), Volume(tp->volume_dart)) = d;
+				double d = 1.0f - ((sum_forces.norm() + 1) / (sum_norme + 1));
 				value<double>(*mecanical_mesh_, this->diff_volume_current_fine_.get(), Volume(tp->volume_dart)) = d;
 				duration_volume += (std::clock() - start_volume) / (double)CLOCKS_PER_SEC;
 			}
@@ -1064,6 +1067,31 @@ public:
 		compute_stress_volume();
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << "\033[1;32m time stress : \033[0m" << duration << std::endl;
+
+		auto compute_stress_volume_coarse = [&]() {
+			for (tree_volume* tp : list_volume_coarse_)
+			{
+				start_volume = std::clock();
+
+				Vec3 sum_forces = Vec3(0, 0, 0);
+				double sum_norme = 0.0f;
+				foreach_incident_vertex(*coarse_meca_mesh_, Volume(tp->volume_dart), [&](Vertex w) -> bool {
+					Vec3 f = value<Vec3>(*coarse_meca_mesh_, this->forces_ext_.get(), w);
+					sum_forces += f;
+					sum_norme += f.norm();
+					return true;
+				});
+
+				double d = 1.0f - ((sum_forces.norm() + 1) / (sum_norme + 1));
+				value<double>(*coarse_meca_mesh_, this->diff_volume_coarse_current_.get(), Volume(tp->volume_dart)) = d;
+				duration_volume += (std::clock() - start_volume) / (double)CLOCKS_PER_SEC;
+			}
+		};
+
+		start = std::clock();
+		compute_stress_volume_coarse();
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << "\033[1;32m time stress coarse : \033[0m" << duration << std::endl;
 
 		bool volume_fine_is_finish = false;
 		auto compute_diff_pos_volume_fine = [&]() {
@@ -1125,7 +1153,7 @@ public:
 				vertex_marker.unmark_all();
 				norm_error = 0.0f;
 				tp->for_each_child(fn);
-				value<double>(*mecanical_mesh_, this->diff_volume_coarse_current_.get(), Volume(tp->volume_dart)) *=
+				value<double>(*coarse_meca_mesh_, this->diff_volume_coarse_current_.get(), Volume(tp->volume_dart)) *=
 					norm_error;
 			}
 		};
@@ -1162,7 +1190,14 @@ public:
 		////	         coarse_solve				/////
 		/////////////////////////////////////////////////
 		auto solve_coarse = [&]() {
-			for (const Vertex& v : sc_->vertices_cache)
+			for (const Vertex& v : sc_fine_->vertices_cache)
+			{
+				// store forces ext
+				value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[8] =
+					value<Vec3>(*fine_meca_mesh_, this->forces_ext_.get(), v);
+			}
+
+			/*for (const Vertex& v : sc_->vertices_cache)
 			{
 				value<Vec3>(*mecanical_mesh_, this->forces_coarse_.get(), v) =
 					value<Vec3>(*coarse_meca_mesh_, this->forces_ext_.get(), v);
@@ -1185,6 +1220,122 @@ public:
 				s += time_step * gravity_;
 				value<Vec3>(*coarse_meca_mesh_, pos_coarse_, v) =
 					value<Vec3>(*coarse_meca_mesh_, vertex_position, v) + time_step * s;
+			}*/
+
+			// RUNGE-KUTTA
+
+			for (const Vertex& v : sc_coarse_->vertices_cache)
+			{
+				value<Vec3>(*coarse_meca_mesh_, pos_coarse_, v) = value<Vec3>(*coarse_meca_mesh_, vertex_position, v);
+			}
+
+			sc_coarse_->solve_constraint(*coarse_meca_mesh_, pos_coarse_.get(), this->forces_ext_.get(), time_step);
+			for (const Vertex& v : sc_coarse_->vertices_cache)
+			{
+				if (this->fixed_vertex && value<bool>(*coarse_meca_mesh_, this->fixed_vertex.get(), v))
+				{
+					value<Vec3>(*coarse_meca_mesh_, pos_coarse_.get(), v) =
+						value<Vec3>(*coarse_meca_mesh_, vertex_position, v);
+					continue;
+				}
+				// k1
+				value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[0] =
+					time_step * (0.995 * value<Vec3>(*coarse_meca_mesh_, this->speed_.get(), v) +
+								 value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[0]) +
+					time_step * gravity_;
+				// j1
+				value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[1] =
+					time_step * value<Vec3>(*coarse_meca_mesh_, this->speed_.get(), v);
+
+				value<Vec3>(*coarse_meca_mesh_, pos_coarse_.get(), v) +=
+					value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[1] / 2.0f;
+
+				value<Vec3>(*coarse_meca_mesh_, this->forces_ext_.get(), v) =
+					value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[8];
+			}
+
+			sc_coarse_->solve_constraint(*coarse_meca_mesh_, pos_coarse_.get(), this->forces_ext_.get(), time_step);
+			for (const Vertex& v : sc_coarse_->vertices_cache)
+			{
+				if (this->fixed_vertex && value<bool>(*coarse_meca_mesh_, this->fixed_vertex.get(), v))
+					continue;
+
+				// k2
+				value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[2] =
+					(time_step * value<Vec3>(*coarse_meca_mesh_, this->forces_ext_.get(), v) /
+					 value<double>(*coarse_meca_mesh_, sc_coarse_->masse_, v)) +
+					time_step * gravity_;
+				// j2
+				value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[3] =
+					time_step * (value<Vec3>(*coarse_meca_mesh_, this->speed_.get(), v) +
+								 value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[2] / 2.0f);
+
+				value<Vec3>(*coarse_meca_mesh_, pos_coarse_.get(), v) -=
+					value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[1] / 2.0f;
+
+				value<Vec3>(*coarse_meca_mesh_, pos_coarse_.get(), v) +=
+					value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[3] / 2.0f;
+
+				value<Vec3>(*coarse_meca_mesh_, this->forces_ext_.get(), v) =
+					value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[8];
+			}
+
+			sc_coarse_->solve_constraint(*coarse_meca_mesh_, pos_coarse_.get(), this->forces_ext_.get(), time_step);
+			for (const Vertex& v : sc_coarse_->vertices_cache)
+			{
+				if (this->fixed_vertex && value<bool>(*coarse_meca_mesh_, this->fixed_vertex.get(), v))
+					continue;
+
+				// k3
+				value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[4] =
+					(time_step * value<Vec3>(*coarse_meca_mesh_, this->forces_ext_.get(), v) /
+					 value<double>(*coarse_meca_mesh_, sc_coarse_->masse_, v)) +
+					time_step * gravity_;
+				// j3
+				value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[5] =
+					time_step * (value<Vec3>(*coarse_meca_mesh_, this->speed_.get(), v) +
+								 value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[4] / 2.0f);
+
+				value<Vec3>(*coarse_meca_mesh_, pos_coarse_.get(), v) -=
+					value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[3] / 2.0f;
+
+				value<Vec3>(*coarse_meca_mesh_, pos_coarse_.get(), v) +=
+					value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[5];
+
+				value<Vec3>(*coarse_meca_mesh_, this->forces_ext_.get(), v) =
+					value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[8];
+			}
+
+			sc_coarse_->solve_constraint(*coarse_meca_mesh_, pos_coarse_.get(), this->forces_ext_.get(), time_step);
+			for (const Vertex& v : sc_coarse_->vertices_cache)
+			{
+				if (this->fixed_vertex && value<bool>(*coarse_meca_mesh_, this->fixed_vertex.get(), v))
+					continue;
+
+				// k4
+				value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[6] =
+					(time_step * value<Vec3>(*coarse_meca_mesh_, this->forces_ext_.get(), v) /
+					 value<double>(*coarse_meca_mesh_, sc_coarse_->masse_, v)) +
+					time_step * gravity_;
+				// j4
+				value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[7] =
+					time_step * (0.995 * value<Vec3>(*coarse_meca_mesh_, this->speed_.get(), v) +
+								 value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[6]);
+
+				value<Vec3>(*coarse_meca_mesh_, pos_coarse_.get(), v) -=
+					value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[5];
+
+				Vec3 j1 = value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[1];
+				Vec3 j2 = value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[3];
+				Vec3 j3 = value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[5];
+				Vec3 j4 = value<std::array<Vec3, 9>>(*coarse_meca_mesh_, this->RK_coeff.get(), v)[7];
+
+				Vec3 diff_pos = 1. / 6. * (j1 + 2 * j2 + 2 * j3 + j4);
+
+				if (diff_pos.norm() < 1.0e-10)
+					diff_pos = Vec3(0, 0, 0);
+
+				value<Vec3>(*coarse_meca_mesh_, pos_coarse_.get(), v) += diff_pos;
 			}
 		};
 		solve_coarse();
@@ -1194,7 +1345,7 @@ public:
 		/////////////////////////////////////////////////
 
 		auto solve_current = [&]() {
-			for (const Vertex& v : sc_fine_->vertices_cache)
+			/*for (const Vertex& v : sc_fine_->vertices_cache)
 			{
 				value<Vec3>(*fine_meca_mesh_, this->forces_current_.get(), v) =
 					value<Vec3>(*mecanical_mesh_, this->forces_ext_.get(), v);
@@ -1215,6 +1366,126 @@ public:
 				s += time_step * gravity_;
 				value<Vec3>(*mecanical_mesh_, pos_current_, v) =
 					value<Vec3>(*mecanical_mesh_, vertex_position, v) + time_step * s;
+			}*/
+
+			// RUNGE-KUTTA
+
+			for (const Vertex& v : sc_->vertices_cache)
+			{
+				value<Vec3>(*mecanical_mesh_, this->forces_ext_.get(), v) =
+					value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[8];
+				value<Vec3>(*mecanical_mesh_, pos_current_.get(), v) =
+					value<Vec3>(*mecanical_mesh_, vertex_position, v);
+			}
+
+			sc_->solve_constraint(*mecanical_mesh_, pos_current_.get(), this->forces_ext_.get(), time_step);
+			for (const Vertex& v : sc_->vertices_cache)
+			{
+				if (this->fixed_vertex && value<bool>(*mecanical_mesh_, this->fixed_vertex.get(), v))
+				{
+					value<Vec3>(*mecanical_mesh_, pos_current_.get(), v) =
+						value<Vec3>(*mecanical_mesh_, vertex_position, v);
+					continue;
+				}
+				// k1
+				value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[0] =
+					(time_step * value<Vec3>(*mecanical_mesh_, this->forces_ext_.get(), v) /
+					 value<double>(*mecanical_mesh_, sc_->masse_, v)) +
+					time_step * gravity_;
+				// j1
+				value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[1] =
+					time_step * (0.995 * value<Vec3>(*mecanical_mesh_, this->speed_.get(), v) +
+								 value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[0]);
+
+				value<Vec3>(*mecanical_mesh_, pos_current_.get(), v) +=
+					value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[1] / 2.0f;
+
+				value<Vec3>(*mecanical_mesh_, this->forces_ext_.get(), v) =
+					value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[8];
+			}
+
+			sc_->solve_constraint(*mecanical_mesh_, pos_current_.get(), this->forces_ext_.get(), time_step);
+			for (const Vertex& v : sc_->vertices_cache)
+			{
+				if (this->fixed_vertex && value<bool>(*mecanical_mesh_, this->fixed_vertex.get(), v))
+					continue;
+
+				// k2
+				value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[2] =
+					(time_step * value<Vec3>(*mecanical_mesh_, this->forces_ext_.get(), v) /
+					 value<double>(*mecanical_mesh_, sc_->masse_, v)) +
+					time_step * gravity_;
+				// j2
+				value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[3] =
+					time_step * (0.995 * value<Vec3>(*mecanical_mesh_, this->speed_.get(), v) +
+								 value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[2] / 2.0f);
+
+				value<Vec3>(*mecanical_mesh_, pos_current_.get(), v) -=
+					value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[1] / 2.0f;
+
+				value<Vec3>(*mecanical_mesh_, pos_current_.get(), v) +=
+					value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[3] / 2.0f;
+
+				value<Vec3>(*mecanical_mesh_, this->forces_ext_.get(), v) =
+					value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[8];
+			}
+
+			sc_->solve_constraint(*mecanical_mesh_, pos_current_.get(), this->forces_ext_.get(), time_step);
+			for (const Vertex& v : sc_->vertices_cache)
+			{
+				if (this->fixed_vertex && value<bool>(*mecanical_mesh_, this->fixed_vertex.get(), v))
+					continue;
+
+				// k3
+				value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[4] =
+					(time_step * value<Vec3>(*mecanical_mesh_, this->forces_ext_.get(), v) /
+					 value<double>(*mecanical_mesh_, sc_->masse_, v)) +
+					time_step * gravity_;
+				// j3
+				value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[5] =
+					time_step * (0.995 * value<Vec3>(*mecanical_mesh_, this->speed_.get(), v) +
+								 value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[4] / 2.0f);
+
+				value<Vec3>(*mecanical_mesh_, pos_current_.get(), v) -=
+					value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[3] / 2.0f;
+
+				value<Vec3>(*mecanical_mesh_, pos_current_.get(), v) +=
+					value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[5];
+
+				value<Vec3>(*mecanical_mesh_, this->forces_ext_.get(), v) =
+					value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[8];
+			}
+
+			sc_->solve_constraint(*mecanical_mesh_, pos_current_.get(), this->forces_ext_.get(), time_step);
+			for (const Vertex& v : sc_->vertices_cache)
+			{
+				if (this->fixed_vertex && value<bool>(*mecanical_mesh_, this->fixed_vertex.get(), v))
+					continue;
+
+				// k4
+				value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[6] =
+					(time_step * value<Vec3>(*mecanical_mesh_, this->forces_ext_.get(), v) /
+					 value<double>(*mecanical_mesh_, sc_fine_->masse_, v)) +
+					time_step * gravity_;
+				// j4
+				value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[7] =
+					time_step * (0.995 * value<Vec3>(*mecanical_mesh_, this->speed_.get(), v) +
+								 value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[6]);
+
+				value<Vec3>(*mecanical_mesh_, pos_current_.get(), v) -=
+					value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[5];
+
+				Vec3 j1 = value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[1];
+				Vec3 j2 = value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[3];
+				Vec3 j3 = value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[5];
+				Vec3 j4 = value<std::array<Vec3, 9>>(*mecanical_mesh_, this->RK_coeff.get(), v)[7];
+
+				Vec3 diff_pos = 1. / 6. * (j1 + 2 * j2 + 2 * j3 + j4);
+
+				if (diff_pos.norm() < 1.0e-10)
+					diff_pos = Vec3(0, 0, 0);
+
+				value<Vec3>(*mecanical_mesh_, pos_current_.get(), v) += diff_pos;
 			}
 		};
 
@@ -1225,7 +1496,7 @@ public:
 		/////////////////////////////////////////////////
 
 		auto solve_fine = [&]() {
-			sc_fine_->solve_constraint(*fine_meca_mesh_, vertex_position, this->forces_ext_.get(), time_step);
+			/*sc_fine_->solve_constraint(*fine_meca_mesh_, vertex_position, this->forces_ext_.get(), time_step);
 
 			for (const Vertex& v : sc_fine_->vertices_cache)
 			{
@@ -1240,6 +1511,135 @@ public:
 				value<Vec3>(*fine_meca_mesh_, vertex_position, v) =
 					value<Vec3>(*fine_meca_mesh_, vertex_position, v) +
 					time_step * value<Vec3>(*fine_meca_mesh_, this->speed_.get(), v);
+			}*/
+
+			// RUNGE-KUTTA
+
+			for (const Vertex& v : sc_fine_->vertices_cache)
+			{
+				value<Vec3>(*fine_meca_mesh_, this->forces_ext_.get(), v) =
+					value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[8];
+			}
+
+			sc_fine_->solve_constraint(*fine_meca_mesh_, vertex_position, this->forces_ext_.get(), time_step);
+			for (const Vertex& v : sc_fine_->vertices_cache)
+			{
+				if (this->fixed_vertex && value<bool>(*fine_meca_mesh_, this->fixed_vertex.get(), v))
+					continue;
+				// k1
+				value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[0] =
+					(time_step * value<Vec3>(*fine_meca_mesh_, this->forces_ext_.get(), v) /
+					 value<double>(*fine_meca_mesh_, sc_fine_->masse_, v)) +
+					time_step * gravity_;
+				// j1
+				value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[1] =
+					time_step * (0.995 * value<Vec3>(*fine_meca_mesh_, this->speed_.get(), v) +
+								 value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[0]);
+
+				value<Vec3>(*fine_meca_mesh_, vertex_position, v) +=
+					value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[1] / 2.0f;
+
+				value<Vec3>(*fine_meca_mesh_, this->forces_ext_.get(), v) =
+					value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[8];
+			}
+
+			sc_fine_->solve_constraint(*fine_meca_mesh_, vertex_position, this->forces_ext_.get(), time_step);
+			for (const Vertex& v : sc_fine_->vertices_cache)
+			{
+				if (this->fixed_vertex && value<bool>(*fine_meca_mesh_, this->fixed_vertex.get(), v))
+					continue;
+
+				// k2
+				value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[2] =
+					(time_step * value<Vec3>(*fine_meca_mesh_, this->forces_ext_.get(), v) /
+					 value<double>(*fine_meca_mesh_, sc_fine_->masse_, v)) +
+					time_step * gravity_;
+				// j2
+				value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[3] =
+					time_step * (0.995 * value<Vec3>(*fine_meca_mesh_, this->speed_.get(), v) +
+								 value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[2] / 2.0f);
+
+				value<Vec3>(*fine_meca_mesh_, vertex_position, v) -=
+					value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[1] / 2.0f;
+
+				value<Vec3>(*fine_meca_mesh_, vertex_position, v) +=
+					value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[3] / 2.0f;
+
+				value<Vec3>(*fine_meca_mesh_, this->forces_ext_.get(), v) =
+					value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[8] +
+					gravity_ * value<double>(*fine_meca_mesh_, sc_fine_->masse_, v);
+			}
+
+			sc_fine_->solve_constraint(*fine_meca_mesh_, vertex_position, this->forces_ext_.get(), time_step);
+			for (const Vertex& v : sc_fine_->vertices_cache)
+			{
+				if (this->fixed_vertex && value<bool>(*fine_meca_mesh_, this->fixed_vertex.get(), v))
+					continue;
+
+				// k3
+				value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[4] =
+					(time_step * value<Vec3>(*fine_meca_mesh_, this->forces_ext_.get(), v) /
+					 value<double>(*fine_meca_mesh_, sc_fine_->masse_, v)) +
+					time_step * gravity_;
+				// j3
+				value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[5] =
+					time_step * (0.995 * value<Vec3>(*fine_meca_mesh_, this->speed_.get(), v) +
+								 value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[4] / 2.0f);
+
+				value<Vec3>(*fine_meca_mesh_, vertex_position, v) -=
+					value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[3] / 2.0f;
+
+				value<Vec3>(*fine_meca_mesh_, vertex_position, v) +=
+					value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[5];
+
+				value<Vec3>(*fine_meca_mesh_, this->forces_ext_.get(), v) =
+					value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[8] +
+					gravity_ * value<double>(*fine_meca_mesh_, sc_fine_->masse_, v);
+			}
+
+			sc_fine_->solve_constraint(*fine_meca_mesh_, vertex_position, this->forces_ext_.get(), time_step);
+			for (const Vertex& v : sc_fine_->vertices_cache)
+			{
+				if (this->fixed_vertex && value<bool>(*fine_meca_mesh_, this->fixed_vertex.get(), v))
+					continue;
+
+				// k4
+				value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[6] =
+					(time_step * value<Vec3>(*fine_meca_mesh_, this->forces_ext_.get(), v) /
+					 value<double>(*fine_meca_mesh_, sc_fine_->masse_, v)) +
+					time_step * gravity_;
+				// j4
+				value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[7] =
+					time_step * (0.995 * value<Vec3>(*fine_meca_mesh_, this->speed_.get(), v) +
+								 value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[6]);
+
+				value<Vec3>(*fine_meca_mesh_, vertex_position, v) -=
+					value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[5];
+
+				Vec3 k1 = value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[0];
+				Vec3 k2 = value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[2];
+				Vec3 k3 = value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[4];
+				Vec3 k4 = value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[6];
+
+				Vec3 j1 = value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[1];
+				Vec3 j2 = value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[3];
+				Vec3 j3 = value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[5];
+				Vec3 j4 = value<std::array<Vec3, 9>>(*fine_meca_mesh_, this->RK_coeff.get(), v)[7];
+
+				Vec3 diff_pos = 1. / 6. * (j1 + 2 * j2 + 2 * j3 + j4);
+
+				Vec3 diff_speed = 1. / 6. * (k1 + 2 * k2 + 2 * k3 + k4);
+
+				if (diff_pos.norm() < 1.0e-10)
+					diff_pos = Vec3(0, 0, 0);
+
+				if (diff_speed.norm() < 1.0e-10)
+					diff_speed = Vec3(0, 0, 0);
+
+				value<Vec3>(*fine_meca_mesh_, vertex_position, v) += diff_pos;
+
+				value<Vec3>(*fine_meca_mesh_, this->speed_.get(), v) =
+					0.995 * value<Vec3>(*fine_meca_mesh_, this->speed_.get(), v) + diff_speed;
 			}
 		};
 
@@ -1251,8 +1651,8 @@ public:
 						   relative_pos_.get(), parents_.get(), time_step);
 		}
 
-		foreach_cell(mecanical_mesh_->m_, [&](Vertex v) -> bool {
-			value<Vec3>(m_geom, this->forces_ext_.get(), v) = Vec3(0, 0, 0);
+		foreach_cell(*mecanical_mesh_, [&](Volume v) -> bool {
+			value<double>(*mecanical_mesh_, this->diff_volume_current_fine_.get(), v) = 0;
 			return true;
 		});
 
@@ -1263,9 +1663,13 @@ public:
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << "error : " << duration << std::endl;
 		start = std::clock();
-		modif_topo = update_topo(vertex_position) || modif_topo;
+		// modif_topo = update_topo(vertex_position) || modif_topo;
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << "modif topo : " << duration << std::endl;
+		foreach_cell(mecanical_mesh_->m_, [&](Vertex v) -> bool {
+			value<Vec3>(m_geom, this->forces_ext_.get(), v) = Vec3(0, 0, 0);
+			return true;
+		});
 	}
 };
 } // namespace simulation
