@@ -1663,7 +1663,7 @@ public:
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << "error : " << duration << std::endl;
 		start = std::clock();
-		// modif_topo = update_topo(vertex_position) || modif_topo;
+		modif_topo = update_topo(vertex_position) || modif_topo;
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << "modif topo : " << duration << std::endl;
 		foreach_cell(mecanical_mesh_->m_, [&](Vertex v) -> bool {
