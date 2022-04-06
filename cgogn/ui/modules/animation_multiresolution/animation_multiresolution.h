@@ -759,6 +759,7 @@ protected:
 		if (mecanical_mesh_ && geometric_mesh_)
 		{
 			double X_button_width = ImGui::CalcTextSize("X").x + ImGui::GetStyle().FramePadding.x * 2;
+			bool need_register = false;
 
 			Parameters& p = parameters_[mecanical_mesh_];
 
@@ -774,9 +775,9 @@ protected:
 							set_vertex_position(*mecanical_mesh_, attribute);
 							simu_solver.init_solver(*mecanical_mesh_, &sm_solver_, p.vertex_position_.get(), &ps_);
 							geometric_mesh_->parent = simu_solver.topology_;
-							mesh_provider_->register_mesh(simu_solver.coarse_meca_mesh_, "coarse_mesh");
+							/*mesh_provider_->register_mesh(simu_solver.coarse_meca_mesh_, "coarse_mesh");
 							mesh_provider_->register_mesh(simu_solver.fine_meca_mesh_, "fine_mesh");
-							mesh_provider_->register_mesh(simu_solver.topology_, "topology_mesh");
+							mesh_provider_->register_mesh(simu_solver.topology_, "topology_mesh");*/
 							p.vertex_masse_ = sm_solver_.masse_;
 							p.init_vertex_position_ = sm_solver_.vertex_init_position_;
 							p.vertex_forces_ = simu_solver.forces_ext_;
@@ -784,6 +785,7 @@ protected:
 							if (p.fixed_vertex == nullptr)
 								p.fixed_vertex = add_attribute<bool, Vertex>(*mecanical_mesh_, "fixed_vertex");
 							simu_solver.fixed_vertex = p.fixed_vertex;
+							need_register = true;
 						}
 						if (is_selected)
 							ImGui::SetItemDefaultFocus();
@@ -863,6 +865,12 @@ protected:
 					{
 						stop();
 					}
+				}
+				if (need_register)
+				{
+					mesh_provider_->register_mesh(simu_solver.coarse_meca_mesh_, "coarse_mesh");
+					mesh_provider_->register_mesh(simu_solver.fine_meca_mesh_, "fine_mesh");
+					mesh_provider_->register_mesh(simu_solver.topology_, "topology_mesh");
 				}
 				if (need_update_)
 				{

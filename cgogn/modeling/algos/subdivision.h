@@ -988,7 +988,7 @@ auto butterflySubdivisionVolumeRegular(MESH& m, double angle_threshold,
 }
 
 template <typename MESH, typename FUNC>
-auto butterflySubdivisionVolumeRegular(MESH& m, double angle_threshold,
+auto butterflySubdivisionVolumeRegular(MESH& m, double,
 									   std::vector<typename mesh_traits<MESH>::template Attribute<Vec3>*> attributes,
 									   const FUNC& after_cut_edge, const FUNC& after_cut_face,
 									   const FUNC& after_cut_volume)
@@ -1185,7 +1185,7 @@ auto butterflyMultiresolution(
 		m2.current_level_++;
 	};
 
-	butterflySubdivisionVolumeAdaptative(m, angle_threshold, attributes, after_cut);
+	butterflySubdivisionVolumeRegular(m, angle_threshold, attributes, after_cut);
 	m2.current_level_--;
 	for (auto v : new_vertices)
 	{
