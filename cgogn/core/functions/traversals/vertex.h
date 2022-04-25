@@ -245,6 +245,28 @@ std::vector<typename mesh_traits<MESH>::Vertex> adjacent_vertices_through_edge(c
 	return vertices;
 }
 
+/*****************************************************************************/
+
+// template <typename CELL, typename MESH>
+// std::vector<typename mesh_traits<MESH>::Vertex> append_incident_vertices(const MESH& m, CELL c, std::vector<typename
+// mesh_traits<MESH>::Vertex>& vertices);
+
+/*****************************************************************************/
+
+/////////////
+// GENERIC //
+/////////////
+
+template <typename MESH, typename CELL>
+void append_incident_vertices(const MESH& m, CELL c, std::vector<typename mesh_traits<MESH>::Vertex>& vertices)
+{
+	using Vertex = typename mesh_traits<MESH>::Vertex;
+	foreach_incident_vertex(m, c, [&vertices](Vertex v) -> bool {
+		vertices.push_back(v);
+		return true;
+	});
+}
+
 } // namespace cgogn
 
 #endif // CGOGN_CORE_FUNCTIONS_TRAVERSALS_VERTEX_H_

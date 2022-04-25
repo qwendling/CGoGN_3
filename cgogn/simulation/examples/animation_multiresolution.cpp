@@ -22,6 +22,7 @@
  *******************************************************************************/
 
 #include <cgogn/core/types/mesh_traits.h>
+#include <cgogn/geometry/algos/angle.h>
 #include <cgogn/geometry/types/vector_traits.h>
 
 #include <cgogn/ui/app.h>
@@ -50,6 +51,7 @@ using Attribute = typename cgogn::mesh_traits<Mesh>::Attribute<T>;
 using Vertex = typename cgogn::mesh_traits<Mesh>::Vertex;
 using Edge = typename cgogn::mesh_traits<Mesh>::Edge;
 using Face = typename cgogn::mesh_traits<Mesh>::Face;
+using Face2 = typename cgogn::mesh_traits<Mesh>::Face2;
 using Volume = typename cgogn::mesh_traits<Mesh>::Volume;
 
 using Vec3 = cgogn::geometry::Vec3;
@@ -119,6 +121,7 @@ int main(int argc, char** argv)
 
 	MRMesh* meca_mesh = vmrm.create_mrmesh(*m, "mecanic");
 	MRMesh* geometry_mesh = vmrm.create_mrmesh(*m, "geometry");
+	MRMesh* Visu_mesh = vmrm.create_mrmesh(*m, "Visu");
 
 	vmrm.selected_vertex_parents_ = cgogn::add_attribute<std::array<Vertex, 4>, Vertex>(*m, "parents");
 	vmrm.selected_vertex_relative_position_ = cgogn::add_attribute<Vec3, Vertex>(*m, "relative_position");
@@ -141,7 +144,7 @@ int main(int argc, char** argv)
 		for (Volume v : list_cut_volumes)
 		{
 
-			int tmp = std::rand() / ((RAND_MAX + 1u) / 4);
+			int tmp = std::rand() / ((RAND_MAX + 1u) / 7);
 			if (tmp == 1)
 			{
 				meca_mesh->activate_volume_subdivision(v);
@@ -150,14 +153,31 @@ int main(int argc, char** argv)
 		list_cut_volumes.clear();
 	}
 
-	cgogn::foreach_cell(*geometry_mesh, [&](Face f) -> bool {
+	/*cgogn::foreach_cell(*geometry_mesh, [&](Face f) -> bool {
 		if (is_incident_to_boundary(*geometry_mesh, f))
 		{
 
 			geometry_mesh->activate_face_subdivision(f);
 		}
 		return true;
-	});
+	});*/
+	for (cgogn::Dart d = geometry_mesh->begin(); d != geometry_mesh->end(); d = geometry_mesh->next(d))
+	{
+		if (is_boundary(*geometry_mesh, phi3(*geometry_mesh, d)))
+		{
+			cgogn::Dart d2 = phi2(*geometry_mesh, d);
+			while (!is_boundary(*geometry_mesh, phi3(*geometry_mesh, d2)))
+			{
+				d2 = cgogn::phi<32>(*geometry_mesh, d2);
+			}
+			// First attribute is the one watch for adaptive subdivision
+			auto edge_angle = cgogn::geometry::angle(*geometry_mesh, Face2(d), Face2(d2), position.get());
+			if (std::abs(edge_angle) > 0.5f)
+			{
+				geometry_mesh->activate_face_subdivision(Face(d));
+			}
+		}
+	}
 
 	vmrm.changed_connectivity(*meca_mesh, position.get());
 	vmrm.changed_connectivity(*geometry_mesh, position.get());

@@ -39,6 +39,14 @@ class CGOGN_RENDERING_EXPORT ShaderParamFlatColorPerFace : public ShaderParam
 {
 	void set_uniforms() override;
 
+	std::array<VBO*, 2> vbos_;
+	inline void set_texture_buffer_vbo(uint32 i, VBO* vbo) override
+	{
+		vbos_[i] = vbo;
+	}
+	void bind_texture_buffers() override;
+	void release_texture_buffers() override;
+
 	enum VBOName : uint32
 	{
 		VERTEX_POSITION = 0,
@@ -46,7 +54,6 @@ class CGOGN_RENDERING_EXPORT ShaderParamFlatColorPerFace : public ShaderParam
 	};
 
 public:
-	std::array<VBO*, 2> vbos_;
 	GLColor ambiant_color_;
 	GLVec3 light_position_;
 	bool double_side_;
@@ -62,11 +69,6 @@ public:
 
 	inline ~ShaderParamFlatColorPerFace() override
 	{
-	}
-
-	inline VBO** vbo_tb(uint32 i) override
-	{
-		return &vbos_[i];
 	}
 };
 

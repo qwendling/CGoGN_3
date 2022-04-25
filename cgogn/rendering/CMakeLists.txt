@@ -33,6 +33,8 @@ target_sources(${PROJECT_NAME}
 		"${CMAKE_CURRENT_LIST_DIR}/fbo.h"
 		"${CMAKE_CURRENT_LIST_DIR}/fbo.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/vbo_update.h"
+		"${CMAKE_CURRENT_LIST_DIR}/shape_drawer.h"
+		"${CMAKE_CURRENT_LIST_DIR}/shape_drawer.cpp"
 
 		"${CMAKE_CURRENT_LIST_DIR}/shaders/shader_program.h"
 		"${CMAKE_CURRENT_LIST_DIR}/shaders/shader_program.cpp"
@@ -75,8 +77,6 @@ target_sources(${PROJECT_NAME}
 		
 		"${CMAKE_CURRENT_LIST_DIR}/shaders/shader_bold_line.h"
 		"${CMAKE_CURRENT_LIST_DIR}/shaders/shader_bold_line.cpp"
-		"${CMAKE_CURRENT_LIST_DIR}/shaders/shader_bold_line_color.h"
-		"${CMAKE_CURRENT_LIST_DIR}/shaders/shader_bold_line_color.cpp"
 
 		"${CMAKE_CURRENT_LIST_DIR}/shaders/shader_point_sprite.h"
 		"${CMAKE_CURRENT_LIST_DIR}/shaders/shader_point_sprite.cpp"
@@ -111,6 +111,7 @@ target_sources(${PROJECT_NAME}
 
 		"${CMAKE_CURRENT_LIST_DIR}/shaders/frame_manip_drawer.h"
 		"${CMAKE_CURRENT_LIST_DIR}/shaders/frame_manip_drawer.cpp"
+		
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

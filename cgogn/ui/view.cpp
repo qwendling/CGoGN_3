@@ -35,7 +35,7 @@ View::View(Inputs* inputs, const std::string& name)
 	  closing_(false)
 {
 	tex_ = std::make_unique<rendering::Texture2D>();
-	tex_->alloc(1, 1, GL_RGBA8, GL_RGBA);
+	tex_->allocate(1, 1, GL_RGBA8, GL_RGBA);
 	std::vector<rendering::Texture2D*> vt{tex_.get()};
 
 	fbo_ = std::make_unique<rendering::FBO>(vt, true, nullptr);

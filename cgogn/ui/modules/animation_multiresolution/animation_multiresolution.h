@@ -39,6 +39,7 @@
 
 #include <cgogn/rendering/frame_manipulator.h>
 #include <cgogn/rendering/shaders/shader_bold_line.h>
+#include <cgogn/rendering/shaders/shader_cylinder.h>
 #include <cgogn/rendering/shaders/shader_flat.h>
 #include <cgogn/rendering/shaders/shader_point_sprite.h>
 #include <cgogn/rendering/vbo_update.h>
@@ -353,10 +354,10 @@ protected:
 		}
 		if (key_code == GLFW_KEY_P)
 		{
-			if (simu_solver.gravity_[2] == 0)
-				simu_solver.gravity_ = Vec3(0, 0, -9.81);
+			if (simu_solver.gravity_[1] >= 0)
+				simu_solver.gravity_ = Vec3(0, -9.81, 0);
 			else
-				simu_solver.gravity_ = Vec3(0, 0, 0);
+				simu_solver.gravity_ = Vec3(0, 9.81, 0);
 			std::cout << simu_solver.gravity_ << std::endl;
 		}
 		if (key_code == GLFW_KEY_F)
@@ -422,6 +423,27 @@ protected:
 		if (key_code == GLFW_KEY_Q)
 		{
 			animation_cylinder = !animation_cylinder;
+		}
+		if (key_code == GLFW_KEY_W)
+		{
+			if (mecanical_mesh_)
+			{
+				Parameters& p = parameters_[mecanical_mesh_];
+				typename MR_MESH::Inherit tmp(mecanical_mesh_->m_);
+				tmp.current_level_ = tmp.maximum_level_;
+				Vec3 pos(0.0f, 0.0f, 1.1f);
+				// p.frame_manipulator_.get_position(pos);
+				Vec3 a(0.0f, 0.0f, 1.0f);
+				// p.frame_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, a);
+				double d = pos.dot(a);
+				parallel_foreach_cell(tmp, [&](Vertex v) -> bool {
+					if (value<Vec3>(tmp, p.vertex_position_.get(), v).dot(a) < d)
+					{
+						value<bool>(tmp, p.fixed_vertex.get(), v) = true;
+					}
+					return true;
+				});
+			}
 		}
 	}
 
@@ -683,7 +705,7 @@ protected:
 			const rendering::GLMat4& proj_matrix = view->projection_matrix();
 			const rendering::GLMat4& view_matrix = view->modelview_matrix();
 
-			if (p.have_selected_vertex_ && p.param_move_vertex_->vao_initialized())
+			if (p.have_selected_vertex_ && p.param_move_vertex_->attributes_initialized())
 			{
 				p.param_move_vertex_->point_size_ = p.vertex_base_size_ * p.vertex_scale_factor_;
 				p.param_move_vertex_->bind(proj_matrix, view_matrix);
@@ -691,7 +713,7 @@ protected:
 				p.param_move_vertex_->release();
 			}
 
-			if (p.have_selected_vertex_ && p.param_edge_->vao_initialized())
+			if (p.have_selected_vertex_ && p.param_edge_->attributes_initialized())
 			{
 				p.param_edge_->bind(proj_matrix, view_matrix);
 				glDrawArrays(GL_LINES, 0, 2);

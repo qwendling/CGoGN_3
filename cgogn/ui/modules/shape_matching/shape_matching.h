@@ -430,7 +430,7 @@ protected:
 			const rendering::GLMat4& proj_matrix = view->projection_matrix();
 			const rendering::GLMat4& view_matrix = view->modelview_matrix();
 
-			if (p.have_selected_vertex_ && p.param_move_vertex_->vao_initialized())
+			if (p.have_selected_vertex_ && p.param_move_vertex_->attributes_initialized())
 			{
 				p.param_move_vertex_->point_size_ = p.vertex_base_size_ * p.vertex_scale_factor_;
 				p.param_move_vertex_->bind(proj_matrix, view_matrix);
@@ -438,7 +438,7 @@ protected:
 				p.param_move_vertex_->release();
 			}
 
-			if (p.have_selected_vertex_ && p.param_edge_->vao_initialized())
+			if (p.have_selected_vertex_ && p.param_edge_->attributes_initialized())
 			{
 				p.param_edge_->bind(proj_matrix, view_matrix);
 				glDrawArrays(GL_LINES, 0, 2);
