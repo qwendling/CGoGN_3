@@ -122,6 +122,8 @@ int main(int argc, char** argv)
 	MRMesh* meca_mesh = vmrm.create_mrmesh(*m, "mecanic");
 	MRMesh* geometry_mesh = vmrm.create_mrmesh(*m, "geometry");
 	MRMesh* Visu_mesh = vmrm.create_mrmesh(*m, "Visu");
+	/*MRMesh* Visu2_mesh = vmrm.create_mrmesh(*m, "Visu2");
+	MRMesh* Visu3_mesh = vmrm.create_mrmesh(*m, "Visu3");*/
 
 	vmrm.selected_vertex_parents_ = cgogn::add_attribute<std::array<Vertex, 4>, Vertex>(*m, "parents");
 	vmrm.selected_vertex_relative_position_ = cgogn::add_attribute<Vec3, Vertex>(*m, "relative_position");

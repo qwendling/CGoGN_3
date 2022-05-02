@@ -39,7 +39,6 @@
 
 #include <cgogn/rendering/frame_manipulator.h>
 #include <cgogn/rendering/shaders/shader_bold_line.h>
-#include <cgogn/rendering/shaders/shader_cylinder.h>
 #include <cgogn/rendering/shaders/shader_flat.h>
 #include <cgogn/rendering/shaders/shader_point_sprite.h>
 #include <cgogn/rendering/vbo_update.h>
@@ -51,6 +50,8 @@
 #include <cgogn/simulation/algos/multiresolution_propagation/propagation_plastique.h>
 #include <cgogn/simulation/algos/multiresolution_propagation/propagation_spring.h>
 #include <cgogn/simulation/algos/shape_matching/shape_matching.h>
+
+#include <cgogn/rendering/shape_drawer.h>
 
 #include <boost/synapse/connect.hpp>
 #include <imgui/imgui.h>
@@ -147,7 +148,9 @@ public:
 		: ViewModule(app, "Animation_multiresolution (" + std::string{mesh_traits<MR_MESH>::name} + ")"),
 		  mecanical_mesh_(nullptr), selected_view_(app.current_view()), sm_solver_(0.9f), running_(false), ps_(0.9f),
 		  geometric_mesh_(nullptr), modif_topo_(false), ground_(false), animation_cut(false), cut_animation_timer(0),
-		  animation_cylinder(false), animation_cylinder_timer(0)
+		  animation_cylinder(false), radius_cylinder(0.9f), pos_cylinder1(0, 5, 1), Zaxis_cylinder1(1, 0, 0),
+		  pos_cylinder2(0, -1, 5), Zaxis_cylinder2(1, 0, 0), pos_cylinder3(0, 5, 8), Zaxis_cylinder3(1, 0, 0),
+		  animation_cylinder_timer(0), shape_(nullptr)
 	{
 		f_keypress = [](View*, MR_MESH*, int32, CellsSet<MR_MESH, Vertex>*, CellsSet<MR_MESH, Edge>*) {};
 	}
@@ -232,6 +235,8 @@ protected:
 		mesh_provider_->foreach_mesh([this](MR_MESH* m, const std::string&) { init_mesh(m); });
 		connections_.push_back(boost::synapse::connect<typename MeshProvider<MR_MESH>::mesh_added>(
 			mesh_provider_, this, &AnimationMultiresolution<MR_MESH>::init_mesh));
+		shape_ = rendering::ShapeDrawer::instance();
+		shape_->color(rendering::ShapeDrawer::CYLINDER) = rendering::GLColor(0.5294, 0.6078, 0.6078, 1);
 	}
 
 	void mouse_press_event(View* view, int32 button, int32 x, int32 y) override
@@ -424,6 +429,10 @@ protected:
 		{
 			animation_cylinder = !animation_cylinder;
 		}
+		if (key_code == GLFW_KEY_E)
+		{
+			draw_cylinder = !draw_cylinder;
+		}
 		if (key_code == GLFW_KEY_W)
 		{
 			if (mecanical_mesh_)
@@ -560,22 +569,71 @@ protected:
 				if (animation_cylinder)
 				{
 
-					double taille_cylindre = 3 + 2 * cos(double(animation_cylinder_timer) / 100.0f);
-
 					parallel_foreach_cell(mecanical_mesh_->m_, [&](Vertex v) -> bool {
 						Vec3& pos = value<Vec3>(*mecanical_mesh_, p.vertex_position_.get(), v);
-						Vec3 axis_z;
-						p.frame_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, axis_z);
+						Vec3& speed = value<Vec3>(*mecanical_mesh_, simu_solver.speed_.get(), v);
+						Vec3 axis_z = Zaxis_cylinder1;
 
-						double dist = axis_z.cross(pos).norm() - taille_cylindre;
+						Vec3 pos2 = pos - pos_cylinder1.cast<double>();
 
-						if (dist > 0)
+						double dist = axis_z.cross(pos2).norm() - radius_cylinder;
+
+						if (dist < 0)
 						{
-							Vec3 dir_collision = (axis_z * (axis_z.dot(pos)) - pos).normalized() * dist;
+							Vec3 dir_collision = (axis_z * (axis_z.dot(pos2)) - pos2).normalized() * dist;
 							pos += dir_collision;
+
+							Vec3 dir_col_norm = dir_collision.normalized();
+							double tmp = speed.dot(-dir_col_norm);
+							if (tmp > 0)
+							{
+								speed += dir_col_norm * tmp;
+							}
+							return true;
+						}
+
+						axis_z = Zaxis_cylinder2;
+
+						pos2 = pos - pos_cylinder2.cast<double>();
+
+						dist = axis_z.cross(pos2).norm() - radius_cylinder;
+
+						if (dist < 0)
+						{
+							Vec3 dir_collision = (axis_z * (axis_z.dot(pos2)) - pos2).normalized() * dist;
+							pos += dir_collision;
+
+							Vec3 dir_col_norm = dir_collision.normalized();
+							double tmp = speed.dot(-dir_col_norm);
+							if (tmp > 0)
+							{
+								speed += dir_col_norm * tmp;
+							}
+							return true;
+						}
+
+						axis_z = Zaxis_cylinder3;
+
+						pos2 = pos - pos_cylinder3.cast<double>();
+
+						dist = axis_z.cross(pos2).norm() - radius_cylinder;
+
+						if (dist < 0)
+						{
+							Vec3 dir_collision = (axis_z * (axis_z.dot(pos2)) - pos2).normalized() * dist;
+							pos += dir_collision;
+
+							Vec3 dir_col_norm = dir_collision.normalized();
+							double tmp = speed.dot(-dir_col_norm);
+							if (tmp > 0)
+							{
+								speed += dir_col_norm * tmp;
+							}
 						}
 						return true;
 					});
+					pos_cylinder1 -= Eigen::Vector3f(0, 0.01, 0);
+					pos_cylinder3 -= Eigen::Vector3f(0, 0.01, 0);
 					animation_cylinder_timer++;
 				}
 
@@ -694,6 +752,8 @@ protected:
 	void draw(View* view) override
 	{
 
+		const rendering::GLMat4& proj_matrix = view->projection_matrix();
+		const rendering::GLMat4& view_matrix = view->modelview_matrix();
 		for (auto& [m, p] : parameters_)
 		{
 
@@ -702,8 +762,6 @@ protected:
 				continue;
 			const typename MR_MESH::CMAP& map = static_cast<const typename MR_MESH::CMAP&>(*md->mesh_);
 			map.start_reader();
-			const rendering::GLMat4& proj_matrix = view->projection_matrix();
-			const rendering::GLMat4& view_matrix = view->modelview_matrix();
 
 			if (p.have_selected_vertex_ && p.param_move_vertex_->attributes_initialized())
 			{
@@ -732,6 +790,25 @@ protected:
 				p.cut_manipulator_.draw(true, true, proj_matrix, view_matrix);
 			}
 			map.end_reader();
+		}
+
+		if (draw_cylinder)
+		{
+			Eigen::Affine3f transfo =
+				Eigen::Translation3f(pos_cylinder1) *
+				Eigen::AngleAxisf(std::acos(Vec3(0, 0, 1).dot(Zaxis_cylinder1)), Eigen::Vector3f::UnitY()) *
+				Eigen::Scaling(radius_cylinder, radius_cylinder, 10.0f);
+			shape_->draw(rendering::ShapeDrawer::CYLINDER, proj_matrix, view_matrix * transfo.matrix());
+
+			transfo = Eigen::Translation3f(pos_cylinder2) *
+					  Eigen::AngleAxisf(std::acos(Vec3(0, 0, 1).dot(Zaxis_cylinder2)), Eigen::Vector3f::UnitY()) *
+					  Eigen::Scaling(radius_cylinder, radius_cylinder, 10.0f);
+			shape_->draw(rendering::ShapeDrawer::CYLINDER, proj_matrix, view_matrix * transfo.matrix());
+
+			transfo = Eigen::Translation3f(pos_cylinder3) *
+					  Eigen::AngleAxisf(std::acos(Vec3(0, 0, 1).dot(Zaxis_cylinder3)), Eigen::Vector3f::UnitY()) *
+					  Eigen::Scaling(radius_cylinder, radius_cylinder, 10.0f);
+			shape_->draw(rendering::ShapeDrawer::CYLINDER, proj_matrix, view_matrix * transfo.matrix());
 		}
 	}
 
@@ -960,7 +1037,18 @@ public:
 	uint32 cut_animation_timer;
 
 	bool animation_cylinder;
+	float radius_cylinder;
+	Eigen::Vector3f pos_cylinder1;
+	Vec3 Zaxis_cylinder1;
+	Eigen::Vector3f pos_cylinder2;
+	Vec3 Zaxis_cylinder2;
+	Eigen::Vector3f pos_cylinder3;
+	Vec3 Zaxis_cylinder3;
 	uint32 animation_cylinder_timer;
+
+	bool draw_cylinder;
+
+	rendering::ShapeDrawer* shape_;
 };
 
 } // namespace ui

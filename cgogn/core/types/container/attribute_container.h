@@ -68,6 +68,9 @@ private:
 	friend class AttributeContainerT;
 
 	virtual void manage_index(uint32 index) = 0;
+	virtual void clear() = 0;
+	virtual std::shared_ptr<AttributeGenT> create_in(AttributeContainerGen& container) const = 0;
+	virtual void copy(const AttributeGenT& src) = 0;
 };
 
 /////////////////////////////////

@@ -281,7 +281,10 @@ inline void Linked_volumes<EMR_Map3_Adaptative>::compute_cut_plan_in_framework(
 				vect_new_volume.push_back(Volume(w.dart));
 				return true;
 			});
-			m_->activate_volume_subdivision(v);
+			if (m_->volume_level(v.dart) < m_->maximum_level_ - 1)
+			{
+				m_->activate_volume_subdivision(v);
+			}
 		}
 		geometry::compute_centroid<Vec3, Volume>(*m_, pos, centroid_.get());
 		parallel_foreach_cell(*m_, [&](Volume v) -> bool {
