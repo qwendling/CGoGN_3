@@ -56,16 +56,27 @@ Vec3 normal(const MESH& m, typename mesh_traits<MESH>::Face f,
 	}
 	else
 	{
-		Vec3 n{0.0, 0.0, 0.0};
+		/*Vec3 n{0.0, 0.0, 0.0};
 		for (uint32 i = 1; i < uint32(vertices.size()) - 1; ++i)
 		{
 			const Vec3& r = value<Vec3>(m, vertex_position, vertices[i - 1]);
 			const Vec3& p = value<Vec3>(m, vertex_position, vertices[i]);
 			const Vec3& q = value<Vec3>(m, vertex_position, vertices[i + 1]);
 			n += normal(r, p, q);
-			/*n[0] += (p[1] - q[1]) * (p[2] + q[2]);
+			n[0] += (p[1] - q[1]) * (p[2] + q[2]);
 			n[1] += (p[2] - q[2]) * (p[0] + q[0]);
-			n[2] += (p[0] - q[0]) * (p[1] + q[1]);*/
+			n[2] += (p[0] - q[0]) * (p[1] + q[1]);
+		}
+		n.normalize();
+		return n;*/
+		Vec3 n{0.0, 0.0, 0.0};
+		for (uint32 i = 0, nb = uint32(vertices.size()); i < nb; ++i)
+		{
+			const Vec3& p = value<Vec3>(m, vertex_position, vertices[i]);
+			const Vec3& q = value<Vec3>(m, vertex_position, vertices[(i + 1) % nb]);
+			n[0] += (p[1] - q[1]) * (p[2] + q[2]);
+			n[1] += (p[2] - q[2]) * (p[0] + q[0]);
+			n[2] += (p[0] - q[0]) * (p[1] + q[1]);
 		}
 		n.normalize();
 		return n;

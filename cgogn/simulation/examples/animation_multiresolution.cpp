@@ -118,6 +118,7 @@ int main(int argc, char** argv)
 	}
 
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*m, "position");
+	std::shared_ptr<Attribute<Vec3>> normal = cgogn::add_attribute<Vec3, Vertex>(*m, "normal__anim_multires");
 
 	MRMesh* meca_mesh = vmrm.create_mrmesh(*m, "mecanic");
 	MRMesh* geometry_mesh = vmrm.create_mrmesh(*m, "geometry");
@@ -137,7 +138,7 @@ int main(int argc, char** argv)
 	std::vector<Volume> list_cut_volumes;
 
 	std::srand(164512792);
-	while (std::rand() / ((RAND_MAX + 1u) / 5) > 1)
+	/*while (std::rand() / ((RAND_MAX + 1u) / 5) > 1)
 	{
 		cgogn::foreach_cell(*meca_mesh, [&list_cut_volumes](Volume v) -> bool {
 			list_cut_volumes.push_back(v);
@@ -153,7 +154,7 @@ int main(int argc, char** argv)
 			}
 		}
 		list_cut_volumes.clear();
-	}
+	}*/
 
 	/*cgogn::foreach_cell(*geometry_mesh, [&](Face f) -> bool {
 		if (is_incident_to_boundary(*geometry_mesh, f))
@@ -163,6 +164,125 @@ int main(int argc, char** argv)
 		}
 		return true;
 	});*/
+
+	/*Visu_mesh->current_level_ = 0;
+	cgogn::foreach_cell(*Visu_mesh, [&](Vertex v) -> bool {
+		if (!cgogn::is_incident_to_boundary(*Visu_mesh, v))
+		{
+			return true;
+		}
+		Vec3 n{0.0, 0.0, 0.0};
+		cgogn::foreach_incident_face(*Visu_mesh, v, [&](Face f) -> bool {
+			if (!cgogn::is_incident_to_boundary(*Visu_mesh, f))
+				return true;
+			if (cgogn::is_boundary(*Visu_mesh, f.dart))
+				f.dart = cgogn::phi3(*Visu_mesh, f.dart);
+			n += cgogn::geometry::normal(*Visu_mesh, f, position.get());
+			std::cout << "check : " << cgogn::geometry::normal(*Visu_mesh, f, position.get()) << std::endl;
+			return true;
+		});
+		n.normalize();
+		cgogn::value<Vec3>(*Visu_mesh, normal, v) = n;
+		std::cout << "normale : " << n << std::endl;
+		return true;
+	});
+	cgogn::foreach_cell(*Visu_mesh, [&](Vertex v) {
+		if (cgogn::is_incident_to_boundary(*Visu_mesh, v))
+		{
+			Vec3 p = cgogn::value<Vec3>(*Visu_mesh, position, v);
+			switch (Visu_mesh->dart_level(v.dart))
+			{
+			case 0:
+				cgogn::value<Vec3>(*Visu_mesh, position, v) +=
+					cgogn::value<Vec3>(*Visu_mesh, normal, v) *
+					(0.5 * std::sin(sqrt(p.x() * p.x() + p.y() * p.y() + p.z() * p.z())) + .5);
+				break;
+			default:
+				break;
+			}
+		}
+		return true;
+	});*/
+	Visu_mesh->current_level_ = 1;
+	cgogn::foreach_cell(*Visu_mesh, [&](Vertex v) -> bool {
+		if (!cgogn::is_incident_to_boundary(*Visu_mesh, v))
+		{
+			return true;
+		}
+		Vec3 n{0.0, 0.0, 0.0};
+		cgogn::foreach_incident_face(*Visu_mesh, v, [&](Face f) -> bool {
+			if (!cgogn::is_incident_to_boundary(*Visu_mesh, f))
+				return true;
+			if (cgogn::is_boundary(*Visu_mesh, f.dart))
+				f.dart = cgogn::phi3(*Visu_mesh, f.dart);
+			n += cgogn::geometry::normal(*Visu_mesh, f, position.get());
+			std::cout << "check : " << cgogn::geometry::normal(*Visu_mesh, f, position.get()) << std::endl;
+			return true;
+		});
+		n.normalize();
+		cgogn::value<Vec3>(*Visu_mesh, normal, v) = n;
+		std::cout << "normale : " << n << std::endl;
+		return true;
+	});
+	cgogn::foreach_cell(*Visu_mesh, [&](Vertex v) {
+		if (cgogn::is_incident_to_boundary(*Visu_mesh, v))
+		{
+			Vec3 p = cgogn::value<Vec3>(*Visu_mesh, position, v);
+			switch (Visu_mesh->dart_level(v.dart))
+			{
+
+			case 1:
+				cgogn::value<Vec3>(*Visu_mesh, position, v) +=
+					cgogn::value<Vec3>(*Visu_mesh, normal, v) * .5 *
+					(0.5 * std::sin(sqrt(p.x() * p.x() + p.y() * p.y() + p.z() * p.z())) + .5);
+				break;
+
+			default:
+				break;
+			}
+		}
+		return true;
+	});
+	Visu_mesh->current_level_ = 2;
+	cgogn::foreach_cell(*Visu_mesh, [&](Vertex v) -> bool {
+		if (!cgogn::is_incident_to_boundary(*Visu_mesh, v))
+		{
+			return true;
+		}
+		Vec3 n{0.0, 0.0, 0.0};
+		cgogn::foreach_incident_face(*Visu_mesh, v, [&](Face f) -> bool {
+			if (!cgogn::is_incident_to_boundary(*Visu_mesh, f))
+				return true;
+			if (cgogn::is_boundary(*Visu_mesh, f.dart))
+				f.dart = cgogn::phi3(*Visu_mesh, f.dart);
+			n += cgogn::geometry::normal(*Visu_mesh, f, position.get());
+			std::cout << "check : " << cgogn::geometry::normal(*Visu_mesh, f, position.get()) << std::endl;
+			return true;
+		});
+		n.normalize();
+		cgogn::value<Vec3>(*Visu_mesh, normal, v) = n;
+		std::cout << "normale : " << n << std::endl;
+		return true;
+	});
+	cgogn::foreach_cell(*Visu_mesh, [&](Vertex v) {
+		if (cgogn::is_incident_to_boundary(*Visu_mesh, v))
+		{
+			Vec3 p = cgogn::value<Vec3>(*Visu_mesh, position, v);
+			switch (Visu_mesh->dart_level(v.dart))
+			{
+
+			case 2:
+				cgogn::value<Vec3>(*Visu_mesh, position, v) +=
+					cgogn::value<Vec3>(*Visu_mesh, normal, v) * .25 *
+					(0.5 * std::sin(sqrt(p.x() * p.x() + p.y() * p.y() + p.z() * p.z())) + .5);
+				break;
+			default:
+				break;
+			}
+		}
+		return true;
+	});
+
 	for (cgogn::Dart d = geometry_mesh->begin(); d != geometry_mesh->end(); d = geometry_mesh->next(d))
 	{
 		if (is_boundary(*geometry_mesh, phi3(*geometry_mesh, d)))
@@ -183,6 +303,7 @@ int main(int argc, char** argv)
 
 	vmrm.changed_connectivity(*meca_mesh, position.get());
 	vmrm.changed_connectivity(*geometry_mesh, position.get());
+	vmrm.changed_connectivity(*Visu_mesh, position.get());
 
 	mrsr.set_vertex_position(*v1, *meca_mesh, nullptr);
 	// mrsr.set_vertex_position(*v2, *topo_mesh, nullptr);

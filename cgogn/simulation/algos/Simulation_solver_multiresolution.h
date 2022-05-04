@@ -19,8 +19,13 @@
 #if 0
 #define MODIF_MAX PROPORTION_QUOTA* QUOTA_VOLUME
 #else
-#define MODIF_MAX 1
+#define MODIF_MAX 100
 #endif
+
+#define MAX_DOF 200
+
+#define ACTIVATION_THRESHOLD 1.0e-05
+#define DISABLE_THRESHOLD ACTIVATION_THRESHOLD
 
 namespace cgogn
 {
@@ -227,10 +232,12 @@ public:
 
 	CellCache<MR_MAP>* cache_current_vol_;
 	int clock;
+	int nb_modif_topo;
 
 	Simulation_solver_multiresolution()
 		: Simulation_solver<MR_MAP>(), pc_(nullptr), parents_(nullptr), relative_pos_(nullptr), hierarchy_(nullptr),
-		  gravity_(0, 0, 0), cache_current_vol_(nullptr), clock(1), list_face_current(nullptr), list_face_fine(nullptr)
+		  gravity_(0, 0, 0), cache_current_vol_(nullptr), clock(1), list_face_current(nullptr), list_face_fine(nullptr),
+		  nb_modif_topo(0)
 	{
 	}
 
@@ -853,6 +860,260 @@ public:
 		return false;
 	}
 
+	bool update_topo2(Attribute<Vec3>* vertex_position)
+	{
+		std::clock_t start;
+		double duration;
+		start = std::clock();
+
+		std::forward_list<tree_volume*> list_new_current_;
+		std::forward_list<tree_volume*> list_new_coarse_;
+		std::vector<Volume> list_new_volume_coarse;
+		std::vector<Volume> list_new_volume_current;
+		std::vector<Volume> list_new_volume_fine;
+
+		CellMarkerStore<MR_MAP, Vertex> marker(*fine_meca_mesh_);
+		foreach_cell(*fine_meca_mesh_, [&](Vertex v) -> bool {
+			marker.mark(v);
+			return true;
+		});
+		int nb_modif = 0;
+		list_volume_current_.sort([&](tree_volume* t1, tree_volume* t2) {
+			double v1 = value<double>(*mecanical_mesh_, this->diff_volume_current_fine_.get(), Volume(t1->volume_dart));
+			double v2 = value<double>(*mecanical_mesh_, this->diff_volume_current_fine_.get(), Volume(t2->volume_dart));
+			return v1 > v2;
+		});
+
+		if (!list_volume_coarse_.empty())
+		{
+			list_volume_coarse_.sort([&](tree_volume* t1, tree_volume* t2) {
+				double v1 =
+					value<double>(*coarse_meca_mesh_, this->diff_volume_coarse_current_.get(), Volume(t1->volume_dart));
+				double v2 =
+					value<double>(*coarse_meca_mesh_, this->diff_volume_coarse_current_.get(), Volume(t2->volume_dart));
+				return v1 < v2;
+			});
+			tree_volume* min_coarse = list_volume_coarse_.front();
+			double v2 = value<double>(*coarse_meca_mesh_, this->diff_volume_coarse_current_.get(),
+									  Volume(min_coarse->volume_dart));
+
+			tree_volume* max_fine = list_volume_current_.front();
+			double v1 =
+				value<double>(*mecanical_mesh_, this->diff_volume_current_fine_.get(), Volume(max_fine->volume_dart));
+
+			while ((v2 / v1 < 0.7 && nb_modif < MODIF_MAX / 2 && nb_modif_topo == MAX_DOF) ||
+				   (v2 < DISABLE_THRESHOLD && nb_modif < MODIF_MAX / 2))
+			{
+				list_volume_coarse_.pop_front();
+
+				// Disable
+				min_coarse->type = CURRENT;
+
+				list_new_current_.push_front(min_coarse);
+
+				mecanical_mesh_->disable_volume_subdivision(Volume(min_coarse->volume_dart), true);
+				list_new_volume_current.push_back(Volume(min_coarse->volume_dart));
+				min_coarse->for_each_child([&](tree_volume* c) -> bool {
+					list_volume_current_.remove(c);
+					// c->is_current = false;
+					c->type = NONE;
+
+					if (c->fils)
+					{
+						list_new_volume_fine.push_back(Volume(c->volume_dart));
+						fine_meca_mesh_->disable_volume_subdivision(Volume(c->volume_dart), true);
+					}
+					return true;
+				});
+
+				if (!min_coarse->is_topo && min_coarse->pere)
+				{
+
+					bool can_be_coarse = true;
+					min_coarse->pere->for_each_child([&](tree_volume* c) {
+						// if (!c->is_current)
+						if (c->type != CURRENT)
+							can_be_coarse = false;
+						return can_be_coarse;
+					});
+					if (can_be_coarse)
+					{
+						list_new_volume_coarse.push_back(Volume(min_coarse->volume_dart));
+						coarse_meca_mesh_->disable_volume_subdivision(Volume(min_coarse->volume_dart), true);
+						// min_coarse->pere->is_coarse = true;
+						min_coarse->pere->type = COARSE;
+						list_new_coarse_.push_front(min_coarse->pere);
+					}
+				}
+
+				// end
+				if (list_volume_coarse_.empty())
+					break;
+				min_coarse = list_volume_coarse_.front();
+
+				v2 = value<double>(*coarse_meca_mesh_, this->diff_volume_coarse_current_.get(),
+								   Volume(min_coarse->volume_dart));
+				nb_modif++;
+				nb_modif_topo--;
+			}
+		}
+
+		for (auto t : list_new_coarse_)
+		{
+			list_volume_coarse_.push_front(t);
+		}
+
+		list_new_coarse_.clear();
+		if (!list_volume_current_.empty())
+		{
+
+			foreach_cell(*fine_meca_mesh_, [&](Vertex v) -> bool {
+				marker.mark(v);
+				return true;
+			});
+			tree_volume* max_fine = list_volume_current_.front();
+			double v1 =
+				value<double>(*mecanical_mesh_, this->diff_volume_current_fine_.get(), Volume(max_fine->volume_dart));
+			std::cout << "v1 : " << v1 << std::endl;
+
+			while (v1 > ACTIVATION_THRESHOLD && nb_modif < MODIF_MAX && nb_modif_topo < MAX_DOF)
+			{
+				list_volume_current_.pop_front();
+
+				// Activation
+				/*max_fine->is_current = false;
+				max_fine->is_coarse = true;*/
+				max_fine->type = COARSE;
+				list_new_coarse_.push_front(max_fine);
+
+				// if (max_fine->pere && max_fine->pere->is_coarse)
+				if (max_fine->pere && max_fine->pere->type == COARSE)
+				{
+					list_volume_coarse_.remove(max_fine->pere);
+					// max_fine->pere->is_coarse = false;
+					max_fine->pere->type = NONE;
+					coarse_meca_mesh_->activate_volume_subdivision(Volume(max_fine->volume_dart));
+					max_fine->pere->for_each_child([&](tree_volume* c) -> bool {
+						list_new_volume_coarse.push_back(Volume(c->volume_dart));
+						return true;
+					});
+				}
+
+				mecanical_mesh_->activate_volume_subdivision(Volume(max_fine->volume_dart));
+				max_fine->for_each_child([&](tree_volume* c) -> bool {
+					list_new_volume_current.push_back(Volume(c->volume_dart));
+					if (c->fils)
+					{
+						c->for_each_child([&](tree_volume* cc) -> bool {
+							list_new_volume_fine.push_back(Volume(cc->volume_dart));
+							return true;
+						});
+						fine_meca_mesh_->activate_volume_subdivision(Volume(c->volume_dart));
+						list_new_current_.push_front(c);
+					}
+					// c->is_current = true;
+					c->type = CURRENT;
+					return true;
+				});
+
+				if (list_volume_current_.empty())
+					break;
+				max_fine = list_volume_current_.front();
+
+				v1 = value<double>(*mecanical_mesh_, this->diff_volume_current_fine_.get(),
+								   Volume(max_fine->volume_dart));
+
+				nb_modif++;
+				nb_modif_topo++;
+			}
+		}
+
+		for (auto t : list_new_coarse_)
+		{
+			list_volume_coarse_.push_front(t);
+		}
+
+		for (auto t : list_new_current_)
+			list_volume_current_.push_front(t);
+
+		if (!list_new_volume_current.empty() || !list_new_coarse_.empty())
+		{
+			CellMarker<MR_MAP, Vertex> coarse_marker(*coarse_meca_mesh_);
+			std::vector<Vertex> list_new_vertices_coarse;
+			uint tmp_cmp = 0;
+
+			for (Volume v : list_new_volume_coarse)
+			{
+				foreach_incident_vertex(*coarse_meca_mesh_, v, [&](Vertex w) -> bool {
+					if (!coarse_marker.is_marked(w))
+					{
+						coarse_marker.mark(w);
+						list_new_vertices_coarse.push_back(w);
+					}
+					return true;
+				});
+				tmp_cmp++;
+			}
+			CellMarker<MR_MAP, Vertex> current_marker(*mecanical_mesh_);
+			std::vector<Vertex> list_new_vertices_current;
+			for (Volume v : list_new_volume_current)
+			{
+				foreach_incident_vertex(*mecanical_mesh_, v, [&](Vertex w) -> bool {
+					if (!current_marker.is_marked(w))
+					{
+						current_marker.mark(w);
+						list_new_vertices_current.push_back(w);
+					}
+					return true;
+				});
+			}
+			CellMarker<MR_MAP, Vertex> fine_marker(*fine_meca_mesh_);
+			std::vector<Vertex> list_new_vertices_fine;
+			for (Volume v : list_new_volume_fine)
+			{
+				foreach_incident_vertex(*fine_meca_mesh_, v, [&](Vertex w) -> bool {
+					if (!fine_marker.is_marked(w))
+					{
+						fine_marker.mark(w);
+						list_new_vertices_fine.push_back(w);
+					}
+					return true;
+				});
+			}
+
+			std::clock_t start_update;
+			start_update = std::clock();
+
+			if (list_new_vertices_coarse.size() > 0)
+			{
+				sc_coarse_->update_topo(*coarse_meca_mesh_, list_new_vertices_coarse);
+			}
+
+			start_update = std::clock();
+			if (list_new_vertices_current.size() > 0)
+			{
+				sc_->update_topo(*mecanical_mesh_, list_new_vertices_current);
+			}
+
+			start_update = std::clock();
+			if (list_new_vertices_fine.size() > 0)
+			{
+				sc_fine_->update_topo(*fine_meca_mesh_, list_new_vertices_fine);
+			}
+
+			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << "time activation/disable + update topo simu : " << duration << std::endl;
+			pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, vertex_position, this->forces_ext_.get(),
+						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(),
+						   [&](Vertex v) -> bool { return !marker.is_marked(v); });
+			pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, this->speed_.get(), this->forces_ext_.get(),
+						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(),
+						   [&](Vertex v) -> bool { return !marker.is_marked(v); });
+			return true;
+		}
+		return false;
+	}
+
 	void compute_error(Attribute<Vec3>* vertex_position, Attribute<double>* masse, double time_step)
 	{
 
@@ -1056,7 +1317,9 @@ public:
 					return true;
 				});
 
-				double d = 1.0f - ((sum_forces.norm() + 1) / (sum_norme + 1));
+				double d = 0.0f;
+				if (sum_norme > 0.0f)
+					d = 1.0f - ((sum_forces.norm()) / (sum_norme));
 				value<double>(*mecanical_mesh_, this->diff_volume_current_fine_.get(), Volume(tp->volume_dart)) = d;
 				duration_volume += (std::clock() - start_volume) / (double)CLOCKS_PER_SEC;
 			}
@@ -1081,8 +1344,9 @@ public:
 					sum_norme += f.norm();
 					return true;
 				});
-
-				double d = 1.0f - ((sum_forces.norm() + 1) / (sum_norme + 1));
+				double d = 0.0f;
+				if (sum_norme > 0.0f)
+					d = 1.0f - ((sum_forces.norm()) / (sum_norme));
 				value<double>(*coarse_meca_mesh_, this->diff_volume_coarse_current_.get(), Volume(tp->volume_dart)) = d;
 				duration_volume += (std::clock() - start_volume) / (double)CLOCKS_PER_SEC;
 			}
@@ -1663,7 +1927,7 @@ public:
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << "error : " << duration << std::endl;
 		start = std::clock();
-		modif_topo = update_topo(vertex_position) || modif_topo;
+		modif_topo = update_topo2(vertex_position) || modif_topo;
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << "modif topo : " << duration << std::endl;
 		foreach_cell(mecanical_mesh_->m_, [&](Vertex v) -> bool {
