@@ -22,7 +22,7 @@
 #define MODIF_MAX 100
 #endif
 
-#define MAX_DOF 200
+#define MAX_DOF 250
 
 #define ACTIVATION_THRESHOLD 1.0e-05
 #define DISABLE_THRESHOLD ACTIVATION_THRESHOLD
@@ -1106,9 +1106,9 @@ public:
 			pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, vertex_position, this->forces_ext_.get(),
 						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(),
 						   [&](Vertex v) -> bool { return !marker.is_marked(v); });
-			pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, this->speed_.get(), this->forces_ext_.get(),
+			/*pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, this->speed_.get(), this->forces_ext_.get(),
 						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(),
-						   [&](Vertex v) -> bool { return !marker.is_marked(v); });
+						   [&](Vertex v) -> bool { return !marker.is_marked(v); });*/
 			return true;
 		}
 		return false;

@@ -277,10 +277,10 @@ inline void Linked_volumes<EMR_Map3_Adaptative>::compute_cut_plan_in_framework(
 		}
 		for (auto v : volume_vect)
 		{
-			foreach_incident_vertex(*m_, v, [&](Vertex w) -> bool {
+			/*foreach_incident_vertex(*m_, v, [&](Vertex w) -> bool {
 				vect_new_volume.push_back(Volume(w.dart));
 				return true;
-			});
+			});*/
 			if (m_->volume_level(v.dart) < m_->maximum_level_ - 1)
 			{
 				m_->activate_volume_subdivision(v);
@@ -329,12 +329,18 @@ inline void Linked_volumes<EMR_Map3_Adaptative>::compute_cut_plan_in_framework(
 	});
 
 	ssm->update_tree_volume(*m_, pos);
+	std::cout << "debut decoupe topo" << std::endl;
 
+	std::clock_t start;
+	double duration;
+	start = std::clock();
 	// unsew faces
 	for (auto f : face_vect)
 	{
 		unsew_volume(*m_, f, callback_vertices, true);
 	}
+	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+	std::cout << "\033[1;32m tmps decoupe topo : \033[0m" << duration << std::endl;
 
 	ssm->sc_coarse_->update_topo(*ssm->coarse_meca_mesh_, {});
 	ssm->sc_->update_topo(*ssm->mecanical_mesh_, {});
