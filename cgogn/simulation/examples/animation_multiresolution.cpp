@@ -58,6 +58,83 @@ using Volume = typename cgogn::mesh_traits<Mesh>::Volume;
 
 using Vec3 = cgogn::geometry::Vec3;
 
+std::vector<std::vector<int>> tab_SCA = {
+	{
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	},
+	{
+		0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+		0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+		1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+	},
+	{
+		0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
+		0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1,
+		1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0,
+	},
+	{
+		0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+		1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0,
+		0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0,
+	},
+	{
+		0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0,
+		0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+	},
+	{
+		0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0,
+		0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+	},
+	{
+		0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+		1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0,
+		0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0,
+	},
+	{
+		0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+		0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0,
+		0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0,
+	},
+	{
+		0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
+		0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0,
+		0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0,
+	},
+	{
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
+		1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+		0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0,
+	},
+	{
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
+		1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0,
+		0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0,
+	},
+	{
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0,
+		0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0,
+		0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+	},
+	{
+		0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0,
+		0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
+		0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+	},
+	{
+		0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0,
+		0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1,
+		1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0,
+	},
+	{
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	}};
+
 int main(int argc, char** argv)
 {
 	std::string filename;
@@ -137,6 +214,7 @@ int main(int argc, char** argv)
 
 	vmrm.subdivide(*meca_mesh, position.get());
 	vmrm.subdivide(*meca_mesh, position.get());
+	// vmrm.subdivide(*meca_mesh, position.get());
 	std::vector<Volume> list_cut_volumes;
 
 	std::srand(164512792);
@@ -219,12 +297,14 @@ int main(int argc, char** argv)
 		return true;
 	});
 
+	vmrm.changed_connectivity(*Visu_mesh, position.get());
+
 	cgogn::ui::MeshData<MRMesh>* md = mrmp.mesh_data(Visu_mesh);
 
 	Vec3 min = md->bb_min_;
 	Vec3 max = md->bb_max_;
 	Vec3 size_bb = max - min;
-	Vec3 p1 = max;
+	/*Vec3 p1 = max;
 	Vec3 p2 = Vec3(min.x(), max.y(), min.z());
 	Vec3 p3 = Vec3(min.x(), (min.y() + max.y()) / 2, max.z());
 
@@ -235,14 +315,13 @@ int main(int argc, char** argv)
 			Vec3 dir = p - p1;
 			// dir.normalize();
 #define AMPLITUDE_0 0.015
-			if (Visu_mesh->dart_level(v.dart) == 0)
+			if (Visu_mesh->dart_level(v.dart) >= 0)
 			{
 				cgogn::value<Vec3>(*Visu_mesh, position, v) +=
-					Vec3(1, 0, 0) * (AMPLITUDE_0 * size_bb.x()) * std::cos(8 * (2 * M_PI) * (dir.norm() / size_bb.x()));
-				cgogn::value<Vec3>(*Visu_mesh, position, v) +=
-					Vec3(0, 1, 0) * (AMPLITUDE_0 * size_bb.y()) * std::cos(8 * (2 * M_PI) * (dir.norm() / size_bb.y()));
-				cgogn::value<Vec3>(*Visu_mesh, position, v) +=
-					Vec3(0, 0, 1) * (AMPLITUDE_0 * size_bb.z()) * std::cos(8 * (2 * M_PI) * (dir.norm() / size_bb.z()));
+					Vec3(1, 0, 0) * (AMPLITUDE_0 * size_bb.x()) * std::cos(8 * (2 * M_PI) * (dir.norm() /
+size_bb.x())); cgogn::value<Vec3>(*Visu_mesh, position, v) += Vec3(0, 1, 0) * (AMPLITUDE_0 * size_bb.y()) *
+std::cos(8 * (2 * M_PI) * (dir.norm() / size_bb.y())); cgogn::value<Vec3>(*Visu_mesh, position, v) += Vec3(0, 0, 1)
+* (AMPLITUDE_0 * size_bb.z()) * std::cos(8 * (2 * M_PI) * (dir.norm() / size_bb.z()));
 			}
 			p = cgogn::value<Vec3>(*Visu_mesh, position, v);
 			dir = p - p2;
@@ -251,11 +330,10 @@ int main(int argc, char** argv)
 			if (Visu_mesh->dart_level(v.dart) == 1)
 			{
 				cgogn::value<Vec3>(*Visu_mesh, position, v) +=
-					Vec3(1, 0, 0) * (AMPLITUDE_1 * size_bb.x()) * std::cos(8 * (2 * M_PI) * (dir.norm() / size_bb.x()));
-				cgogn::value<Vec3>(*Visu_mesh, position, v) +=
-					Vec3(0, 1, 0) * (AMPLITUDE_1 * size_bb.y()) * std::cos(8 * (2 * M_PI) * (dir.norm() / size_bb.y()));
-				cgogn::value<Vec3>(*Visu_mesh, position, v) +=
-					Vec3(0, 0, 1) * (AMPLITUDE_1 * size_bb.z()) * std::cos(8 * (2 * M_PI) * (dir.norm() / size_bb.z()));
+					Vec3(1, 0, 0) * (AMPLITUDE_1 * size_bb.x()) * std::cos(8 * (2 * M_PI) * (dir.norm() /
+size_bb.x())); cgogn::value<Vec3>(*Visu_mesh, position, v) += Vec3(0, 1, 0) * (AMPLITUDE_1 * size_bb.y()) *
+std::cos(8 * (2 * M_PI) * (dir.norm() / size_bb.y())); cgogn::value<Vec3>(*Visu_mesh, position, v) += Vec3(0, 0, 1)
+* (AMPLITUDE_1 * size_bb.z()) * std::cos(8 * (2 * M_PI) * (dir.norm() / size_bb.z()));
 			}
 #define AMPLITUDE_2 0.02
 			p = cgogn::value<Vec3>(*Visu_mesh, position, v);
@@ -264,16 +342,15 @@ int main(int argc, char** argv)
 			if (Visu_mesh->dart_level(v.dart) == 2)
 			{
 				cgogn::value<Vec3>(*Visu_mesh, position, v) +=
-					Vec3(1, 0, 0) * (AMPLITUDE_2 * size_bb.x()) * std::cos(8 * (2 * M_PI) * (dir.norm() / size_bb.x()));
-				cgogn::value<Vec3>(*Visu_mesh, position, v) +=
-					Vec3(0, 1, 0) * (AMPLITUDE_2 * size_bb.y()) * std::cos(8 * (2 * M_PI) * (dir.norm() / size_bb.y()));
-				cgogn::value<Vec3>(*Visu_mesh, position, v) +=
-					Vec3(0, 0, 1) * (AMPLITUDE_2 * size_bb.z()) * std::cos(8 * (2 * M_PI) * (dir.norm() / size_bb.z()));
+					Vec3(1, 0, 0) * (AMPLITUDE_2 * size_bb.x()) * std::cos(8 * (2 * M_PI) * (dir.norm() /
+size_bb.x())); cgogn::value<Vec3>(*Visu_mesh, position, v) += Vec3(0, 1, 0) * (AMPLITUDE_2 * size_bb.y()) *
+std::cos(8 * (2 * M_PI) * (dir.norm() / size_bb.y())); cgogn::value<Vec3>(*Visu_mesh, position, v) += Vec3(0, 0, 1)
+* (AMPLITUDE_2 * size_bb.z()) * std::cos(8 * (2 * M_PI) * (dir.norm() / size_bb.z()));
 			}
 		}
 		return true;
-	});
-	/*Visu_mesh->current_level_ = 2;
+	});*/
+	Visu_mesh->current_level_ = 2;
 	cgogn::foreach_cell(*Visu_mesh, [&](Vertex v) -> bool {
 		if (!cgogn::is_incident_to_boundary(*Visu_mesh, v))
 		{
@@ -298,20 +375,26 @@ int main(int argc, char** argv)
 		if (cgogn::is_incident_to_boundary(*Visu_mesh, v))
 		{
 			Vec3 p = cgogn::value<Vec3>(*Visu_mesh, position, v);
+			double x_coord = ((p.z() - min.z()) / (max.z() - min.z())) * (tab_SCA[0].size() - 1);
+			double y_coord = ((p.y() - min.y()) / (max.y() - min.y())) * (tab_SCA.size() - 1);
+			double val = tab_SCA[int(y_coord)][int(x_coord)];
+
 			switch (Visu_mesh->dart_level(v.dart))
 			{
-
+			case 1:
+			case 0:
 			case 2:
-				cgogn::value<Vec3>(*Visu_mesh, position, v) +=
-					cgogn::value<Vec3>(*Visu_mesh, normal, v) * .25 *
-					(0.5 * std::sin(2 * sqrt(p.x() * p.x() + p.y() * p.y() + p.z() * p.z())) + .5);
+				/*cgogn::value<Vec3>(*Visu_mesh, position, v) +=
+					cgogn::value<Vec3>(*Visu_mesh, normal, v) * 0.5 *
+					(0.5 * std::sin(3 * sqrt(p.x() * p.x() + p.y() * p.y() + p.z() * p.z())) + .5);*/
+				cgogn::value<Vec3>(*Visu_mesh, position, v) += cgogn::value<Vec3>(*Visu_mesh, normal, v) * 0.3 * val;
 				break;
 			default:
 				break;
 			}
 		}
 		return true;
-	});*/
+	});
 
 	cgogn::foreach_cell(*Visu_mesh, [&](Vertex v) -> bool {
 		if (Visu_mesh->dart_level(v.dart) != 2)
@@ -360,7 +443,6 @@ int main(int argc, char** argv)
 		cgogn::value<Vec3>(*Visu_mesh, position, v) += (center - pos);
 		return true;
 	});
-
 	cgogn::foreach_cell(*Visu_mesh, [&](Vertex v) -> bool {
 		if (Visu_mesh->dart_level(v.dart) == 0)
 		{

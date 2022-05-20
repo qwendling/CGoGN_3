@@ -148,9 +148,9 @@ public:
 		: ViewModule(app, "Animation_multiresolution (" + std::string{mesh_traits<MR_MESH>::name} + ")"),
 		  mecanical_mesh_(nullptr), selected_view_(app.current_view()), sm_solver_(0.9f), running_(false), ps_(0.9f),
 		  geometric_mesh_(nullptr), modif_topo_(false), ground_(false), animation_cut(false), cut_animation_timer(0),
-		  animation_cylinder(false), radius_cylinder(0.9f), pos_cylinder1(4.3, 0, 5), Zaxis_cylinder1(0, 1, 0),
-		  pos_cylinder2(0, -100.5, 10), Zaxis_cylinder2(1, 0, 0), pos_cylinder3(0, 4.5, 13), Zaxis_cylinder3(1, 0, 0),
-		  animation_cylinder_timer(0), shape_(nullptr)
+		  animation_cylinder(false), radius_cylinder(0.9f), pos_cylinder1(0, 5, 5), Zaxis_cylinder1(1, 0, 0),
+		  pos_cylinder2(0, -1.5, 10), Zaxis_cylinder2(1, 0, 0), pos_cylinder3(0, 5, 15), Zaxis_cylinder3(1, 0, 0),
+		  animation_cylinder_timer(0), shape_(nullptr), draw_cylinder(false)
 	{
 		f_keypress = [](View*, MR_MESH*, int32, CellsSet<MR_MESH, Vertex>*, CellsSet<MR_MESH, Edge>*) {};
 	}
@@ -461,6 +461,7 @@ protected:
 		if (key_code == GLFW_KEY_E)
 		{
 			draw_cylinder = !draw_cylinder;
+			v->request_update();
 		}
 		if (key_code == GLFW_KEY_W)
 		{
@@ -661,9 +662,9 @@ protected:
 						}
 						return true;
 					});
-					pos_cylinder1 -= Eigen::Vector3f(0, 0, 0.01);
-					// pos_cylinder2 += Eigen::Vector3f(0, 0.01, 0);
-					// pos_cylinder3 -= Eigen::Vector3f(0, 0.01, 0);
+					pos_cylinder1 -= Eigen::Vector3f(0, 0.01, 0);
+					pos_cylinder2 += Eigen::Vector3f(0, 0.01, 0);
+					pos_cylinder3 -= Eigen::Vector3f(0, 0.01, 0);
 					animation_cylinder_timer++;
 				}
 
@@ -825,7 +826,6 @@ protected:
 		if (draw_cylinder)
 		{
 			Eigen::Affine3f transfo = Eigen::Translation3f(pos_cylinder1) *
-									  Eigen::AngleAxisf(std::acos(Zaxis_cylinder1.y()), Eigen::Vector3f::UnitX()) *
 									  Eigen::AngleAxisf(std::acos(Zaxis_cylinder1.x()), Eigen::Vector3f::UnitZ()) *
 									  Eigen::AngleAxisf(std::acos(Zaxis_cylinder1.z()), Eigen::Vector3f::UnitY()) *
 									  Eigen::Scaling(radius_cylinder, radius_cylinder, 10.0f);
