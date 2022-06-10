@@ -212,10 +212,12 @@ int main(int argc, char** argv)
 		for (auto v : vec_volume)
 		{
 			mrm->activate_volume_subdivision(v);
+			assert(mrm->check_integrity());
 		}
 
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		// std::cout << "temps activate " << nb_cells() - diff_volume << " volume : " << duration << std::endl;
+
+		std::cout << "temps activate " << nb_cells() - diff_volume << " volume : " << duration << std::endl;
 	}
 
 	test(mrm);

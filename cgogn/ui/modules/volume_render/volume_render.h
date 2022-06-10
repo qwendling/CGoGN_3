@@ -1074,7 +1074,7 @@ protected:
 		need_update = false;
 	}
 
-private:
+public:
 	View* selected_view_;
 	const MESH* selected_mesh_;
 	std::unordered_map<View*, std::unordered_map<const MESH*, Parameters>> parameters_;

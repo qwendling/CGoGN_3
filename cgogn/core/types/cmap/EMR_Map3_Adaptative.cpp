@@ -120,7 +120,27 @@ Dart EMR_Map3_Adaptative::get_phi1_buffer(Dart d) const
 				emr.current_level_++;
 				return phi_1(emr, tmp);
 			}
-			emr.current_level_ = l_d - 1;
+
+#if 0
+
+			emr.current_level_ = l_d;
+			Dart d_1 = phi2(emr, d);
+			emr.current_level_ = l_d3;
+			d_1 = phi2(emr, d_1);
+			Dart tmp = phi1(emr, d_1);
+			if (get_dart_visibility(tmp) <= current_level_)
+				return tmp;
+			tmp = phi2(emr, tmp);
+			Dart tmp2;
+			do
+			{
+				tmp = phi<32>(emr, tmp);
+				tmp2 = phi1(emr, tmp);
+			} while (get_dart_visibility(tmp2) > current_level_);
+
+			return tmp2;
+#else
+			// emr.current_level_ = l_d - 1;
 			// Dart d_1 = phi3(emr, d3);
 
 			////////test////////
@@ -132,10 +152,11 @@ Dart EMR_Map3_Adaptative::get_phi1_buffer(Dart d) const
 			Dart tmp = phi1(emr, d_1);
 			if (get_dart_visibility(tmp) <= current_level_)
 				return tmp;
-			emr.current_level_--;
+			emr.current_level_ = l_d3 - 1;
 			tmp = phi1(emr, d_1);
 			emr.current_level_++;
 			return phi_1(emr, tmp);
+#endif
 		};
 		std::get<3>(buffer) = fn();
 		std::get<0>(buffer) = m_.clock_;

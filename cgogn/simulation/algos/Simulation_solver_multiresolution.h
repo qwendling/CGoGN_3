@@ -22,9 +22,9 @@
 #define MODIF_MAX 100
 #endif
 
-#define MAX_DOF 300
+#define MAX_DOF 1000
 
-#define ACTIVATION_THRESHOLD 1.0e-05
+#define ACTIVATION_THRESHOLD 1.5e-04
 #define DISABLE_THRESHOLD ACTIVATION_THRESHOLD
 
 namespace cgogn
@@ -900,6 +900,7 @@ public:
 			tree_volume* max_fine = list_volume_current_.front();
 			double v1 =
 				value<double>(*mecanical_mesh_, this->diff_volume_current_fine_.get(), Volume(max_fine->volume_dart));
+			std::cout << "v2 : " << v2 << std::endl;
 
 			while ((v2 / v1 < 0.7 && nb_modif < MODIF_MAX / 2 && nb_modif_topo == MAX_DOF) ||
 				   (v2 < DISABLE_THRESHOLD && nb_modif < MODIF_MAX / 2))
@@ -1923,7 +1924,7 @@ public:
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << "\033[1;31m time step : \033[0m" << duration << std::endl;
 		start = std::clock();
-		compute_error2(vertex_position, masse, time_step);
+		compute_error(vertex_position, masse, time_step);
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << "error : " << duration << std::endl;
 		start = std::clock();

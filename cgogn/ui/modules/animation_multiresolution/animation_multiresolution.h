@@ -148,9 +148,9 @@ public:
 		: ViewModule(app, "Animation_multiresolution (" + std::string{mesh_traits<MR_MESH>::name} + ")"),
 		  mecanical_mesh_(nullptr), selected_view_(app.current_view()), sm_solver_(0.9f), running_(false), ps_(0.9f),
 		  geometric_mesh_(nullptr), modif_topo_(false), ground_(false), animation_cut(false), cut_animation_timer(0),
-		  animation_cylinder(false), radius_cylinder(0.9f), pos_cylinder1(0, 5, 5), Zaxis_cylinder1(1, 0, 0),
-		  pos_cylinder2(0, -1.5, 10), Zaxis_cylinder2(1, 0, 0), pos_cylinder3(0, 5, 15), Zaxis_cylinder3(1, 0, 0),
-		  animation_cylinder_timer(0), shape_(nullptr), draw_cylinder(false)
+		  animation_cylinder(false), radius_cylinder(0.9f), pos_cylinder1(4.2, 0, 5), Zaxis_cylinder1(0, 1, 0),
+		  pos_cylinder2(-1, 0, 2), Zaxis_cylinder2(0, 1, 0), pos_cylinder3(1, 0, 7), Zaxis_cylinder3(0, 1, 0),
+		  animation_cylinder_timer(0), shape_(nullptr), draw_cylinder(false), sens_cylindre(1)
 	{
 		f_keypress = [](View*, MR_MESH*, int32, CellsSet<MR_MESH, Vertex>*, CellsSet<MR_MESH, Edge>*) {};
 	}
@@ -237,6 +237,7 @@ protected:
 			mesh_provider_, this, &AnimationMultiresolution<MR_MESH>::init_mesh));
 		shape_ = rendering::ShapeDrawer::instance();
 		shape_->color(rendering::ShapeDrawer::CYLINDER) = rendering::GLColor(0.5294, 0.6078, 0.6078, 1);
+		shape_->color(rendering::ShapeDrawer::CUBE) = rendering::GLColor(0.5294, 0.6078, 0.6078, 1);
 	}
 
 	void mouse_press_event(View* view, int32 button, int32 x, int32 y) override
@@ -311,16 +312,7 @@ protected:
 		if (key_code == GLFW_KEY_I)
 		{
 
-			Parameters& p = parameters_[mecanical_mesh_];
-			if (p.show_cut_manipulator_)
-			{
-				Vec3 pos;
-				p.cut_manipulator_.get_position(pos);
-				std::cout << "pos ground : " << pos << std::endl;
-				Vec3 n;
-				p.cut_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, n);
-				std::cout << "normal ground : " << n << std::endl;
-			}
+			sens_cylindre *= -1;
 		}
 		if (key_code == GLFW_KEY_S)
 		{
@@ -330,7 +322,7 @@ protected:
 			{
 				typename MR_MESH::Inherit tmp(mecanical_mesh_->m_);
 				tmp.current_level_ = tmp.maximum_level_;
-				Vec3 pos(0, 0, 13.9);
+				Vec3 pos(0, 0, 19.9);
 				Vec3 a(0, 0, -1);
 				double d = pos.dot(a);
 				parallel_foreach_cell(tmp, [&](Vertex v) -> bool {
@@ -340,6 +332,7 @@ protected:
 					}
 					return true;
 				});
+				simu_solver.gravity_ = Vec3(0, 0, -9.81);
 				animation_cut = true;
 			}
 		}
@@ -364,7 +357,7 @@ protected:
 			{
 				typename MR_MESH::Inherit tmp(mecanical_mesh_->m_);
 				tmp.current_level_ = tmp.maximum_level_;
-				Vec3 pos(0, 0, 18.9);
+				Vec3 pos(0, 0, 19.9);
 				Vec3 a(0, 0, -1);
 				double d = pos.dot(a);
 				parallel_foreach_cell(tmp, [&](Vertex v) -> bool {
@@ -374,7 +367,7 @@ protected:
 					}
 					return true;
 				});
-				Vec3 pos2(0, 0, 1.1);
+				Vec3 pos2(0, 0, 0.1);
 				Vec3 a2(0, 0, 1);
 				double d2 = pos2.dot(a2);
 				parallel_foreach_cell(tmp, [&](Vertex v) -> bool {
@@ -467,21 +460,75 @@ protected:
 		{
 			if (mecanical_mesh_)
 			{
+
 				Parameters& p = parameters_[mecanical_mesh_];
-				typename MR_MESH::Inherit tmp(mecanical_mesh_->m_);
-				tmp.current_level_ = tmp.maximum_level_;
-				Vec3 pos(0.0f, 0.0f, 1.1f);
-				// p.frame_manipulator_.get_position(pos);
-				Vec3 a(0.0f, 0.0f, 1.0f);
-				// p.frame_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, a);
+				Vec3 pos(0, 0, 2.1);
+				std::cout << pos << std::endl;
+				Vec3 a(0, -0.7, 0.7);
+				a.normalize();
 				double d = pos.dot(a);
-				parallel_foreach_cell(tmp, [&](Vertex v) -> bool {
-					if (value<Vec3>(tmp, p.vertex_position_.get(), v).dot(a) < d)
-					{
-						value<bool>(tmp, p.fixed_vertex.get(), v) = true;
-					}
-					return true;
-				});
+				std::cout << "Début découpe" << std::endl;
+				lv_.compute_cut_plan_in_framework(
+					a, d, p.vertex_position_.get(),
+					[&](std::pair<Vertex, Vertex> p) -> bool {
+						foreach_attribute<Vec3, Vertex>(*mecanical_mesh_,
+														[&](const std::shared_ptr<Attribute<Vec3>>& attr) {
+															value<Vec3>(*mecanical_mesh_, attr, p.second) =
+																value<Vec3>(*mecanical_mesh_, attr, p.first);
+														});
+						foreach_attribute<std::array<Vertex, 4>, Vertex>(
+							*mecanical_mesh_, [&](const std::shared_ptr<Attribute<std::array<Vertex, 4>>>& attr) {
+								value<std::array<Vertex, 4>>(*mecanical_mesh_, attr, p.second) =
+									value<std::array<Vertex, 4>>(*mecanical_mesh_, attr, p.first);
+							});
+						return true;
+					},
+					&simu_solver);
+				std::cout << "Fin découpe" << std::endl;
+				pos = Vec3(0, 0, 4.1);
+				std::cout << pos << std::endl;
+
+				d = pos.dot(a);
+				std::cout << "Début découpe" << std::endl;
+				lv_.compute_cut_plan_in_framework(
+					a, d, p.vertex_position_.get(),
+					[&](std::pair<Vertex, Vertex> p) -> bool {
+						foreach_attribute<Vec3, Vertex>(*mecanical_mesh_,
+														[&](const std::shared_ptr<Attribute<Vec3>>& attr) {
+															value<Vec3>(*mecanical_mesh_, attr, p.second) =
+																value<Vec3>(*mecanical_mesh_, attr, p.first);
+														});
+						foreach_attribute<std::array<Vertex, 4>, Vertex>(
+							*mecanical_mesh_, [&](const std::shared_ptr<Attribute<std::array<Vertex, 4>>>& attr) {
+								value<std::array<Vertex, 4>>(*mecanical_mesh_, attr, p.second) =
+									value<std::array<Vertex, 4>>(*mecanical_mesh_, attr, p.first);
+							});
+						return true;
+					},
+					&simu_solver);
+				std::cout << "Fin découpe" << std::endl;
+				pos = Vec3(0, 0, 6.1);
+				std::cout << pos << std::endl;
+				d = pos.dot(a);
+				std::cout << "Début découpe" << std::endl;
+				lv_.compute_cut_plan_in_framework(
+					a, d, p.vertex_position_.get(),
+					[&](std::pair<Vertex, Vertex> p) -> bool {
+						foreach_attribute<Vec3, Vertex>(*mecanical_mesh_,
+														[&](const std::shared_ptr<Attribute<Vec3>>& attr) {
+															value<Vec3>(*mecanical_mesh_, attr, p.second) =
+																value<Vec3>(*mecanical_mesh_, attr, p.first);
+														});
+						foreach_attribute<std::array<Vertex, 4>, Vertex>(
+							*mecanical_mesh_, [&](const std::shared_ptr<Attribute<std::array<Vertex, 4>>>& attr) {
+								value<std::array<Vertex, 4>>(*mecanical_mesh_, attr, p.second) =
+									value<std::array<Vertex, 4>>(*mecanical_mesh_, attr, p.first);
+							});
+						return true;
+					},
+					&simu_solver);
+				std::cout << "Fin découpe" << std::endl;
+				modif_topo_ = true;
 			}
 		}
 	}
@@ -662,9 +709,35 @@ protected:
 						}
 						return true;
 					});
-					pos_cylinder1 -= Eigen::Vector3f(0, 0.01, 0);
+
+					if (animation_cylinder_timer < 100)
+					{
+						pos_cylinder1 -= Eigen::Vector3f(0, 0, 0.01);
+					}
+					else
+					{
+						pos_cylinder1 += Eigen::Vector3f(0, 0, 0.01);
+						if (animation_cylinder_timer < 200)
+						{
+							pos_cylinder2 += Eigen::Vector3f(0.01, 0, 0);
+						}
+						else
+						{
+							pos_cylinder2 -= Eigen::Vector3f(0.01, 0, 0);
+							if (animation_cylinder_timer < 300)
+							{
+								pos_cylinder3 -= Eigen::Vector3f(0, 0, 0.01);
+							}
+							else
+							{
+								pos_cylinder3 += Eigen::Vector3f(0, 0, 0.01);
+							}
+						}
+					}
+
+					/*pos_cylinder1 -= sens_cylindre * Eigen::Vector3f(0, 0, 0.01);
 					pos_cylinder2 += Eigen::Vector3f(0, 0.01, 0);
-					pos_cylinder3 -= Eigen::Vector3f(0, 0.01, 0);
+					pos_cylinder3 -= Eigen::Vector3f(0, 0.01, 0);*/
 					animation_cylinder_timer++;
 				}
 
@@ -832,14 +905,19 @@ protected:
 			shape_->draw(rendering::ShapeDrawer::CYLINDER, proj_matrix, view_matrix * transfo.matrix());
 
 			transfo = Eigen::Translation3f(pos_cylinder2) *
-					  Eigen::AngleAxisf(std::acos(Vec3(0, 0, 1).dot(Zaxis_cylinder2)), Eigen::Vector3f::UnitY()) *
+					  Eigen::AngleAxisf(std::acos(Zaxis_cylinder2.x()), Eigen::Vector3f::UnitZ()) *
+					  Eigen::AngleAxisf(std::acos(Zaxis_cylinder2.z()), Eigen::Vector3f::UnitY()) *
 					  Eigen::Scaling(radius_cylinder, radius_cylinder, 10.0f);
 			shape_->draw(rendering::ShapeDrawer::CYLINDER, proj_matrix, view_matrix * transfo.matrix());
 
 			transfo = Eigen::Translation3f(pos_cylinder3) *
-					  Eigen::AngleAxisf(std::acos(Vec3(0, 0, 1).dot(Zaxis_cylinder3)), Eigen::Vector3f::UnitY()) *
+					  Eigen::AngleAxisf(std::acos(Zaxis_cylinder3.x()), Eigen::Vector3f::UnitZ()) *
+					  Eigen::AngleAxisf(std::acos(Zaxis_cylinder3.z()), Eigen::Vector3f::UnitY()) *
 					  Eigen::Scaling(radius_cylinder, radius_cylinder, 10.0f);
 			shape_->draw(rendering::ShapeDrawer::CYLINDER, proj_matrix, view_matrix * transfo.matrix());
+			transfo = Eigen::Scaling(100.0f, 100.0f, 100.0f) * Eigen::Translation3f(Eigen::Vector3f(0.0f, 0.0f, -1.0f));
+
+			shape_->draw(rendering::ShapeDrawer::CUBE, proj_matrix, view_matrix * transfo.matrix());
 		}
 	}
 
@@ -1013,7 +1091,7 @@ protected:
 						mesh_provider_->emit_attribute_changed(m, simu_solver.diff_volume_coarse_current_.get());
 						mesh_provider_->emit_attribute_changed(m, simu_solver.pos_current_.get());
 						mesh_provider_->emit_attribute_changed(m, simu_solver.pos_coarse_.get());*/
-						if (modif_topo_)
+						if (animation_cylinder_timer % 10 == 0 || modif_topo_)
 						{
 							mesh_provider_->emit_connectivity_changed(m);
 						}
@@ -1078,6 +1156,7 @@ public:
 	uint32 animation_cylinder_timer;
 
 	bool draw_cylinder;
+	int sens_cylindre;
 
 	rendering::ShapeDrawer* shape_;
 };

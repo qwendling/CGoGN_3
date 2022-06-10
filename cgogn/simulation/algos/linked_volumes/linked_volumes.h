@@ -281,7 +281,7 @@ inline void Linked_volumes<EMR_Map3_Adaptative>::compute_cut_plan_in_framework(
 				vect_new_volume.push_back(Volume(w.dart));
 				return true;
 			});*/
-			if (m_->volume_level(v.dart) < m_->maximum_level_ - 1)
+			if (m_->volume_level(v.dart) < m_->maximum_level_)
 			{
 				m_->activate_volume_subdivision(v);
 			}
