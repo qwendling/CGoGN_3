@@ -404,10 +404,14 @@ public:
 
 	void update_tree_volume(MR_MAP& new_topo, Attribute<Vec3>* pos)
 	{
-		pc_->propagate(*mecanical_mesh_, new_topo, pos, this->forces_ext_.get(), sc_fine_->masse_.get(),
-					   relative_pos_.get(), parents_.get());
-		pc_->propagate(*mecanical_mesh_, new_topo, this->speed_.get(), this->forces_ext_.get(), sc_fine_->masse_.get(),
-					   relative_pos_.get(), parents_.get());
+		if (pc_)
+		{
+			pc_->propagate(*mecanical_mesh_, new_topo, pos, this->forces_ext_.get(), sc_fine_->masse_.get(),
+						   relative_pos_.get(), parents_.get());
+			pc_->propagate(*mecanical_mesh_, new_topo, this->speed_.get(), this->forces_ext_.get(),
+						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get());
+		}
+
 		foreach_cell(new_topo, [&](typename MR_MAP::Volume v) -> bool {
 			tree_volume* t = value<tree_volume*>(new_topo, hierarchy_node_, v);
 			std::stack<tree_volume*> stack_tree;
@@ -463,10 +467,14 @@ public:
 		sc_->update_topo(*mecanical_mesh_, {});
 		sc_fine_->update_topo(*fine_meca_mesh_, {});
 
-		pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, pos, this->forces_ext_.get(), sc_fine_->masse_.get(),
-					   relative_pos_.get(), parents_.get());
-		pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, this->speed_.get(), this->forces_ext_.get(),
-					   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get());
+		if (pc_)
+		{
+			pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, pos, this->forces_ext_.get(), sc_fine_->masse_.get(),
+						   relative_pos_.get(), parents_.get());
+			pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, this->speed_.get(), this->forces_ext_.get(),
+						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get());
+		}
+
 		topology_->copy_visibility(new_topo);
 	}
 
@@ -849,12 +857,16 @@ public:
 
 			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 			std::cout << "time activation/disable + update topo simu : " << duration << std::endl;
-			pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, vertex_position, this->forces_ext_.get(),
-						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(),
-						   [&](Vertex v) -> bool { return !marker.is_marked(v); });
-			pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, this->speed_.get(), this->forces_ext_.get(),
-						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(),
-						   [&](Vertex v) -> bool { return !marker.is_marked(v); });
+			if (pc_)
+			{
+				pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, vertex_position, this->forces_ext_.get(),
+							   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(),
+							   [&](Vertex v) -> bool { return !marker.is_marked(v); });
+				pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, this->speed_.get(), this->forces_ext_.get(),
+							   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(),
+							   [&](Vertex v) -> bool { return !marker.is_marked(v); });
+			}
+
 			return true;
 		}
 		return false;
@@ -1104,12 +1116,16 @@ public:
 
 			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 			std::cout << "time activation/disable + update topo simu : " << duration << std::endl;
-			pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, vertex_position, this->forces_ext_.get(),
-						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(),
-						   [&](Vertex v) -> bool { return !marker.is_marked(v); });
-			/*pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, this->speed_.get(), this->forces_ext_.get(),
-						   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(),
-						   [&](Vertex v) -> bool { return !marker.is_marked(v); });*/
+			if (pc_)
+			{
+				pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, vertex_position, this->forces_ext_.get(),
+							   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(),
+							   [&](Vertex v) -> bool { return !marker.is_marked(v); });
+				/*pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, this->speed_.get(), this->forces_ext_.get(),
+							   sc_fine_->masse_.get(), relative_pos_.get(), parents_.get(),
+							   [&](Vertex v) -> bool { return !marker.is_marked(v); });*/
+			}
+
 			return true;
 		}
 		return false;
@@ -1158,8 +1174,8 @@ public:
 		auto volume_fine = [&]() {
 			auto fn = [&](tree_volume* t) -> bool {
 				start_volume = std::clock();
-				value<double>(*fine_meca_mesh_, this->diff_volume_current_fine_.get(), Volume(t->volume_dart)) =
-					geometry::volume(*fine_meca_mesh_, Volume(t->volume_dart), pos_current_.get());
+				double vol = geometry::volume(*fine_meca_mesh_, Volume(t->volume_dart), pos_current_.get());
+				value<double>(*fine_meca_mesh_, this->diff_volume_current_fine_.get(), Volume(t->volume_dart)) = vol;
 				duration_volume += (std::clock() - start_volume) / (double)CLOCKS_PER_SEC;
 				return true;
 			};
@@ -1434,10 +1450,13 @@ public:
 	{
 		CellMarkerStore<MR_MAP, Vertex> marker(view);
 		foreach_cell(*mecanical_mesh_, [&](Vertex v) -> bool { return true; });
-		pc_->propagate(*mecanical_mesh_, view, vertex_position, nullptr, nullptr, relative_pos_.get(), parents_.get(),
-					   [&](Vertex v) -> bool { return !marker.is_marked(v); });
-		pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, this->speed_.get(), this->forces_ext_.get(), nullptr,
-					   relative_pos_.get(), parents_.get(), [&](Vertex v) -> bool { return !marker.is_marked(v); });
+		if (pc_)
+		{
+			pc_->propagate(*mecanical_mesh_, view, vertex_position, nullptr, nullptr, relative_pos_.get(),
+						   parents_.get(), [&](Vertex v) -> bool { return !marker.is_marked(v); });
+			pc_->propagate(*mecanical_mesh_, *fine_meca_mesh_, this->speed_.get(), this->forces_ext_.get(), nullptr,
+						   relative_pos_.get(), parents_.get(), [&](Vertex v) -> bool { return !marker.is_marked(v); });
+		}
 	}
 
 	void compute_time_step(MR_MAP& m_geom, Attribute<Vec3>* vertex_position, Attribute<double>* masse, double time_step,

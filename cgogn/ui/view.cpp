@@ -22,6 +22,9 @@
  *******************************************************************************/
 
 #include <cgogn/ui/view.h>
+#include <chrono>
+#include <iostream>
+#include <thread>
 
 namespace cgogn
 {
@@ -154,6 +157,8 @@ void View::draw()
 {
 	if (closing_)
 		return;
+	// using namespace std::chrono_literals;
+	// std::this_thread::sleep_for(20ms);
 
 	spin();
 	glViewport(viewport_x_offset_, viewport_y_offset_, viewport_width_, viewport_height_);

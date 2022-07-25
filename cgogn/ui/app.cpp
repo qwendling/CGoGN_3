@@ -288,7 +288,7 @@ App::App()
 	glfwSetScrollCallback(window_, [](GLFWwindow* wi, double dx, double dy) {
 		App* that = static_cast<App*>(glfwGetWindowUserPointer(wi));
 
-		if (ImGui::GetIO().WantCaptureMouse || ImGui::IsAnyWindowFocused())
+		if (ImGui::GetIO().WantCaptureMouse || ImGui::IsWindowFocused())
 		{
 			that->inputs_.mouse_buttons_ = 0;
 			return;

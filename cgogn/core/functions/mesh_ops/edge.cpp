@@ -508,6 +508,8 @@ EMR_Map3_Adaptative::MAP::Vertex CGOGN_CORE_EXPORT cut_edge(EMR_Map3_Adaptative&
 		}
 	}
 
+	delete map;
+
 	return v;
 }
 

@@ -529,9 +529,6 @@ public:
 			return true;
 		});*/
 
-		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << "\033[1;37mtime solve half lattice shape matching : \033[0m" << duration << std::endl;
-
 		for (const Vertex& v : this->vertices_cache)
 		{
 			Mat3d R = Mat3d::Zero();

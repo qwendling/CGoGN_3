@@ -56,6 +56,7 @@
 #include <boost/synapse/connect.hpp>
 #include <imgui/imgui.h>
 
+#include <thread>
 #include <unordered_map>
 
 namespace cgogn
@@ -741,12 +742,12 @@ protected:
 					animation_cylinder_timer++;
 				}
 
-				if (meca_update_)
+				/*if (meca_update_)
 				{
 					need_update_ = true;
 					cv_m.lock();
 					cgogn_message_assert(!need_update_, "sync render - anim failed");
-				}
+				}*/
 
 				map.start_writer();
 
@@ -767,6 +768,7 @@ protected:
 				bool tmp;
 				simu_solver.compute_time_step(*geometric_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(),
 											  TIME_STEP, tmp);
+
 				if (ground_)
 				{
 					Vec3 position;
@@ -785,12 +787,13 @@ protected:
 						return true;
 					});
 				}
+				need_update_ = true;
 				map.end_writer();
 
 				// std::this_thread::sleep_for(std::chrono::milliseconds(5));
 			}
 		});
-		launch_thread([this, &p]() {
+		/*launch_thread([this, &p]() {
 			cv_m.try_lock();
 			while (this->running_)
 			{
@@ -798,7 +801,7 @@ protected:
 				// cv_m.try_lock();
 				std::this_thread::sleep_for(std::chrono::milliseconds(16));
 			}
-		});
+		});*/
 
 		// app_.start_timer(5000, [this]() -> bool { return !running_; });
 	}
@@ -858,6 +861,7 @@ protected:
 
 		const rendering::GLMat4& proj_matrix = view->projection_matrix();
 		const rendering::GLMat4& view_matrix = view->modelview_matrix();
+
 		for (auto& [m, p] : parameters_)
 		{
 

@@ -128,7 +128,7 @@ inline auto index_of(const MRMAP& m, CELL c) -> std::enable_if_t<std::is_convert
 	if constexpr (orbit == EMR_Map3::MAP::Volume::ORBIT)
 		c.dart = m.volume_youngest_dart(c.dart);
 
-	return index_of(static_cast<const EMR_Map3::MAP&>(m), c);
+	return (*(*m.m_.cells_indices_)[orbit])[c.dart.index];
 }
 /*****************************************************************************/
 

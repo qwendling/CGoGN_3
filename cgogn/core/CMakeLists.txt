@@ -217,7 +217,7 @@ endif()
 # Profiler compilation flags
 if(CGOGN_WITH_GPROF)
 	message(STATUS "Building for code profiling")
-	target_compile_definitions(${PROJECT_NAME} PUBLIC  -pg -DPROFILER)
+	target_compile_options(${PROJECT_NAME} PUBLIC  -pg )
 endif(CGOGN_WITH_GPROF)
 
 # Code coverage compilation flags

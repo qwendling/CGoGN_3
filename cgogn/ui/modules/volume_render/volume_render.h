@@ -488,8 +488,9 @@ protected:
 			//			p.vbo_center_->bind();
 			//			p.vbo_center_->allocate(20*nb_cells<Volume>(*m),3);
 			//			p.vbo_center_->release();
-			//			compute_center_engine_->compute(md->vbo(p.vertex_position_.get()),md->get_render(),p.vbo_center_);
-			//			cgogn::geometry::compute_centroid<Vec3,Volume>(*m,p.vertex_position_.get(),p.volume_center_.get());
+			// compute_center_engine_->compute(md->vbo(p.vertex_position_.get()),md->get_render(),p.vbo_center_);
+			//
+			cgogn::geometry::compute_centroid<Vec3, Volume>(*m, p.vertex_position_.get(), p.volume_center_.get());
 			//			p.vbo_center_ = md->update_vbo(p.volume_center_.get());
 
 			if (p.render_volumes_)

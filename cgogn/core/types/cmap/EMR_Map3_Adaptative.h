@@ -29,6 +29,7 @@ struct EMR_Map3_Adaptative : EMR_Map3
 	mutable std::shared_ptr<Attribute<std::tuple<uint32, uint32, uint32, Dart>>> phi2_buffer_;
 	mutable std::shared_ptr<Attribute<std::tuple<uint32, uint32, uint32, Dart>>> phi1_buffer_;
 	mutable std::shared_ptr<Attribute<std::tuple<uint32, uint32, uint32, Dart>>> volume_dart_buffer_;
+	mutable std::shared_ptr<Attribute<std::tuple<uint32, uint32, uint32, uint32>>> dart_visibility_buffer_;
 	static uint32 nb_views;
 	EMR_Map3_Adaptative* parent;
 
@@ -82,9 +83,16 @@ struct EMR_Map3_Adaptative : EMR_Map3
 			volume_dart_buffer_ = m_.darts_->add_attribute<std::tuple<uint32, uint32, uint32, Dart>>(
 				"volume_dart_buffer" + std::to_string(nb_views));
 		}
+		dart_visibility_buffer_ = m_.darts_->get_attribute<std::tuple<uint32, uint32, uint32, uint32>>(
+			"dart_visibility_buffer" + std::to_string(nb_views));
+		if (!dart_visibility_buffer_)
+		{
+			dart_visibility_buffer_ = m_.darts_->add_attribute<std::tuple<uint32, uint32, uint32, uint32>>(
+				"dart_visibility_buffer" + std::to_string(nb_views));
+		}
 	}
 
-	~EMR_Map3_Adaptative()
+	virtual ~EMR_Map3_Adaptative()
 	{
 		m_.darts_->remove_attribute(dart_visibility_);
 		m_.darts_->remove_attribute(phi1_buffer_);

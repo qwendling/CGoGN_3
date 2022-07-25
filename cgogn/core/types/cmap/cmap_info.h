@@ -71,6 +71,12 @@ inline bool is_boundary(const CMapBase& m, Dart d)
 	return (*m.boundary_marker_)[d.index] != 0u;
 }
 
+template <typename MRMAP>
+inline auto is_boundary(const MRMAP& m, Dart d) -> std::enable_if_t<std::is_convertible_v<MRMAP&, EMR_Map3&>, bool>
+{
+	return (*m.m_.boundary_marker_)[d.index] != 0u;
+}
+
 /*****************************************************************************/
 
 // template <typename CMAP>
