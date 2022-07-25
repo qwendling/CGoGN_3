@@ -33,6 +33,7 @@
 #include <cgogn/core/functions/traversals/edge.h>
 #include <cgogn/core/functions/traversals/volume.h>
 #include <cgogn/modeling/algos/subdivision.h>
+#include <cgogn/ui/modules/SPH_simulation/SPH_simulation.h>
 #include <cgogn/ui/modules/mesh_provider/mesh_provider.h>
 #include <cgogn/ui/modules/shape_matching/shape_matching.h>
 #include <cgogn/ui/modules/surface_render/surface_render.h>
@@ -72,18 +73,21 @@ int main(int argc, char** argv)
 	cgogn::ui::VolumeRender<Mesh> mrsr(app);
 	cgogn::ui::VolumeSelection<Mesh> vs(app);
 	cgogn::ui::ShapeMatching<Mesh> sm(app);
+	cgogn::ui::SPH_simulation<Mesh> sph(app);
 
 	cgogn::ui::View* v1 = app.current_view();
 	v1->link_module(&mp);
 	v1->link_module(&mrsr);
 	v1->link_module(&vs);
 	v1->link_module(&sm);
+	v1->link_module(&sph);
 
 	cgogn::ui::View* v2 = app.add_view();
 	v2->link_module(&mp);
 	v2->link_module(&mrsr);
 	v2->link_module(&vs);
 	v2->link_module(&sm);
+	v2->link_module(&sph);
 
 	app.init_modules();
 

@@ -21,8 +21,8 @@
  *                                                                              *
  *******************************************************************************/
 
-#ifndef CGOGN_MODULE_SHAPE_MATCHING_H_
-#define CGOGN_MODULE_SHAPE_MATCHING_H_
+#ifndef CGOGN_MODULE_SPH_SIMULATION_H_
+#define CGOGN_MODULE_SPH_SIMULATION_H_
 
 #include <GLFW/glfw3.h>
 #include <cgogn/ui/app.h>
@@ -45,8 +45,6 @@
 #include <cgogn/simulation/algos/SPH_Volume/SPH_Volume.h>
 #include <cgogn/simulation/algos/Simulation_solver.h>
 #include <cgogn/simulation/algos/Simulation_solver_multiresolution.h>
-#include <cgogn/simulation/algos/lattice_shape_matching/lattice_shape_matching.h>
-#include <cgogn/simulation/algos/shape_matching/shape_matching.h>
 
 #include <boost/synapse/connect.hpp>
 #include <imgui/imgui.h>
@@ -60,7 +58,7 @@ namespace ui
 {
 
 template <typename MESH>
-class ShapeMatching : public ViewModule
+class SPH_simulation : public ViewModule
 {
 
 	template <typename T>
@@ -133,14 +131,14 @@ class ShapeMatching : public ViewModule
 	};
 
 public:
-	ShapeMatching(const App& app)
-		: ViewModule(app, "ShapeMatching (" + std::string{mesh_traits<MESH>::name} + ")"), selected_mesh_(nullptr),
-		  selected_view_(app.current_view()), sm_solver_(0.005f), running_(false), apply_gravity(false)
+	SPH_simulation(const App& app)
+		: ViewModule(app, "SPH (" + std::string{mesh_traits<MESH>::name} + ")"), selected_mesh_(nullptr),
+		  selected_view_(app.current_view()), running_(false), apply_gravity(false)
 	{
 		f_keypress = [](View*, MESH*, int32, CellsSet<MESH, Vertex>*, CellsSet<MESH, Edge>*) {};
 	}
 
-	~ShapeMatching()
+	~SPH_simulation()
 	{
 	}
 
@@ -165,7 +163,7 @@ private:
 				Parameters& p = parameters_[m];
 				if (p.vertex_position_ && p.init_vertex_position_ && p.vertex_forces_ && p.vertex_masse_)
 				{
-					sm_solver_.update_topo(*m, {});
+					sph_solver_.update_topo(*m, {});
 				}
 			}));
 	}
@@ -209,8 +207,6 @@ protected:
 		mesh_provider_ = static_cast<ui::MeshProvider<MESH>*>(
 			app_.module("MeshProvider (" + std::string{mesh_traits<MESH>::name} + ")"));
 		mesh_provider_->foreach_mesh([this](MESH* m, const std::string&) { init_mesh(m); });
-		connections_.push_back(boost::synapse::connect<typename MeshProvider<MESH>::mesh_added>(
-			mesh_provider_, this, &ShapeMatching<MESH>::init_mesh));
 	}
 
 	void mouse_press_event(View* view, int32 button, int32 x, int32 y) override
@@ -298,7 +294,7 @@ protected:
 				Parameters& p = parameters_[selected_mesh_];
 				if (p.have_selected_vertex_)
 				{
-					sm_solver_.update_topo(*selected_mesh_, {p.selected_vertex_});
+					sph_solver_.update_topo(*selected_mesh_, {p.selected_vertex_});
 				}
 			}
 		}
@@ -482,7 +478,7 @@ protected:
 				if (ImGui::Selectable(name.c_str(), m == selected_mesh_))
 				{
 					selected_mesh_ = m;
-					simu_solver.init_solver(*selected_mesh_, &sm_solver_);
+					simu_solver.init_solver(*selected_mesh_, &sph_solver_);
 					Parameters& p = parameters_[selected_mesh_];
 					p.fixed_vertex = get_attribute<bool, Vertex>(*m, "fixed_vertex");
 					if (p.fixed_vertex == nullptr)
@@ -537,43 +533,18 @@ protected:
 				if (ImGui::Button("X##force"))
 					set_vertex_force(*selected_mesh_, nullptr);
 			}
-			if (ImGui::BeginCombo("Init vertex position",
-								  p.init_vertex_position_ ? p.init_vertex_position_->name().c_str() : "-- select --"))
-			{
-				foreach_attribute<Vec3, Vertex>(
-					*selected_mesh_, [&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
-						bool is_selected = attribute == p.init_vertex_position_;
-						if (ImGui::Selectable(attribute->name().c_str(), is_selected))
-						{
-							set_init_vertex_position(*selected_mesh_, attribute);
-							if (p.vertex_masse_)
-								sm_solver_.init_solver(*selected_mesh_, p.init_vertex_position_, p.vertex_masse_);
-						}
-						if (is_selected)
-							ImGui::SetItemDefaultFocus();
-					});
-				ImGui::EndCombo();
-			}
-			if (p.init_vertex_position_)
-			{
-				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
-				if (ImGui::Button("X##init"))
-					set_init_vertex_position(*selected_mesh_, nullptr);
-			}
 			if (ImGui::BeginCombo("vertex masse", p.vertex_masse_ ? p.vertex_masse_->name().c_str() : "-- select --"))
 			{
-				foreach_attribute<double, Vertex>(
-					*selected_mesh_, [&](const std::shared_ptr<Attribute<double>>& attribute) {
-						bool is_selected = attribute == p.vertex_masse_;
-						if (ImGui::Selectable(attribute->name().c_str(), is_selected))
-						{
-							set_vertex_masse(*selected_mesh_, attribute);
-							if (p.init_vertex_position_)
-								sm_solver_.init_solver(*selected_mesh_, p.init_vertex_position_, p.vertex_masse_);
-						}
-						if (is_selected)
-							ImGui::SetItemDefaultFocus();
-					});
+				foreach_attribute<double, Vertex>(*selected_mesh_,
+												  [&](const std::shared_ptr<Attribute<double>>& attribute) {
+													  bool is_selected = attribute == p.vertex_masse_;
+													  if (ImGui::Selectable(attribute->name().c_str(), is_selected))
+													  {
+														  set_vertex_masse(*selected_mesh_, attribute);
+													  }
+													  if (is_selected)
+														  ImGui::SetItemDefaultFocus();
+												  });
 				ImGui::EndCombo();
 			}
 			if (p.vertex_masse_)
@@ -581,18 +552,6 @@ protected:
 				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
 				if (ImGui::Button("X##masse"))
 					set_vertex_masse(*selected_mesh_, nullptr);
-			}
-			if (p.init_vertex_position_ && p.vertex_position_ && p.vertex_masse_)
-			{
-				if (ImGui::Button("init initial pos"))
-				{
-					foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
-						value<Vec3>(*selected_mesh_, p.init_vertex_position_.get(), v) =
-							value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v);
-						return true;
-					});
-					sm_solver_.init_solver(*selected_mesh_, p.init_vertex_position_, p.vertex_masse_);
-				}
 			}
 			if (p.vertex_masse_)
 			{
@@ -602,7 +561,6 @@ protected:
 						value<double>(*selected_mesh_, p.vertex_masse_.get(), v) = 1.0f;
 						return true;
 					});
-					sm_solver_.init_solver(*selected_mesh_, p.init_vertex_position_, p.vertex_masse_);
 				}
 			}
 			if (ImGui::Button("new attribute Vec3"))
@@ -617,7 +575,15 @@ protected:
 				add_attribute<double, Vertex>(*selected_mesh_,
 											  "SM_attributte_double_" + std::to_string(nb_new_attribute_double++));
 			}
-			if (p.vertex_position_ && p.init_vertex_position_ && p.vertex_forces_ && p.vertex_masse_)
+
+			if (p.vertex_position_)
+			{
+				if (ImGui::Button("init solver"))
+				{
+					sph_solver_.init_solver(*selected_mesh_, p.vertex_position_.get());
+				}
+			}
+			if (p.vertex_position_ && p.vertex_forces_ && p.vertex_masse_)
 			{
 				ImGui::Separator();
 
@@ -648,8 +614,6 @@ protected:
 					mesh_provider_->emit_attribute_changed(selected_mesh_, p.vertex_position_.get());
 					need_update_ = false;
 				}
-				double min = 0, max = 1;
-				ImGui::SliderScalar("Level", ImGuiDataType_Double, &sm_solver_.stiffness_, &min, &max);
 			}
 		}
 	}
@@ -660,7 +624,7 @@ public:
 	std::vector<std::shared_ptr<boost::synapse::connection>> connections_;
 	std::unordered_map<const MESH*, std::vector<std::shared_ptr<boost::synapse::connection>>> mesh_connections_;
 	MeshProvider<MESH>* mesh_provider_;
-	simulation::lattice_shape_matching_constraint_solver<MESH> sm_solver_;
+	simulation::SPH_volume_constraint_solver<MESH> sph_solver_;
 	simulation::Simulation_solver<MESH> simu_solver;
 	bool running_;
 	bool need_update_;
@@ -673,4 +637,4 @@ public:
 
 } // namespace cgogn
 
-#endif // CGOGN_MODULE_SHAPE_MATCHING_H_
+#endif // CGOGN_MODULE_SPH_SIMULATION_H_

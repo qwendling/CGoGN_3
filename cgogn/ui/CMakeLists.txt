@@ -48,6 +48,7 @@ target_sources(${PROJECT_NAME}
 		"${CMAKE_CURRENT_LIST_DIR}/modules/volume_emr_modeling/volume_emr_modeling.h"
 		"${CMAKE_CURRENT_LIST_DIR}/modules/animation_multiresolution/animation_multiresolution.h"
 		"${CMAKE_CURRENT_LIST_DIR}/modules/linked_volumes/linked_volumes.h"
+		"${CMAKE_CURRENT_LIST_DIR}/modules/SPH_simulation/SPH_simulation.h"
 
 )
 
