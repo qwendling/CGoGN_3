@@ -32,6 +32,8 @@ target_sources(${PROJECT_NAME}
 	"${CMAKE_CURRENT_LIST_DIR}/algos/Simulation_solver_multiresolution.h"
 	"${CMAKE_CURRENT_LIST_DIR}/algos/SPH_Volume/SPH_Volume.cpp"
 	"${CMAKE_CURRENT_LIST_DIR}/algos/SPH_Volume/SPH_Volume.h"
+	"${CMAKE_CURRENT_LIST_DIR}/algos/SPH_Peer2018/SPH_Peer2018.cpp"
+	"${CMAKE_CURRENT_LIST_DIR}/algos/SPH_Peer2018/SPH_Peer2018.h"
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

@@ -207,6 +207,8 @@ protected:
 		mesh_provider_ = static_cast<ui::MeshProvider<MESH>*>(
 			app_.module("MeshProvider (" + std::string{mesh_traits<MESH>::name} + ")"));
 		mesh_provider_->foreach_mesh([this](MESH* m, const std::string&) { init_mesh(m); });
+		connections_.push_back(boost::synapse::connect<typename MeshProvider<MESH>::mesh_added>(
+			mesh_provider_, this, &SPH_simulation<MESH>::init_mesh));
 	}
 
 	void mouse_press_event(View* view, int32 button, int32 x, int32 y) override
@@ -377,7 +379,7 @@ protected:
 					if (apply_gravity)
 					{
 						parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
-							value<Vec3>(*selected_mesh_, p.vertex_forces_, v) += 10000 * Vec3(0, -9.81, 0);
+							value<Vec3>(*selected_mesh_, p.vertex_forces_, v) += Vec3(0, -9.81, 0);
 							return true;
 						});
 					}

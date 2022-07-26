@@ -1,5 +1,5 @@
-#ifndef CGOGN_SIMULATION_SPH_VOLUME_SPH_VOLUME_H_
-#define CGOGN_SIMULATION_SPH_VOLUME_SPH_VOLUME_H_
+#ifndef CGOGN_SIMULATION_SPH_PEER_2018_SPH_PEER_2018_H_
+#define CGOGN_SIMULATION_SPH_PEER_2018_SPH_PEER_2018_H_
 #include <cgogn/core/functions/attributes.h>
 #include <cgogn/core/types/mesh_traits.h>
 #include <cgogn/geometry/algos/centroid.h>
@@ -18,9 +18,9 @@ namespace cgogn
 namespace simulation
 {
 template <typename MAP>
-class SPH_volume_constraint_solver : public Simulation_constraint<MAP>
+class SPH_constraint_solver : public Simulation_constraint<MAP>
 {
-	using Self = SPH_volume_constraint_solver;
+	using Self = SPH_constraint_solver;
 	template <typename T>
 	using Attribute = typename mesh_traits<MAP>::template Attribute<T>;
 	using Vec3 = geometry::Vec3;
@@ -41,7 +41,7 @@ public:
 	std::shared_ptr<Attribute<Mat3d>> stress_tensor_volume_;
 	std::shared_ptr<Attribute<Vec3>> force_volume_;
 
-	SPH_volume_constraint_solver()
+	SPH_constraint_solver()
 		: id(nb_solver++), initial_volume_(nullptr), initial_centroid_volume_(nullptr), centroid_volume_(nullptr),
 		  neighborhood_volume_(nullptr), corrected_matrix_volume_(nullptr), rotation_volume_(nullptr),
 		  h_volume_(nullptr), stress_tensor_volume_(nullptr), force_volume_(nullptr)
@@ -50,7 +50,7 @@ public:
 
 	Simulation_constraint<MAP>* get_new_ptr()
 	{
-		return new SPH_volume_constraint_solver<MAP>();
+		return new SPH_constraint_solver<MAP>();
 	}
 
 	double Kernel_W(double dist, double h) const
@@ -401,4 +401,4 @@ public:
 };
 } // namespace simulation
 } // namespace cgogn
-#endif // CGOGN_SIMULATION_SPH_VOLUME_SPH_VOLUME_H_
+#endif // CGOGN_SIMULATION_SPH_PEER_2018_SPH_PEER_2018_H_
