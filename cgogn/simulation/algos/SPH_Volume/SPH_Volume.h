@@ -180,16 +180,20 @@ public:
 
 		cgogn::parallel_foreach_cell(m, [&](Volume v) -> bool {
 			double h = value<double>(m, h_volume_.get(), v);
-			Mat3d Ftemp = Mat3d::Zero();
+			Mat3d Ftemp = Mat3d::Identity();
 			std::vector<Volume>& n = value<std::vector<Volume>>(m, neighborhood_volume_.get(), v);
 			Vec3 xi = value<Vec3>(m, centroid_volume_.get(), v);
+			Vec3 xi0 = value<Vec3>(m, initial_centroid_volume_.get(), v);
+			Mat3d& Ri = value<Mat3d>(m, rotation_volume_.get(), v);
 			for (Volume w : n)
 			{
 				double Vj0 = value<double>(m, initial_volume_.get(), w);
 				Vec3 xj = value<Vec3>(m, centroid_volume_.get(), w);
 				Vec3 xji = xj - xi;
+				Vec3 xj0 = value<Vec3>(m, initial_centroid_volume_.get(), w);
+				Vec3 xji0 = xj0 - xi0;
 				Vec3 W = Rotated_gradient(m, v, w, h);
-				Ftemp += Vj0 * xji * W.transpose();
+				Ftemp += Vj0 * (xji - Ri * xji0) * W.transpose();
 			}
 			Mat3d Etemp = 0.5 * (Ftemp + Ftemp.transpose()) - Mat3d::Identity();
 			for (int i = 0; i < 3; ++i)
@@ -260,17 +264,24 @@ public:
 			Vec3 centroid_v1 = value<Vec3>(m, initial_centroid_volume_.get(), v);
 			foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
 				foreach_incident_volume(m, w, [&](Volume v2) -> bool {
-					if (!marker.is_marked(v2))
-					{
-						Vec3 centroid_v2 = value<Vec3>(m, initial_centroid_volume_.get(), v2);
-						h = std::max(h, (centroid_v1 - centroid_v2).norm());
-						n.push_back(v2);
-						marker.mark(v2);
-					}
+					foreach_incident_vertex(m, v2, [&](Vertex w2) -> bool {
+						foreach_incident_volume(m, w2, [&](Volume v3) -> bool {
+							if (!marker.is_marked(v3))
+							{
+								Vec3 centroid_v3 = value<Vec3>(m, initial_centroid_volume_.get(), v3);
+								h = std::max(h, (centroid_v1 - centroid_v3).norm());
+								n.push_back(v3);
+								marker.mark(v3);
+							}
+							return true;
+						});
+						return true;
+					});
 					return true;
 				});
 				return true;
 			});
+			h *= 1.2;
 			return true;
 		});
 		compute_corrected_matrix(m);
@@ -396,7 +407,6 @@ public:
 			value<Vec3>(m, result_forces, v) += f / double(nb_volume);
 			return true;
 		});
-		std::cout << "________________________________________" << std::endl;
 	}
 };
 } // namespace simulation

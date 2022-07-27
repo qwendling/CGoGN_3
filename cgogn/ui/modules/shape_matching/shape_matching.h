@@ -42,6 +42,7 @@
 #include <cgogn/rendering/shaders/shader_flat.h>
 #include <cgogn/rendering/shaders/shader_point_sprite.h>
 #include <cgogn/rendering/vbo_update.h>
+#include <cgogn/simulation/algos/SPH_Peer2018/SPH_Peer2018.h>
 #include <cgogn/simulation/algos/SPH_Volume/SPH_Volume.h>
 #include <cgogn/simulation/algos/Simulation_solver.h>
 #include <cgogn/simulation/algos/Simulation_solver_multiresolution.h>
@@ -354,7 +355,7 @@ protected:
 		}
 	}
 
-#define TIME_STEP 0.005f
+#define TIME_STEP 0.00005f
 	void start()
 	{
 		running_ = true;
@@ -381,7 +382,7 @@ protected:
 					if (apply_gravity)
 					{
 						parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
-							value<Vec3>(*selected_mesh_, p.vertex_forces_, v) += 10000 * Vec3(0, -9.81, 0);
+							value<Vec3>(*selected_mesh_, p.vertex_forces_, v) += Vec3(0, -9.81, 0);
 							return true;
 						});
 					}
@@ -405,6 +406,14 @@ protected:
 	void step()
 	{
 		Parameters& p = parameters_[selected_mesh_];
+		if (p.have_selected_vertex_)
+		{
+			Vec3 pos = value<Vec3>(*selected_mesh_, p.vertex_position_.get(), p.selected_vertex_);
+			double m = value<double>(*selected_mesh_, p.vertex_masse_.get(), p.selected_vertex_);
+			value<Vec3>(*selected_mesh_, p.vertex_forces_.get(), p.selected_vertex_) =
+				m * (p.move_vertex_ - pos) / TIME_STEP;
+			std::cout << value<Vec3>(*selected_mesh_, p.vertex_position_.get(), p.selected_vertex_) << std::endl;
+		}
 		for (int i = 0; i < 1; i++)
 		{
 			if (apply_gravity)

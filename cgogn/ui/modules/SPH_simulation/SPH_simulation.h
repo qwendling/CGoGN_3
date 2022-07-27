@@ -42,6 +42,7 @@
 #include <cgogn/rendering/shaders/shader_flat.h>
 #include <cgogn/rendering/shaders/shader_point_sprite.h>
 #include <cgogn/rendering/vbo_update.h>
+#include <cgogn/simulation/algos/SPH_Peer2018/SPH_Peer2018.h>
 #include <cgogn/simulation/algos/SPH_Volume/SPH_Volume.h>
 #include <cgogn/simulation/algos/Simulation_solver.h>
 #include <cgogn/simulation/algos/Simulation_solver_multiresolution.h>
@@ -352,7 +353,7 @@ protected:
 		}
 	}
 
-#define TIME_STEP 0.005f
+#define TIME_STEP 0.001f
 	void start()
 	{
 		running_ = true;
@@ -366,13 +367,9 @@ protected:
 					Vec3 pos = value<Vec3>(*selected_mesh_, p.vertex_position_.get(), p.selected_vertex_);
 					double m = value<double>(*selected_mesh_, p.vertex_masse_.get(), p.selected_vertex_);
 					value<Vec3>(*selected_mesh_, p.vertex_forces_.get(), p.selected_vertex_) =
-						m * (p.move_vertex_ - pos) / TIME_STEP;
-					std::cout << value<Vec3>(*selected_mesh_, p.vertex_position_.get(), p.selected_vertex_)
-							  << std::endl;
+						m * (p.move_vertex_ - pos);
 				}
 
-				selected_mesh_->start_reader();
-				std::cout << "Debut simu" << std::endl;
 				for (int i = 0; i < 1; i++)
 				{
 
@@ -387,8 +384,6 @@ protected:
 												  TIME_STEP);
 				}
 				need_update_ = true;
-				std::cout << "fin simu" << std::endl;
-				selected_mesh_->end_reader();
 			}
 		});
 
@@ -403,6 +398,14 @@ protected:
 	void step()
 	{
 		Parameters& p = parameters_[selected_mesh_];
+		if (p.have_selected_vertex_)
+		{
+			Vec3 pos = value<Vec3>(*selected_mesh_, p.vertex_position_.get(), p.selected_vertex_);
+			double m = value<double>(*selected_mesh_, p.vertex_masse_.get(), p.selected_vertex_);
+			value<Vec3>(*selected_mesh_, p.vertex_forces_.get(), p.selected_vertex_) =
+				m * (p.move_vertex_ - pos) / TIME_STEP;
+			std::cout << value<Vec3>(*selected_mesh_, p.vertex_position_.get(), p.selected_vertex_) << std::endl;
+		}
 		for (int i = 0; i < 1; i++)
 		{
 			if (apply_gravity)
@@ -626,7 +629,7 @@ public:
 	std::vector<std::shared_ptr<boost::synapse::connection>> connections_;
 	std::unordered_map<const MESH*, std::vector<std::shared_ptr<boost::synapse::connection>>> mesh_connections_;
 	MeshProvider<MESH>* mesh_provider_;
-	simulation::SPH_volume_constraint_solver<MESH> sph_solver_;
+	simulation::SPH_constraint_solver<MESH> sph_solver_;
 	simulation::Simulation_solver<MESH> simu_solver;
 	bool running_;
 	bool need_update_;

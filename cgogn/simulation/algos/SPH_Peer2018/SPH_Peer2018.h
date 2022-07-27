@@ -12,6 +12,7 @@
 #define LAME_LAMBDA (LAME_MU / 3.0)
 #define SHEAR_MODULUS LAME_MU
 #define BULK_MODULUS LAME_LAMBDA + (2.0 * LAME_MU / 3.0)
+#define DENSITY_SPH 10
 
 namespace cgogn
 {
@@ -27,24 +28,25 @@ class SPH_constraint_solver : public Simulation_constraint<MAP>
 	using Mat3d = geometry::Mat3d;
 	using Vertex = typename mesh_traits<MAP>::Vertex;
 	using Volume = typename mesh_traits<MAP>::Volume;
+	using Quaternion = Eigen::Quaternion<double>;
+	using AngleAxisd = Eigen::AngleAxis<double>;
 
 public:
 	static inline int nb_solver = 0;
 	int id;
-	std::shared_ptr<Attribute<double>> initial_volume_;
-	std::shared_ptr<Attribute<Vec3>> initial_centroid_volume_;
-	std::shared_ptr<Attribute<Vec3>> centroid_volume_;
-	std::shared_ptr<Attribute<std::vector<Volume>>> neighborhood_volume_;
-	std::shared_ptr<Attribute<Mat3d>> corrected_matrix_volume_;
-	std::shared_ptr<Attribute<Mat3d>> rotation_volume_;
-	std::shared_ptr<Attribute<double>> h_volume_;
-	std::shared_ptr<Attribute<Mat3d>> stress_tensor_volume_;
-	std::shared_ptr<Attribute<Vec3>> force_volume_;
+	std::shared_ptr<Attribute<double>> initial_vol_;
+	std::shared_ptr<Attribute<Vec3>> initial_pos_;
+	Attribute<Vec3>* pos_;
+	std::shared_ptr<Attribute<std::vector<Vertex>>> neighborhood_;
+	std::shared_ptr<Attribute<Mat3d>> corrected_matrix_;
+	std::shared_ptr<Attribute<Mat3d>> rotation_;
+	std::shared_ptr<Attribute<double>> h_;
+	std::shared_ptr<Attribute<Mat3d>> stress_tensor_;
+	Attribute<Vec3>* force_;
 
 	SPH_constraint_solver()
-		: id(nb_solver++), initial_volume_(nullptr), initial_centroid_volume_(nullptr), centroid_volume_(nullptr),
-		  neighborhood_volume_(nullptr), corrected_matrix_volume_(nullptr), rotation_volume_(nullptr),
-		  h_volume_(nullptr), stress_tensor_volume_(nullptr), force_volume_(nullptr)
+		: id(nb_solver++), initial_vol_(nullptr), initial_pos_(nullptr), pos_(nullptr), neighborhood_(nullptr),
+		  corrected_matrix_(nullptr), rotation_(nullptr), h_(nullptr), stress_tensor_(nullptr), force_(nullptr)
 	{
 	}
 
@@ -105,15 +107,15 @@ public:
 		return xij * tmp;
 	}
 
-	Mat3d Corrected_matrix(const MAP& m, Volume v, double h) const
+	Mat3d Corrected_matrix(const MAP& m, Vertex v, double h) const
 	{
 		Mat3d Li = Mat3d::Zero();
-		std::vector<Volume>& n = value<std::vector<Volume>>(m, neighborhood_volume_.get(), v);
-		Vec3 xi = value<Vec3>(m, initial_centroid_volume_.get(), v);
-		for (Volume w : n)
+		std::vector<Vertex>& n = value<std::vector<Vertex>>(m, neighborhood_.get(), v);
+		Vec3 xi = value<Vec3>(m, initial_pos_.get(), v);
+		for (Vertex w : n)
 		{
-			double init_vol = value<double>(m, initial_volume_.get(), v);
-			Vec3 xj = value<Vec3>(m, initial_centroid_volume_.get(), w);
+			double init_vol = value<double>(m, initial_vol_.get(), v);
+			Vec3 xj = value<Vec3>(m, initial_pos_.get(), w);
 			Vec3 xij = xi - xj;
 			Vec3 xji = -xij;
 			Vec3 grad = gradient(xij, xij.norm(), h);
@@ -124,73 +126,92 @@ public:
 
 	void compute_corrected_matrix(const MAP& m) const
 	{
-		parallel_foreach_cell(m, [&](Volume v) -> bool {
-			value<Mat3d>(m, corrected_matrix_volume_.get(), v) =
-				Corrected_matrix(m, v, value<double>(m, h_volume_.get(), v));
+		parallel_foreach_cell(m, [&](Vertex v) -> bool {
+			value<Mat3d>(m, corrected_matrix_.get(), v) = Corrected_matrix(m, v, value<double>(m, h_.get(), v));
 			return true;
 		});
 	}
 
-	Vec3 Corrected_gradient(const MAP& m, Volume vi, Volume vj, double h) const
+	Vec3 Corrected_gradient(const MAP& m, Vertex vi, Vertex vj, double h) const
 	{
-		Vec3 xi = value<Vec3>(m, initial_centroid_volume_.get(), vi);
-		Vec3 xj = value<Vec3>(m, initial_centroid_volume_.get(), vj);
+		Vec3 xi = value<Vec3>(m, initial_pos_.get(), vi);
+		Vec3 xj = value<Vec3>(m, initial_pos_.get(), vj);
 		Vec3 xij = xi - xj;
 
-		return value<Mat3d>(m, corrected_matrix_volume_.get(), vi) * gradient(xij, xij.norm(), h);
+		return value<Mat3d>(m, corrected_matrix_.get(), vi) * gradient(xij, xij.norm(), h);
 	}
 
-	Mat3d Rotation_extraction(const MAP& m, Volume v, double h) const
+	Mat3d Rotation_extraction(const MAP& m, Vertex v, double h) const
 	{
 		Mat3d R;
 		Mat3d F = Mat3d::Zero();
 
-		std::vector<Volume>& n = value<std::vector<Volume>>(m, neighborhood_volume_.get(), v);
-		Vec3 xi = value<Vec3>(m, centroid_volume_.get(), v);
-		for (Volume w : n)
+		std::vector<Vertex>& n = value<std::vector<Vertex>>(m, neighborhood_.get(), v);
+		Vec3 xi = value<Vec3>(m, pos_, v);
+		for (Vertex w : n)
 		{
-			double init_vol = value<double>(m, initial_volume_.get(), v);
-			Vec3 xj = value<Vec3>(m, centroid_volume_.get(), w);
-			Vec3 xij = xi - xj;
+			double init_vol = value<double>(m, initial_vol_.get(), v);
+			Vec3 xj = value<Vec3>(m, pos_, w);
+			Vec3 xji = xj - xi;
 			Vec3 W = Corrected_gradient(m, v, w, h);
-			// minus because xij = - xji
-			F -= init_vol * xij * W.transpose();
+			F += init_vol * xji * W.transpose();
 		}
-		polarDecompositionStable(F, 1.0e-6, R);
+		//polarDecompositionStable(F, 1.0e-6, R);
+		
+		Quaternion q(value<Mat3d>(m, rotation_.get(), v));
+		rotationextraction(F,q,10);
+		R = q.matrix();
+		
+ 		
 		return R;
 	}
 
 	void compute_rotated_kernel(const MAP& m)
 	{
-		cgogn::parallel_foreach_cell(m, [&](Volume v) -> bool {
-			double h = value<double>(m, h_volume_.get(), v);
-			value<Mat3d>(m, rotation_volume_.get(), v) = Rotation_extraction(m, v, h);
+		cgogn::parallel_foreach_cell(m, [&](Vertex v) -> bool {
+			double h = value<double>(m, h_.get(), v);
+			value<Mat3d>(m, rotation_.get(), v) = Rotation_extraction(m, v, h);
 			return true;
 		});
 	}
 
-	Vec3 Rotated_gradient(const MAP& m, Volume vi, Volume vj, double h) const
+	Vec3 Rotated_gradient(const MAP& m, Vertex vi, Vertex vj, double h) const
 	{
-		return value<Mat3d>(m, rotation_volume_.get(), vi) * Corrected_gradient(m, vi, vj, h);
+		return value<Mat3d>(m, rotation_.get(), vi) * Corrected_gradient(m, vi, vj, h);
 	}
 
-	void compute_force_volume(const MAP& m)
+	void compute_force_vertex(const MAP& m)
 	{
 		compute_rotated_kernel(m);
 
-		cgogn::parallel_foreach_cell(m, [&](Volume v) -> bool {
-			double h = value<double>(m, h_volume_.get(), v);
-			Mat3d Ftemp = Mat3d::Zero();
-			std::vector<Volume>& n = value<std::vector<Volume>>(m, neighborhood_volume_.get(), v);
-			Vec3 xi = value<Vec3>(m, centroid_volume_.get(), v);
-			for (Volume w : n)
+		cgogn::parallel_foreach_cell(m, [&](Vertex v) -> bool {
+			double h = value<double>(m, h_.get(), v);
+			Mat3d Ftemp = Mat3d::Identity();
+			std::vector<Vertex>& n = value<std::vector<Vertex>>(m, neighborhood_.get(), v);
+			Vec3 xi = value<Vec3>(m, pos_, v);
+			Vec3 xi0 = value<Vec3>(m, initial_pos_.get(), v);
+			Mat3d& Ri = value<Mat3d>(m, rotation_.get(), v);
+			for (Vertex w : n)
 			{
-				double Vj0 = value<double>(m, initial_volume_.get(), w);
-				Vec3 xj = value<Vec3>(m, centroid_volume_.get(), w);
+				double Vj0 = value<double>(m, initial_vol_.get(), w);
+				Vec3 xj = value<Vec3>(m, pos_, w);
+				Vec3 xji = xj - xi;
+				Vec3 xj0 = value<Vec3>(m, initial_pos_.get(), w);
+				Vec3 xji0 = xj0 - xi0;
+				Vec3 W = Rotated_gradient(m, v, w, h);
+				Ftemp += Vj0 * (xji - Ri * xji0) * W.transpose();
+			}
+			/*Mat3d Ftemp = Mat3d::Zero();
+			std::vector<Vertex>& n = value<std::vector<Vertex>>(m, neighborhood_.get(), v);
+			Vec3 xi = value<Vec3>(m, pos_, v);
+			for (Vertex w : n)
+			{
+				double Vj0 = value<double>(m, initial_vol_.get(), w);
+				Vec3 xj = value<Vec3>(m, pos_, w);
 				Vec3 xji = xj - xi;
 				Vec3 W = Rotated_gradient(m, v, w, h);
 				Ftemp += Vj0 * xji * W.transpose();
-			}
+			}*/
 			Mat3d Etemp = 0.5 * (Ftemp + Ftemp.transpose()) - Mat3d::Identity();
 			for (int i = 0; i < 3; ++i)
 			{
@@ -204,25 +225,25 @@ public:
 			}
 			Mat3d Pi = 2 * SHEAR_MODULUS * Etemp +
 					   (BULK_MODULUS - (2.0 / 3.0) * SHEAR_MODULUS) * Etemp.trace() * Mat3d::Identity();
-			value<Mat3d>(m, stress_tensor_volume_.get(), v) = Pi;
+			value<Mat3d>(m, stress_tensor_.get(), v) = Pi;
 			return true;
 		});
-		cgogn::parallel_foreach_cell(m, [&](Volume v) -> bool {
-			double hi = value<double>(m, h_volume_.get(), v);
+		cgogn::parallel_foreach_cell(m, [&](Vertex v) -> bool {
+			double hi = value<double>(m, h_.get(), v);
 			Vec3 F = Vec3::Zero();
-			std::vector<Volume>& n = value<std::vector<Volume>>(m, neighborhood_volume_.get(), v);
-			Mat3d Pi = value<Mat3d>(m, stress_tensor_volume_.get(), v);
-			double Vi0 = value<double>(m, initial_volume_.get(), v);
-			for (Volume w : n)
+			std::vector<Vertex>& n = value<std::vector<Vertex>>(m, neighborhood_.get(), v);
+			Mat3d Pi = value<Mat3d>(m, stress_tensor_.get(), v);
+			double Vi0 = value<double>(m, initial_vol_.get(), v);
+			for (Vertex w : n)
 			{
-				double Vj0 = value<double>(m, initial_volume_.get(), w);
-				double hj = value<double>(m, h_volume_.get(), w);
-				Mat3d Pj = value<Mat3d>(m, stress_tensor_volume_.get(), w);
+				double Vj0 = value<double>(m, initial_vol_.get(), w);
+				double hj = value<double>(m, h_.get(), w);
+				Mat3d Pj = value<Mat3d>(m, stress_tensor_.get(), w);
 				Vec3 Wi = Rotated_gradient(m, v, w, hi);
 				Vec3 Wj = Rotated_gradient(m, w, v, hj);
 				F += Vj0 * Vi0 * (Pi * Wi - Pj * Wj);
 			}
-			value<Vec3>(m, force_volume_, v) = F;
+			value<Vec3>(m, force_, v) += F;
 			return true;
 		});
 	}
@@ -234,43 +255,62 @@ public:
 
 	void init_solver(MAP& m, Attribute<Vec3>* pos)
 	{
-		initial_volume_ = add_attribute<double, Volume>(m, "SPH_simulation_constraint_solver_initial_volume_" + id);
-		initial_centroid_volume_ =
-			add_attribute<Vec3, Volume>(m, "SPH_simulation_constraint_solver_initial_centroid_volume_" + id);
-		centroid_volume_ = add_attribute<Vec3, Volume>(m, "SPH_simulation_constraint_solver_centroid_volume_" + id);
-		neighborhood_volume_ =
-			add_attribute<std::vector<Volume>, Volume>(m, "SPH_simulation_constraint_solver_neighborhood_volume_" + id);
-		corrected_matrix_volume_ =
-			add_attribute<Mat3d, Volume>(m, "SPH_simulation_constraint_solver_corrected_matrix_volume_" + id);
-		rotation_volume_ = add_attribute<Mat3d, Volume>(m, "SPH_simulation_constraint_solver_rotation_volume_" + id);
-		h_volume_ = add_attribute<double, Volume>(m, "SPH_simulation_constraint_solver_h_volume_" + id);
-		stress_tensor_volume_ =
-			add_attribute<Mat3d, Volume>(m, "SPH_simulation_constraint_solver_stress_tensor_volume_" + id);
-		force_volume_ = add_attribute<Vec3, Volume>(m, "SPH_simulation_constraint_solver_force_volume_" + id);
+		initial_vol_ = add_attribute<double, Vertex>(m, "SPH_simulation_constraint_solver_initial_vol_" + id);
+		initial_pos_ = add_attribute<Vec3, Vertex>(m, "SPH_simulation_constraint_solver_initial_pos_" + id);
+		neighborhood_ =
+			add_attribute<std::vector<Vertex>, Vertex>(m, "SPH_simulation_constraint_solver_neighborhood_" + id);
+		corrected_matrix_ = add_attribute<Mat3d, Vertex>(m, "SPH_simulation_constraint_solver_corrected_matrix_" + id);
+		rotation_ = add_attribute<Mat3d, Vertex>(m, "SPH_simulation_constraint_solver_rotation_" + id);
+		h_ = add_attribute<double, Vertex>(m, "SPH_simulation_constraint_solver_h_" + id);
+		stress_tensor_ = add_attribute<Mat3d, Vertex>(m, "SPH_simulation_constraint_solver_stress_tensor_" + id);
+		pos_ = pos;
 
-		geometry::compute_centroid<Vec3, Volume>(m, pos, initial_centroid_volume_.get());
-		geometry::compute_volume(m, pos, initial_volume_.get());
+		parallel_foreach_cell(m, [&](Vertex v) -> bool {
+			value<double>(m, initial_vol_.get(), v) = DENSITY_SPH;
+			value<Vec3>(m, initial_pos_.get(), v) = value<Vec3>(m, pos_, v);
+			return true;
+		});
+		
+		cgogn::parallel_foreach_cell(m, [&](Vertex v) -> bool {
+			value<Mat3d>(m, rotation_.get(), v) = Mat3d::Identity();
+			return true;
+		});
 
-		parallel_foreach_cell(m, [&](Volume v) -> bool {
-			CellMarker<MAP, Volume> marker(m);
-			std::vector<Volume>& n = value<std::vector<Volume>>(m, neighborhood_volume_.get(), v);
+		parallel_foreach_cell(m, [&](Vertex v) -> bool {
+			CellMarker<MAP, Vertex> marker(m);
+			std::vector<Vertex>& n = value<std::vector<Vertex>>(m, neighborhood_.get(), v);
 			n.clear();
-			double& h = value<double>(m, h_volume_.get(), v);
+			double& h = value<double>(m, h_.get(), v);
 			h = 0;
-			Vec3 centroid_v1 = value<Vec3>(m, initial_centroid_volume_.get(), v);
-			foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-				foreach_incident_volume(m, w, [&](Volume v2) -> bool {
-					if (!marker.is_marked(v2))
-					{
-						Vec3 centroid_v2 = value<Vec3>(m, initial_centroid_volume_.get(), v2);
-						h = std::max(h, (centroid_v1 - centroid_v2).norm());
-						n.push_back(v2);
-						marker.mark(v2);
-					}
+			Vec3 pos_v1 = value<Vec3>(m, initial_pos_.get(), v);
+			foreach_incident_volume(m, v, [&](Volume w) -> bool {
+				foreach_incident_vertex(m, w, [&](Vertex v2) -> bool {
+					foreach_incident_volume(m, v2, [&](Volume w2) -> bool {
+						foreach_incident_vertex(m, w2, [&](Vertex v3) -> bool {
+							if (!marker.is_marked(v3))
+							{
+								Vec3 pos_v3 = value<Vec3>(m, initial_pos_.get(), v3);
+								h = std::max(h, (pos_v1 - pos_v3).norm());
+								n.push_back(v3);
+								marker.mark(v3);
+							}
+							return true;
+						});
+						return true;
+					});
 					return true;
 				});
 				return true;
 			});
+			h *= 1.2;
+
+			double density = DENSITY_SPH * Kernel_W(0, h);
+			for (Vertex w : n)
+			{
+				Vec3 pos_v2 = value<Vec3>(m, initial_pos_.get(), w);
+				density += DENSITY_SPH * Kernel_W((pos_v1 - pos_v2).norm(), h);
+			}
+			value<double>(m, initial_vol_.get(), v) = DENSITY_SPH / density;
 			return true;
 		});
 		compute_corrected_matrix(m);
@@ -381,22 +421,25 @@ public:
 		R = Mt.transpose();
 	}
 
+	void rotationextraction(const Mat3d& M, Quaternion& q,int maxIter) const{
+		for (unsigned int iter = 0; iter < maxIter; iter++)
+		{
+			Mat3d R = q.matrix();
+			Vec3 omega = (R.col(0).cross(M.col(0)) + R.col(1).cross(M.col(1)) + R.col(2).cross(M.col(2))) * 
+				(1.0 / fabs(R.col(0).dot(M.col(0)) + R.col(1).dot(M.col(1)) + R.col(2).dot(M.col(2)) + 1.0e-9));
+			double w = omega.norm();
+			if (w < 1.0e-9)
+				break;
+			q = Quaternion(AngleAxisd(w, (1.0 / w) * omega)) *	q;
+			q.normalize();
+		}
+	}
+	
 	void solve_constraint(const MAP& m, Attribute<Vec3>* pos, Attribute<Vec3>* result_forces, double) override
 	{
-		geometry::compute_centroid<Vec3, Volume>(m, pos, centroid_volume_.get());
-		compute_force_volume(m);
-		parallel_foreach_cell(m, [&](Vertex v) -> bool {
-			int nb_volume = 0;
-			Vec3 f = Vec3::Zero();
-			foreach_incident_volume(m, v, [&](Volume w) -> bool {
-				f += value<Vec3>(m, force_volume_, w);
-				nb_volume++;
-				return true;
-			});
-			value<Vec3>(m, result_forces, v) += f / double(nb_volume);
-			return true;
-		});
-		std::cout << "________________________________________" << std::endl;
+		pos_ = pos;
+		force_ = result_forces;
+		compute_force_vertex(m);
 	}
 };
 } // namespace simulation
