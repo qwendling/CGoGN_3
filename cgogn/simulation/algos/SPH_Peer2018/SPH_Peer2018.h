@@ -8,10 +8,14 @@
 #include <cgogn/simulation/algos/Simulation_constraint.h>
 
 #define NORMALIZE_TERM (21 / (2 * M_PI))
-#define LAME_MU 2e5
+
+#define POISSON_RATIO 0.33
+#define YOUNG_MODULUS 5e4
+#define LAME_MU 2e4
 #define LAME_LAMBDA (LAME_MU / 3.0)
-#define SHEAR_MODULUS LAME_MU
-#define BULK_MODULUS LAME_LAMBDA + (2.0 * LAME_MU / 3.0)
+
+#define SHEAR_MODULUS (YOUNG_MODULUS / (2 * (1 + POISSON_RATIO)))
+#define BULK_MODULUS (YOUNG_MODULUS / (3 * (1 - 2 * POISSON_RATIO)))
 #define DENSITY_SPH 10
 
 namespace cgogn
@@ -60,8 +64,8 @@ public:
 		double q = dist / h;
 		if (q > 1)
 			return 0;
-		double m1 = (1 - q);
-		double m2 = (4 * q + 1);
+		double m1 = (1.0f - q);
+		double m2 = (4.0f * q + 1.0f);
 		double h3 = h * h * h;
 		double alpha_d = NORMALIZE_TERM * (1 / h3);
 
@@ -102,6 +106,7 @@ public:
 	{
 		if (dist < 1e-12)
 			return Vec3(0, 0, 0);
+
 		double tmp = dwdq(dist, h) / (h * dist);
 
 		return xij * tmp;
@@ -111,17 +116,21 @@ public:
 	{
 		Mat3d Li = Mat3d::Zero();
 		std::vector<Vertex>& n = value<std::vector<Vertex>>(m, neighborhood_.get(), v);
-		Vec3 xi = value<Vec3>(m, initial_pos_.get(), v);
+		Vec3 xi0 = value<Vec3>(m, initial_pos_.get(), v);
 		for (Vertex w : n)
 		{
-			double init_vol = value<double>(m, initial_vol_.get(), v);
-			Vec3 xj = value<Vec3>(m, initial_pos_.get(), w);
-			Vec3 xij = xi - xj;
-			Vec3 xji = -xij;
-			Vec3 grad = gradient(xij, xij.norm(), h);
-			Li += init_vol * grad * xji.transpose();
+			double init_vol = value<double>(m, initial_vol_.get(), w);
+			Vec3 xj0 = value<Vec3>(m, initial_pos_.get(), w);
+			Vec3 xji0 = xj0 - xi0;
+			Vec3 grad = gradient(xji0, xji0.norm(), h);
+			Li -= init_vol * grad * xji0.transpose();
 		}
-		return Li.inverse();
+		bool inversible = false;
+		Mat3d L;
+		Li.computeInverseWithCheck(L, inversible, 1e-9);
+		if (!inversible)
+			std::cout << "L pas inversible " << std::endl;
+		return L;
 	}
 
 	void compute_corrected_matrix(const MAP& m) const
@@ -150,19 +159,18 @@ public:
 		Vec3 xi = value<Vec3>(m, pos_, v);
 		for (Vertex w : n)
 		{
-			double init_vol = value<double>(m, initial_vol_.get(), v);
+			double init_vol = value<double>(m, initial_vol_.get(), w);
 			Vec3 xj = value<Vec3>(m, pos_, w);
 			Vec3 xji = xj - xi;
 			Vec3 W = Corrected_gradient(m, v, w, h);
 			F += init_vol * xji * W.transpose();
 		}
-		//polarDecompositionStable(F, 1.0e-6, R);
-		
-		Quaternion q(value<Mat3d>(m, rotation_.get(), v));
-		rotationextraction(F,q,10);
-		R = q.matrix();
-		
- 		
+		polarDecompositionStable(F, 1.0e-6, R);
+
+		/*Quaternion q(value<Mat3d>(m, rotation_.get(), v));
+		rotationextraction(F, q, 10);
+		R = q.matrix();*/
+
 		return R;
 	}
 
@@ -217,7 +225,7 @@ public:
 			{
 				for (int j = 0; j < 3; ++j)
 				{
-					if (Etemp(i, j) < 1e-12)
+					if (fabs(Etemp(i, j)) < 1e-12)
 					{
 						Etemp(i, j) = 0;
 					}
@@ -225,6 +233,7 @@ public:
 			}
 			Mat3d Pi = 2 * SHEAR_MODULUS * Etemp +
 					   (BULK_MODULUS - (2.0 / 3.0) * SHEAR_MODULUS) * Etemp.trace() * Mat3d::Identity();
+
 			value<Mat3d>(m, stress_tensor_.get(), v) = Pi;
 			return true;
 		});
@@ -270,7 +279,7 @@ public:
 			value<Vec3>(m, initial_pos_.get(), v) = value<Vec3>(m, pos_, v);
 			return true;
 		});
-		
+
 		cgogn::parallel_foreach_cell(m, [&](Vertex v) -> bool {
 			value<Mat3d>(m, rotation_.get(), v) = Mat3d::Identity();
 			return true;
@@ -283,6 +292,18 @@ public:
 			double& h = value<double>(m, h_.get(), v);
 			h = 0;
 			Vec3 pos_v1 = value<Vec3>(m, initial_pos_.get(), v);
+			marker.mark(v);
+			n.push_back(v);
+			/*foreach_cell(m, [&](Vertex w) -> bool {
+				if (marker.is_marked(w))
+					return true;
+				Vec3 pos_w = value<Vec3>(m, initial_pos_.get(), w);
+				if (h < 1e-9)
+					h = (pos_v1 - pos_w).norm();
+				h = std::min(h, (pos_v1 - pos_w).norm());
+				n.push_back(w);
+				return true;
+			});*/
 			foreach_incident_volume(m, v, [&](Volume w) -> bool {
 				foreach_incident_vertex(m, w, [&](Vertex v2) -> bool {
 					foreach_incident_volume(m, v2, [&](Volume w2) -> bool {
@@ -290,7 +311,9 @@ public:
 							if (!marker.is_marked(v3))
 							{
 								Vec3 pos_v3 = value<Vec3>(m, initial_pos_.get(), v3);
-								h = std::max(h, (pos_v1 - pos_v3).norm());
+								if (h < 1e-9)
+									h = (pos_v1 - pos_v3).norm();
+								h = std::min(h, (pos_v1 - pos_v3).norm());
 								n.push_back(v3);
 								marker.mark(v3);
 							}
@@ -302,15 +325,17 @@ public:
 				});
 				return true;
 			});
-			h *= 1.2;
+			// h *= 1.2;
+			h *= 4;
 
-			double density = DENSITY_SPH * Kernel_W(0, h);
+			double density = 0;
 			for (Vertex w : n)
 			{
 				Vec3 pos_v2 = value<Vec3>(m, initial_pos_.get(), w);
 				density += DENSITY_SPH * Kernel_W((pos_v1 - pos_v2).norm(), h);
 			}
 			value<double>(m, initial_vol_.get(), v) = DENSITY_SPH / density;
+
 			return true;
 		});
 		compute_corrected_matrix(m);
@@ -421,20 +446,65 @@ public:
 		R = Mt.transpose();
 	}
 
-	void rotationextraction(const Mat3d& M, Quaternion& q,int maxIter) const{
+	void rotationextraction(const Mat3d& M, Quaternion& q, int maxIter) const
+	{
 		for (unsigned int iter = 0; iter < maxIter; iter++)
 		{
 			Mat3d R = q.matrix();
-			Vec3 omega = (R.col(0).cross(M.col(0)) + R.col(1).cross(M.col(1)) + R.col(2).cross(M.col(2))) * 
+			Vec3 omega =
+				(R.col(0).cross(M.col(0)) + R.col(1).cross(M.col(1)) + R.col(2).cross(M.col(2))) *
 				(1.0 / fabs(R.col(0).dot(M.col(0)) + R.col(1).dot(M.col(1)) + R.col(2).dot(M.col(2)) + 1.0e-9));
 			double w = omega.norm();
 			if (w < 1.0e-9)
 				break;
-			q = Quaternion(AngleAxisd(w, (1.0 / w) * omega)) *	q;
+			q = Quaternion(AngleAxisd(w, (1.0 / w) * omega)) * q;
 			q.normalize();
 		}
 	}
-	
+
+	void test_kernel()
+	{
+		using Real = double;
+		float eps = 1.0e-4f;
+		const double supportRadius = 4.15692;
+		const unsigned int numberOfSteps = 50;
+		const double stepSize = static_cast<Real>(2.0) * supportRadius / (Real)(numberOfSteps - 1);
+		Vec3 xi;
+		xi.setZero();
+		Real sum = 0.0;
+		Vec3 sumV = Vec3::Zero();
+		bool positive = true;
+		Real V = pow(stepSize, 3);
+		for (unsigned int i = 0; i < numberOfSteps; i++)
+		{
+			for (unsigned int j = 0; j < numberOfSteps; j++)
+			{
+				for (unsigned int k = 0; k < numberOfSteps; k++)
+				{
+					const Vec3 xj(-supportRadius + i * stepSize, -supportRadius + j * stepSize,
+								  -supportRadius + k * stepSize);
+					const Real W = Kernel_W((xi - xj).norm(), supportRadius);
+					sum += W * V;
+					sumV += gradient(xi - xj, (xi - xj).norm(), supportRadius) * V;
+					if (W < -eps)
+						positive = false;
+				}
+			}
+		}
+		if (fabs(sum - 1.0) < eps)
+		{
+			std::cout << "Kernel OK" << std::endl;
+		}
+		if (sumV.norm() < eps)
+		{
+			std::cout << "Gradient OK" << std::endl;
+		}
+		if (positive)
+		{
+			std::cout << "Kernel always positive" << std::endl;
+		}
+	}
+
 	void solve_constraint(const MAP& m, Attribute<Vec3>* pos, Attribute<Vec3>* result_forces, double) override
 	{
 		pos_ = pos;

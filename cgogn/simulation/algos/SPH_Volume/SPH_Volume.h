@@ -8,10 +8,14 @@
 #include <cgogn/simulation/algos/Simulation_constraint.h>
 
 #define NORMALIZE_TERM (21 / (2 * M_PI))
-#define LAME_MU 2e5
+#define POISSON_RATIO 0.33
+#define YOUNG_MODULUS 5e4
+#define LAME_MU 2e4
 #define LAME_LAMBDA (LAME_MU / 3.0)
-#define SHEAR_MODULUS LAME_MU
-#define BULK_MODULUS LAME_LAMBDA + (2.0 * LAME_MU / 3.0)
+
+#define SHEAR_MODULUS (YOUNG_MODULUS / (2 * (1 + POISSON_RATIO)))
+#define BULK_MODULUS (YOUNG_MODULUS / (3 * (1 - 2 * POISSON_RATIO)))
+#define DENSITY_SPH 10
 
 namespace cgogn
 {
@@ -200,7 +204,7 @@ public:
 			{
 				for (int j = 0; j < 3; ++j)
 				{
-					if (Etemp(i, j) < 1e-12)
+					if (fabs(Etemp(i, j)) < 1e-12)
 					{
 						Etemp(i, j) = 0;
 					}

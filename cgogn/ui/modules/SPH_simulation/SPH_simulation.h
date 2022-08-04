@@ -376,7 +376,9 @@ protected:
 					if (apply_gravity)
 					{
 						parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
-							value<Vec3>(*selected_mesh_, p.vertex_forces_, v) += Vec3(0, -9.81, 0);
+							Vec3 pos = value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v);
+							double delta = 0;
+							value<Vec3>(*selected_mesh_, p.vertex_forces_, v) += Vec3(0, -9.81 - delta, 0);
 							return true;
 						});
 					}
@@ -415,7 +417,7 @@ protected:
 					return true;
 				});
 			}
-			simu_solver.compute_time_step(*selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(), 0.005);
+			simu_solver.compute_time_step(*selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(), TIME_STEP);
 		}
 		need_update_ = true;
 	}

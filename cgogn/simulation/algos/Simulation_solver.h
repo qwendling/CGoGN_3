@@ -88,6 +88,11 @@ public:
 			return true;
 		});*/
 
+		parallel_foreach_cell(m, [&](Vertex v) -> bool {
+			value<std::array<Vec3, 9>>(m, this->RK_coeff.get(), v)[8] = value<Vec3>(m, this->forces_ext_.get(), v);
+			return true;
+		});
+
 		constraint_->solve_constraint(m, vertex_position, this->forces_ext_.get(), time_step);
 		parallel_foreach_cell(m, [&](Vertex v) -> bool {
 			if (this->fixed_vertex && value<bool>(m, this->fixed_vertex.get(), v))
