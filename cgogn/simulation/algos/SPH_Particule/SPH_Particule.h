@@ -84,7 +84,7 @@ public:
 	int id;
 	std::vector<Particule_SPH> particules_;
 
-	SPH_Particule_constraint_solver() : id(nb_solver++), particule_type(VERTEX_PARTICULE)
+	SPH_Particule_constraint_solver() : id(nb_solver++), particule_type(VOLUME_PARTICULE)
 	{
 	}
 
@@ -330,6 +330,8 @@ public:
 		geometry::compute_centroid<Vec3, Volume>(m, pos, initial_centroid_volume_.get());
 		geometry::compute_volume(m, pos, initial_volume_.get());
 		
+		particules_.reserve(nb_cells<Volume>(m));
+		
 		foreach_cell(m, [&](Volume v) -> bool {
 			particules_.emplace_back(value<Vec3>(m, initial_centroid_volume_.get(), v), DENSITY_SPH*value<double>(m, initial_volume_.get(), v));
 			value<Particule_SPH*>(m, particule_volume_.get(), v) = &(particules_.back());
@@ -337,6 +339,7 @@ public:
 		});
 		parallel_foreach_cell(m, [&](Volume v) -> bool {
 			Particule_SPH& p = *value<Particule_SPH*>(m, particule_volume_.get(), v);
+			p.initial_volume_ = value<double>(m, initial_volume_.get(),v);
 			CellMarker<MAP, Volume> marker(m);
 			std::vector<Particule_SPH*>& n = p.neighborhood_;
 			n.clear();
@@ -373,8 +376,7 @@ public:
 		particule_vertex_ =
 			add_attribute<Particule_SPH*, Vertex>(m, "SPH_particule_constraint_solver_particule_vertex_" + id);
 		foreach_cell(m, [&](Vertex v) -> bool {
-			particules_.emplace_back(value<Vec3>(m, pos, v), 1);
-			value<Particule_SPH*>(m, particule_vertex_.get(), v) = &(particules_.back());
+			value<Particule_SPH*>(m, particule_vertex_.get(), v) = new Particule_SPH(value<Vec3>(m, pos, v),1);
 			return true;
 		});
 		parallel_foreach_cell(m, [&](Vertex v) -> bool {
@@ -385,7 +387,6 @@ public:
 			double& h = p.h_;
 			h = 0;
 			Vec3 pos_v1 = p.initial_position_;
-			n.push_back(&p);
 			foreach_incident_volume(m, v, [&](Volume w) -> bool {
 				foreach_incident_vertex(m, w, [&](Vertex v2) -> bool {
 					foreach_incident_volume(m, v2, [&](Volume w2) -> bool {
@@ -576,7 +577,7 @@ public:
 							*(p2->deformation_gradient_*(p->initial_position_-p2->initial_position_)+p2->current_position_)
 							*Kernel_W((p->initial_position_ - p2->initial_position_).norm(), p->h_);
 				}
-				value<Vec3>(m, pos, v) = new_pos;
+				value<Vec3>(m, pos, v) = p->shepard_filter_*new_pos;
 				return true;
 			});
 		}
