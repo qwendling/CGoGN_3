@@ -42,6 +42,7 @@
 #include <cgogn/rendering/shaders/shader_flat.h>
 #include <cgogn/rendering/shaders/shader_point_sprite.h>
 #include <cgogn/rendering/vbo_update.h>
+#include <cgogn/simulation/algos/SPH_Particule/SPH_Particule.h>
 #include <cgogn/simulation/algos/SPH_Peer2018/SPH_Peer2018.h>
 #include <cgogn/simulation/algos/SPH_Volume/SPH_Volume.h>
 #include <cgogn/simulation/algos/Simulation_solver.h>
@@ -281,13 +282,15 @@ protected:
 				Vec3 a;
 				p.frame_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, a);
 				double d = pos.dot(a);
-				parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
+				/*parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
 					if (value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v).dot(a) < d)
 					{
 						value<bool>(*selected_mesh_, p.fixed_vertex.get(), v) = true;
 					}
 					return true;
-				});
+				});*/
+				sph_solver_.set_particule_fixed(
+					[&a, &d](simulation::Particule_SPH& p) -> bool { return p.current_position_.dot(a) < d; });
 			}
 		}
 		if (key_code == GLFW_KEY_U)
@@ -375,15 +378,18 @@ protected:
 
 					if (apply_gravity)
 					{
-						parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
+						/*parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
 							Vec3 pos = value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v);
 							double delta = 0;
 							value<Vec3>(*selected_mesh_, p.vertex_forces_, v) += Vec3(0, -9.81 - delta, 0);
 							return true;
-						});
+						});*/
+						sph_solver_.set_particule_forces(
+							[](simulation::Particule_SPH&) -> Vec3 { return Vec3(0, -9.81, 0); });
 					}
-					simu_solver.compute_time_step(*selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(),
-												  TIME_STEP);
+					/*simu_solver.compute_time_step(*selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(),
+												  TIME_STEP);*/
+					sph_solver_.solve_constraint(*selected_mesh_, p.vertex_position_.get(), nullptr, TIME_STEP);
 				}
 				need_update_ = true;
 			}
@@ -410,14 +416,16 @@ protected:
 		}
 		for (int i = 0; i < 1; i++)
 		{
-			if (apply_gravity)
+			/*if (apply_gravity)
 			{
 				parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
 					value<Vec3>(*selected_mesh_, p.vertex_forces_, v) += Vec3(0, -9.81, 0);
 					return true;
 				});
-			}
-			simu_solver.compute_time_step(*selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(), TIME_STEP);
+			}*/
+			// simu_solver.compute_time_step(*selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(),
+			// TIME_STEP);
+			sph_solver_.solve_constraint(*selected_mesh_, p.vertex_position_.get(), nullptr, TIME_STEP);
 		}
 		need_update_ = true;
 	}
@@ -631,7 +639,7 @@ public:
 	std::vector<std::shared_ptr<boost::synapse::connection>> connections_;
 	std::unordered_map<const MESH*, std::vector<std::shared_ptr<boost::synapse::connection>>> mesh_connections_;
 	MeshProvider<MESH>* mesh_provider_;
-	simulation::SPH_constraint_solver<MESH> sph_solver_;
+	simulation::SPH_Particule_constraint_solver<MESH> sph_solver_;
 	simulation::Simulation_solver<MESH> simu_solver;
 	bool running_;
 	bool need_update_;
