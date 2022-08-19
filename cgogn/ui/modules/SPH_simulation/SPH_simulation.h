@@ -135,9 +135,13 @@ class SPH_simulation : public ViewModule
 public:
 	SPH_simulation(const App& app)
 		: ViewModule(app, "SPH (" + std::string{mesh_traits<MESH>::name} + ")"), selected_mesh_(nullptr),
-		  selected_view_(app.current_view()), running_(false), apply_gravity(false)
+		  selected_view_(app.current_view()), running_(false), apply_gravity(false), show_particles_(false)
 	{
 		f_keypress = [](View*, MESH*, int32, CellsSet<MESH, Vertex>*, CellsSet<MESH, Edge>*) {};
+
+		param_particle_ = rendering::ShaderPointSprite::generate_param();
+		param_particle_->color_ = rendering::GLColor(1, 1, 0, 0.65);
+		param_particle_->set_vbos({&particle_vbo_});
 	}
 
 	~SPH_simulation()
@@ -268,6 +272,10 @@ protected:
 					p.manipulating_frame_ = true;
 			}
 		}
+		if (key_code == GLFW_KEY_L)
+		{
+			show_particles_ = !show_particles_;
+		}
 		if (key_code == GLFW_KEY_G)
 		{
 			apply_gravity = !apply_gravity;
@@ -385,7 +393,7 @@ protected:
 							return true;
 						});*/
 						sph_solver_.set_particule_forces(
-							[](simulation::Particule_SPH&) -> Vec3 { return Vec3(0, -9.81, 0); });
+							[](simulation::Particule_SPH& p) -> Vec3 { return p.masse_ * Vec3(0, -9.81, 0); });
 					}
 					/*simu_solver.compute_time_step(*selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(),
 												  TIME_STEP);*/
@@ -448,6 +456,14 @@ protected:
 				p.param_move_vertex_->bind(proj_matrix, view_matrix);
 				glDrawArrays(GL_POINTS, 0, 2);
 				p.param_move_vertex_->release();
+			}
+
+			if (show_particles_)
+			{
+				param_particle_->point_size_ = 0.1;
+				param_particle_->bind(proj_matrix, view_matrix);
+				glDrawArrays(GL_POINTS, 0, sph_solver_.particules_.size());
+				param_particle_->release();
 			}
 
 			if (p.have_selected_vertex_ && p.param_edge_->attributes_initialized())
@@ -596,6 +612,13 @@ protected:
 				if (ImGui::Button("init solver"))
 				{
 					sph_solver_.init_solver(*selected_mesh_, p.vertex_position_.get());
+					std::vector<Vec3> vertices_position;
+
+					for (auto& p : sph_solver_.particules_)
+					{
+						vertices_position.push_back(p.current_position_);
+					}
+					rendering::update_vbo(vertices_position, &particle_vbo_);
 				}
 			}
 			if (p.vertex_position_ && p.vertex_forces_ && p.vertex_masse_)
@@ -646,6 +669,9 @@ public:
 	bool can_move_vertex_;
 	bool apply_gravity;
 	View* selected_view_;
+	bool show_particles_;
+	rendering::VBO particle_vbo_;
+	std::unique_ptr<rendering::ShaderPointSprite::Param> param_particle_;
 };
 
 } // namespace ui

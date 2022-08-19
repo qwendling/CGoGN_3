@@ -420,8 +420,149 @@ public:
 		});
 	}
 
-	void compute_neighborhood_Volume_Face(const MAP& m, Attribute<Vec3>* pos)
+	void compute_neighborhood_Volume_Face(MAP& m, Attribute<Vec3>* pos)
 	{
+		particule_volume_ =
+			add_attribute<Particule_SPH*, Volume>(m, "SPH_particule_constraint_solver_particule_volume_" + id);
+		particule_face_ =
+			add_attribute<Particule_SPH*, Face>(m, "SPH_particule_constraint_solver_particule_face_" + id);
+		
+		initial_volume_ = add_attribute<double, Volume>(m, "SPH_particule_constraint_solver_initial_volume_" + id);
+		initial_centroid_volume_ =
+			add_attribute<Vec3, Volume>(m, "SPH_particule_constraint_solver_initial_centroid_volume_" + id);
+		
+		geometry::compute_centroid<Vec3, Volume>(m, pos, initial_centroid_volume_.get());
+		geometry::compute_volume(m, pos, initial_volume_.get());
+		
+		particules_.reserve(nb_cells<Volume>(m)+nb_cells<Face>(m));
+		
+		foreach_cell(m, [&](Volume v) -> bool {
+			double masse_volume = DENSITY_SPH*value<double>(m, initial_volume_.get(), v);
+			foreach_incident_face(m,v,[&](Face f)->bool{
+				if(is_boundary(m,phi3(m,f.dart))){
+					particules_.emplace_back(geometry::centroid<Vec3>(m,f,pos), 0.25*masse_volume);
+					Particule_SPH* tmp = &(particules_.back());
+					value<Particule_SPH*>(m, particule_face_.get(), f) = tmp;
+					masse_volume *= 0.75;
+					//ajout dans son propre voisinage
+					tmp->neighborhood_.push_back(tmp);
+					return true;
+				}
+				return true;
+			});
+			particules_.emplace_back(value<Vec3>(m, initial_centroid_volume_.get(), v), masse_volume);
+			value<Particule_SPH*>(m, particule_volume_.get(), v) = &(particules_.back());
+			return true;
+		});
+		parallel_foreach_cell(m, [&](Volume v) -> bool {
+			Particule_SPH& p = *value<Particule_SPH*>(m, particule_volume_.get(), v);
+			p.initial_volume_ = value<double>(m, initial_volume_.get(),v);
+			CellMarker<MAP, Volume> marker(m);
+			std::vector<Particule_SPH*>& n = p.neighborhood_;
+			n.clear();
+			double& h = p.h_;
+			h = 0;
+			Vec3 pos_v1 = p.initial_position_;
+			marker.mark(v);
+			n.push_back(&p);
+			foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
+				foreach_incident_volume(m, w, [&](Volume v2) -> bool {
+					foreach_incident_vertex(m, v2, [&](Vertex w2) -> bool {
+						foreach_incident_volume(m, w2, [&](Volume v3) -> bool {
+							
+							
+							
+							if (!marker.is_marked(v3))
+							{
+								foreach_incident_face(m,v3,[&](Face f)->bool{
+									if(is_boundary(m,phi3(m,f.dart))){
+										Particule_SPH* pf = value<Particule_SPH*>(m, particule_face_.get(),f);
+										Vec3 pos_pf = pf->initial_position_;
+										if (h < 1e-9)
+											h = (pos_v1 - pos_pf).norm();
+										h = std::min(h, (pos_v1 - pos_pf).norm());
+										n.push_back(pf);
+										pf->neighborhood_.push_back(&p);
+										return true;
+									}
+									return true;
+								});
+								Particule_SPH* p3 = value<Particule_SPH*>(m, particule_volume_.get(), v3);
+								Vec3 pos_v3 = p3->initial_position_;
+								if (h < 1e-9)
+									h = (pos_v1 - pos_v3).norm();
+								h = std::min(h, (pos_v1 - pos_v3).norm());
+								n.push_back(p3);
+								marker.mark(v3);
+							}
+							return true;
+						});
+						return true;
+					});
+					return true;
+				});
+				return true;
+			});
+			h *= 4;
+			return true;
+		});
+		particule_vertex_ =
+			add_attribute<Particule_SPH*, Vertex>(m, "SPH_particule_constraint_solver_particule_vertex_" + id);
+		foreach_cell(m, [&](Vertex v) -> bool {
+			value<Particule_SPH*>(m, particule_vertex_.get(), v) = new Particule_SPH(value<Vec3>(m, pos, v),1);
+			return true;
+		});
+		parallel_foreach_cell(m, [&](Vertex v) -> bool {
+			Particule_SPH& p = *value<Particule_SPH*>(m, particule_vertex_.get(), v);
+			CellMarker<MAP, Volume> marker(m);
+			std::vector<Particule_SPH*>& n = p.neighborhood_;
+			n.clear();
+			double& h = p.h_;
+			h = 0;
+			Vec3 pos_v1 = p.initial_position_;
+			foreach_incident_volume(m, v, [&](Volume w) -> bool {
+				foreach_incident_vertex(m, w, [&](Vertex v2) -> bool {
+					foreach_incident_volume(m, v2, [&](Volume w2) -> bool {
+							if (!marker.is_marked(w2))
+							{
+								foreach_incident_face(m,w2,[&](Face f)->bool{
+									if(is_boundary(m,phi3(m,f.dart))){
+										Particule_SPH* pf = value<Particule_SPH*>(m, particule_face_.get(),f);
+										Vec3 pos_pf = pf->initial_position_;
+										if (h < 1e-9)
+											h = (pos_v1 - pos_pf).norm();
+										h = std::min(h, (pos_v1 - pos_pf).norm());
+										n.push_back(pf);
+										return true;
+									}
+									return true;
+								});
+								Particule_SPH* p3 = value<Particule_SPH*>(m, particule_volume_.get(), w2);
+								Vec3 pos_v3 = p3->initial_position_;
+								if (h < 1e-9)
+									h = (pos_v1 - pos_v3).norm();
+								h = std::min(h, (pos_v1 - pos_v3).norm());
+								n.push_back(p3);
+								marker.mark(w2);
+							}
+
+						return true;
+					});
+					return true;
+				});
+				return true;
+			});
+			h *= 4;
+
+			double sk = 0;
+			for (Particule_SPH* w : n)
+			{
+				Vec3 pos_v2 = w->initial_position_;
+				sk += w->initial_volume_* Kernel_W((pos_v1 - pos_v2).norm(), h);
+			}
+			p.shepard_filter_ = 1.0f / sk;
+			return true;
+		});
 	}
 
 	void init_solver(MAP& m, Attribute<Vec3>* pos)
