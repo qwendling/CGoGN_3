@@ -36,7 +36,9 @@ target_sources(${PROJECT_NAME}
 	"${CMAKE_CURRENT_LIST_DIR}/algos/SPH_Peer2018/SPH_Peer2018.cpp"
 	"${CMAKE_CURRENT_LIST_DIR}/algos/SPH_Peer2018/SPH_Peer2018.h"
 	"${CMAKE_CURRENT_LIST_DIR}/algos/SPH_Particule/SPH_Particule.cpp"			                      
-	"${CMAKE_CURRENT_LIST_DIR}/algos/SPH_Particule/SPH_Particule.h"			                      
+	"${CMAKE_CURRENT_LIST_DIR}/algos/SPH_Particule/SPH_Particule.h"
+	"${CMAKE_CURRENT_LIST_DIR}/algos/SPH_multiresolution/SPH_multiresolution.cpp"			                      
+	"${CMAKE_CURRENT_LIST_DIR}/algos/SPH_multiresolution/SPH_multiresolution.h"	
 )											                      
 											                      
 set_target_properties(${PROJECT_NAME} PROPERTIES					                      

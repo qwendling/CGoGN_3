@@ -364,7 +364,7 @@ protected:
 		}
 	}
 
-#define TIME_STEP 0.001f
+#define TIME_STEP 0.0001f
 	void start()
 	{
 		running_ = true;
@@ -424,13 +424,15 @@ protected:
 		}
 		for (int i = 0; i < 1; i++)
 		{
-			/*if (apply_gravity)
+			if (apply_gravity)
 			{
-				parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
+				/*parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
 					value<Vec3>(*selected_mesh_, p.vertex_forces_, v) += Vec3(0, -9.81, 0);
 					return true;
-				});
-			}*/
+				});*/
+				sph_solver_.set_particule_forces(
+					[](simulation::Particule_SPH& p) -> Vec3 { return p.masse_ * Vec3(0, -9.81, 0); });
+			}
 			// simu_solver.compute_time_step(*selected_mesh_, p.vertex_position_.get(), p.vertex_masse_.get(),
 			// TIME_STEP);
 			sph_solver_.solve_constraint(*selected_mesh_, p.vertex_position_.get(), nullptr, TIME_STEP);
