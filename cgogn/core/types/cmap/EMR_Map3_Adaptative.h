@@ -30,6 +30,7 @@ struct EMR_Map3_Adaptative : EMR_Map3
 	mutable std::shared_ptr<Attribute<std::tuple<uint32, uint32, uint32, Dart>>> phi1_buffer_;
 	mutable std::shared_ptr<Attribute<std::tuple<uint32, uint32, uint32, Dart>>> volume_dart_buffer_;
 	mutable std::shared_ptr<Attribute<std::tuple<uint32, uint32, uint32, uint32>>> dart_visibility_buffer_;
+	
 	static uint32 nb_views;
 	EMR_Map3_Adaptative* parent;
 

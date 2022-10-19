@@ -26,7 +26,7 @@ namespace simulation
 
 struct Particule_SPH_MR
 {
-	using Vec3 = geometry::Vec3;
+	using Vec3 = geometry::Vec3; 
 	using Mat3d = geometry::Mat3d;
 
 	Vec3 initial_position_;
@@ -50,6 +50,7 @@ struct Particule_SPH_MR
 		: initial_position_(pos), current_position_(pos),force_(0,0,0), speed_(0, 0, 0), masse_(masse),is_fixed(false)
 	{
 		rotation_ = std::move(Mat3d::Identity());
+		deformation_gradient_ = std::move(Mat3d::Identity());
 	}
 };
 
@@ -83,7 +84,7 @@ class SPH_Multiresolution_constraint_solver : public Simulation_constraint<MRMAP
 public:
 	static inline int nb_solver = 0;
 	int id;
-	std::forward_list<Particule_SPH_MR> particules_;
+	std::vector<Particule_SPH_MR*> particules_;
 
 	SPH_Multiresolution_constraint_solver() : id(nb_solver++), particule_type(VOLUME_PARTICULE)
 	{
@@ -147,9 +148,9 @@ public:
 
 	void compute_corrected_matrix()
 	{
-		for (Particule_SPH_MR& p : particules_)
+		for (Particule_SPH_MR* p : particules_)
 		{
-			p.corrected_matrix_ = Corrected_matrix(p, p.h_);
+			p->corrected_matrix_ = Corrected_matrix(*p, p->h_);
 		}
 	}
 
@@ -188,9 +189,9 @@ public:
 
 	void compute_rotated_kernel()
 	{
-		for (Particule_SPH_MR& p : particules_)
+		for (Particule_SPH_MR* p : particules_)
 		{
-			p.rotation_ = Rotation_extraction(p, p.h_);
+			p->rotation_ = Rotation_extraction(*p, p->h_);
 		}
 	}
 
@@ -203,14 +204,14 @@ public:
 	{
 		compute_rotated_kernel();
 
-		for (Particule_SPH_MR& p : particules_)
+		for (Particule_SPH_MR* p : particules_)
 		{
-			double h = p.h_;
+			double h = p->h_;
 			Mat3d Ftemp = Mat3d::Identity();
-			std::forward_list<Particule_SPH_MR*>& n = p.neighborhood_;
-			Vec3 xi = p.current_position_;
-			Vec3 xi0 = p.initial_position_;
-			Mat3d& Ri = p.rotation_;
+			std::forward_list<Particule_SPH_MR*>& n = p->neighborhood_;
+			Vec3 xi = p->current_position_;
+			Vec3 xi0 = p->initial_position_;
+			Mat3d& Ri = p->rotation_;
 			for (Particule_SPH_MR* w : n)
 			{
 				double Vj0 = w->initial_volume_;
@@ -218,10 +219,10 @@ public:
 				Vec3 xji = xj - xi;
 				Vec3 xj0 = w->initial_position_;
 				Vec3 xji0 = xj0 - xi0;
-				Vec3 W = Rotated_gradient(p, *w, h);
+				Vec3 W = Rotated_gradient(*p, *w, h);
 				Ftemp += Vj0 * (xji - Ri * xji0) * W.transpose();
 			}
-			p.deformation_gradient_ = Ftemp;
+			p->deformation_gradient_ = Ftemp;
 			Mat3d Etemp = 0.5 * (Ftemp + Ftemp.transpose()) - Mat3d::Identity();
 			for (int i = 0; i < 3; ++i)
 			{
@@ -236,25 +237,25 @@ public:
 			Mat3d Pi = 2 * SHEAR_MODULUS * Etemp +
 					   (BULK_MODULUS - (2.0 / 3.0) * SHEAR_MODULUS) * Etemp.trace() * Mat3d::Identity();
 
-			p.stress_tensor_ = Pi;
+			p->stress_tensor_ = Pi;
 		};
-		for (Particule_SPH_MR& p : particules_)
+		for (Particule_SPH_MR* p : particules_)
 		{
-			double hi = p.h_;
+			double hi = p->h_;
 			Vec3 F = Vec3::Zero();
-			std::forward_list<Particule_SPH_MR*>& n = p.neighborhood_;
-			Mat3d Pi = p.stress_tensor_;
-			double Vi0 = p.initial_volume_;
+			std::forward_list<Particule_SPH_MR*>& n = p->neighborhood_;
+			Mat3d Pi = p->stress_tensor_;
+			double Vi0 = p->initial_volume_;
 			for (Particule_SPH_MR* w : n)
 			{
 				double Vj0 = w->initial_volume_;
 				double hj = w->h_;
 				Mat3d Pj = w->stress_tensor_;
-				Vec3 Wi = Rotated_gradient(p, *w, hi);
-				Vec3 Wj = Rotated_gradient(*w, p, hj);
+				Vec3 Wi = Rotated_gradient(*p, *w, hi);
+				Vec3 Wj = Rotated_gradient(*w, *p, hj);
 				F += Vj0 * Vi0 * (Pi * Wi - Pj * Wj);
 			}
-			p.force_ += F;
+			p->force_ += F;
 		};
 	}
 
@@ -265,22 +266,16 @@ public:
 
 	void compute_neighborhood_Volume(MRMAP& m, Attribute<Vec3>* pos)
 	{
-		particule_volume_ =
-			add_attribute<Particule_SPH_MR*, Volume>(m, "SPH_particule_constraint_solver_particule_volume_" + id);
-		
-		initial_volume_ = add_attribute<double, Volume>(m, "SPH_particule_constraint_solver_initial_volume_" + id);
-		initial_centroid_volume_ =
-			add_attribute<Vec3, Volume>(m, "SPH_particule_constraint_solver_initial_centroid_volume_" + id);
-		
-		geometry::compute_centroid<Vec3, Volume>(m, pos, initial_centroid_volume_.get());
-		geometry::compute_volume(m, pos, initial_volume_.get());
-		
-		
-		foreach_cell(m, [&](Volume v) -> bool {
-			particules_.emplace_front(value<Vec3>(m, initial_centroid_volume_.get(), v), DENSITY_SPH*value<double>(m, initial_volume_.get(), v));
-			value<Particule_SPH_MR*>(m, particule_volume_.get(), v) = &(particules_.front());
-			return true;
-		});
+		init_particule_MR(m,pos);
+		std::function<void(Particule_SPH_MR*)> fn;
+		fn = [&](Particule_SPH_MR* p){
+			if(p->child_.empty())
+				return;
+			for(auto c:p->child_){
+				c->h_ = 0.85*p->h_;
+				fn(c);
+			}
+		};
 		parallel_foreach_cell(m, [&](Volume v) -> bool {
 			Particule_SPH_MR& p = *value<Particule_SPH_MR*>(m, particule_volume_.get(), v);
 			p.initial_volume_ = value<double>(m, initial_volume_.get(),v);
@@ -315,6 +310,7 @@ public:
 				return true;
 			});
 			h *= 4;
+			fn(&p);
 			return true;
 		});
 		particule_vertex_ =
@@ -383,8 +379,8 @@ public:
 			double masse_volume = DENSITY_SPH*value<double>(m, initial_volume_.get(), v);
 			foreach_incident_face(m,v,[&](Face f)->bool{
 				if(is_boundary(m,phi3(m,f.dart))){
-					particules_.emplace_front(geometry::centroid<Vec3>(m,f,pos), 0.25*masse_volume);
-					Particule_SPH_MR* tmp = &(particules_.front());
+					particules_.push_back(new Particule_SPH_MR(geometry::centroid<Vec3>(m,f,pos), 0.25*masse_volume));
+					Particule_SPH_MR* tmp = particules_.back();
 					value<Particule_SPH_MR*>(m, particule_face_.get(), f) = tmp;
 					masse_volume *= 0.75;
 					//ajout dans son propre voisinage
@@ -393,8 +389,8 @@ public:
 				}
 				return true;
 			});
-			particules_.emplace_front(value<Vec3>(m, initial_centroid_volume_.get(), v), masse_volume);
-			value<Particule_SPH_MR*>(m, particule_volume_.get(), v) = &(particules_.front());
+			particules_.push_back(new Particule_SPH_MR(value<Vec3>(m, initial_centroid_volume_.get(), v), masse_volume));
+			value<Particule_SPH_MR*>(m, particule_volume_.get(), v) = particules_.back();
 			return true;
 		});
 		parallel_foreach_cell(m, [&](Volume v) -> bool {
@@ -540,6 +536,9 @@ public:
 				p2->neighborhood_.remove_if([&p](Particule_SPH_MR* n)->bool{
 					return std::count(p->child_.begin(),p->child_.end(),n) > 0;
 				});
+				std::remove_if(particules_.begin(),particules_.end(),[&p](Particule_SPH_MR* n)->bool{
+					return std::count(p->child_.begin(),p->child_.end(),n) > 0;
+				});
 				need_upate_particules.insert(p2);
 			}
 			need_upate_particules.insert(p);
@@ -552,12 +551,14 @@ public:
 			}
 			p->current_position_ = pos/p->masse_;
 			p->speed_ = speed/p->masse_;
+						particules_.push_back(p);
 		}
 		for(Volume v : new_fine){
 			Particule_SPH_MR* p = value<Particule_SPH_MR*>(new_view, particule_volume_.get(), v);
 			Particule_SPH_MR* p_old = value<Particule_SPH_MR*>(old_view, particule_volume_.get(), v);
 			p->neighborhood_.assign(p_old->neighborhood_.begin(),p_old->neighborhood_.end());
 			p->neighborhood_.remove(p_old);
+			std::remove(particules_.begin(),particules_.end(),p_old);
 			for(Particule_SPH_MR* p2 : p_old->neighborhood_){
 				p2->neighborhood_.push_front(p);
 				p2->neighborhood_.remove(p_old);
@@ -572,6 +573,7 @@ public:
 			Vec3 dir_initial_pos = p->initial_position_-p_old->initial_position_;
 			Vec3 dir_current_pos = p_old->deformation_gradient_*dir_initial_pos;
 			p->current_position_ = p_old->current_position_+dir_current_pos;
+						particules_.push_back(p);
 		}
 		for (Particule_SPH_MR* p : need_upate_particules)
 		{
@@ -580,10 +582,24 @@ public:
 	}
 	
 	void propagate_particule(){
-		for (Particule_SPH_MR& p : particules_)
+		std::vector<Particule_SPH_MR*> fifo_particule;
+		for (Particule_SPH_MR* p : particules_)
 		{
-			
+			fifo_particule.push_back(p);
 		};
+		for(Particule_SPH_MR* p:fifo_particule){
+			if(p->child_.empty())
+				continue;
+			for(Particule_SPH_MR* c:p->child_){
+				Vec3 dir_initial_pos = c->initial_position_-p->initial_position_;
+				Vec3 dir_current_pos = p->deformation_gradient_*dir_initial_pos;
+				c->current_position_ = p->current_position_+dir_current_pos;
+				c->deformation_gradient_ = p->deformation_gradient_;
+				if(!c->child_.empty()){
+					fifo_particule.push_back(c);
+				}
+			}
+		}
 	}
 
 	double oneNorm(const Mat3d& A) const
@@ -703,6 +719,68 @@ public:
 		}
 	}
 	
+	
+	void init_particule_MR(MRMAP& m, Attribute<Vec3>* pos){
+		
+		MRMAP m2(m.m_);
+		m2.current_level_ = m2.maximum_level_;
+		MRMAP m3(m.m_);
+		m3.current_level_ = std::max(0u,m3.maximum_level_-1);
+		
+		particule_volume_ =
+			add_attribute<Particule_SPH_MR*, Volume>(m2, "SPH_particule_constraint_solver_particule_volume_" + id);
+		
+		initial_volume_ = add_attribute<double, Volume>(m2, "SPH_particule_constraint_solver_initial_volume_" + id);
+		initial_centroid_volume_ =
+			add_attribute<Vec3, Volume>(m2, "SPH_particule_constraint_solver_initial_centroid_volume_" + id);
+		
+		geometry::compute_centroid<Vec3, Volume>(m2, pos, initial_centroid_volume_.get());
+		geometry::compute_volume(m2, pos, initial_volume_.get());
+		
+		foreach_cell(m2, [&](Volume v) -> bool {
+			Particule_SPH_MR* p = new Particule_SPH_MR(value<Vec3>(m2, initial_centroid_volume_.get(), v), DENSITY_SPH*value<double>(m2, initial_volume_.get(), v));
+			p->initial_volume_ = value<double>(m2, initial_volume_.get(), v);
+			value<Particule_SPH_MR*>(m2, particule_volume_.get(), v) = p;
+			return true;
+		});
+		CellMarker<MRMAP, Volume> marker(m2);
+		while(m2.current_level_> 0){
+			foreach_cell(m3, [&](Volume v) -> bool {
+				if(m3.volume_level(v.dart) == m2.volume_level(v.dart))
+					return true;
+				Particule_SPH_MR* p = new Particule_SPH_MR(Vec3(0,0,0),0);
+				value<Particule_SPH_MR*>(m3, particule_volume_.get(), v) = p;
+				foreach_dart_of_orbit(m3,v,[&](Dart d)->bool{
+					if(marker.is_marked(Volume(d)))
+						return true;
+					marker.mark(Volume(d));
+					p->child_.push_front(value<Particule_SPH_MR*>(m2, particule_volume_.get(), Volume(d)));
+					return true;
+				});
+				double masse =0;
+				double volume = 0;
+				Vec3 pos = Vec3::Zero();
+				for(auto c : p->child_){
+					masse+=c->masse_;
+					volume+=c->initial_volume_;
+					pos +=c->masse_ * c->initial_position_;
+				}
+				p->initial_position_ = pos/masse;
+				p->current_position_ = pos/masse;
+				p->masse_ = masse;
+				p->initial_volume_ = volume;
+				return true;
+			});
+			m2.current_level_--;
+			m3.current_level_--;
+		}
+		foreach_cell(m, [&](Volume v) -> bool {
+			Particule_SPH_MR* p = value<Particule_SPH_MR*>(m, particule_volume_.get(), v);
+			particules_.push_back(p);
+			return true;
+		});
+	}
+	
 	void SPH_skinning(const MRMAP& m, Attribute<Vec3>* pos){
 			parallel_foreach_cell(m,[&](Vertex v){
 				Particule_SPH_MR* p = value<Particule_SPH_MR*>(m, particule_vertex_.get(), v);
@@ -718,95 +796,95 @@ public:
 	}
 	
 	void particule_integration(double time_step){
-		for (auto& p : particules_)
+		for (auto p : particules_)
 		{
-			p.RK_coeff[8] = p.force_;
+			p->RK_coeff[8] = p->force_;
 		}
 		compute_force_particules();
-		for (auto& p : particules_)
+		for (auto p : particules_)
 		{
-			if(p.is_fixed){
+			if(p->is_fixed){
 				continue;
 			}
-			p.force_ -= 0.005*p.speed_;
+			p->force_ -= 0.005*p->speed_;
 			// k1
-			p.RK_coeff[0] =
-				(time_step * p.force_ / p.masse_);
+			p->RK_coeff[0] =
+				(time_step * p->force_ / p->masse_);
 			// j1
-			p.RK_coeff[1] =
-				time_step * (p.speed_ + p.RK_coeff[0]);
+			p->RK_coeff[1] =
+				time_step * (p->speed_ + p->RK_coeff[0]);
 	
-			p.current_position_ += p.RK_coeff[1] / 2.0f;
+			p->current_position_ += p->RK_coeff[1] / 2.0f;
 	
-			p.force_ = p.RK_coeff[8];
+			p->force_ = p->RK_coeff[8];
 		}
 		compute_force_particules();
-		for (auto& p : particules_)
+		for (auto p : particules_)
 		{
-			if(p.is_fixed){
+			if(p->is_fixed){
 				continue;
 			}
-			p.force_ -= 0.005*p.speed_;
+			p->force_ -= 0.005*p->speed_;
 			// k2
-			p.RK_coeff[2] =
-				(time_step * p.force_ / p.masse_);
+			p->RK_coeff[2] =
+				(time_step * p->force_ / p->masse_);
 			// j2
-			p.RK_coeff[3] =
+			p->RK_coeff[3] =
 				time_step *
-				(p.speed_ + p.RK_coeff[2] / 2.0f);
+				(p->speed_ + p->RK_coeff[2] / 2.0f);
 	
-			p.current_position_ -= p.RK_coeff[1] / 2.0f;
+			p->current_position_ -= p->RK_coeff[1] / 2.0f;
 	
-			p.current_position_ += p.RK_coeff[3] / 2.0f;
+			p->current_position_ += p->RK_coeff[3] / 2.0f;
 	
-			p.force_ = p.RK_coeff[8];
+			p->force_ = p->RK_coeff[8];
 		}
 		compute_force_particules();
-		for (auto& p : particules_)
+		for (auto p : particules_)
 		{
-			if(p.is_fixed){
+			if(p->is_fixed){
 				continue;
 			}
-			p.force_ -= 0.005*p.speed_;
+			p->force_ -= 0.005*p->speed_;
 			// k3
-			p.RK_coeff[4] =
-				(time_step * p.force_ / p.masse_);
+			p->RK_coeff[4] =
+				(time_step * p->force_ / p->masse_);
 			// j3
-			p.RK_coeff[5] =
+			p->RK_coeff[5] =
 				time_step *
-				( p.speed_ + p.RK_coeff[4] / 2.0f);
+				( p->speed_ + p->RK_coeff[4] / 2.0f);
 	
-			p.current_position_ -= p.RK_coeff[3] / 2.0f;
+			p->current_position_ -= p->RK_coeff[3] / 2.0f;
 	
-			p.current_position_ += p.RK_coeff[5];
+			p->current_position_ += p->RK_coeff[5];
 	
-			p.force_ = p.RK_coeff[8];
+			p->force_ = p->RK_coeff[8];
 		}
 		compute_force_particules();
-		for (auto& p : particules_)
+		for (auto p : particules_)
 		{
-			if(p.is_fixed){
+			if(p->is_fixed){
 				continue;
 			}
-			p.force_ -= 0.005*p.speed_;
+			p->force_ -= 0.005*p->speed_;
 			// k4
-			p.RK_coeff[6] =
-				(time_step * p.force_ / p.masse_);
+			p->RK_coeff[6] =
+				(time_step * p->force_ / p->masse_);
 			// j4
-			p.RK_coeff[7] =
-				time_step * (p.speed_ + p.RK_coeff[6]);
+			p->RK_coeff[7] =
+				time_step * (p->speed_ + p->RK_coeff[6]);
 	
-			p.current_position_ -= p.RK_coeff[5];
+			p->current_position_ -= p->RK_coeff[5];
 	
-			Vec3 k1 = p.RK_coeff[0];
-			Vec3 k2 = p.RK_coeff[2];
-			Vec3 k3 = p.RK_coeff[4];
-			Vec3 k4 = p.RK_coeff[6];
+			Vec3 k1 = p->RK_coeff[0];
+			Vec3 k2 = p->RK_coeff[2];
+			Vec3 k3 = p->RK_coeff[4];
+			Vec3 k4 = p->RK_coeff[6];
 	
-			Vec3 j1 = p.RK_coeff[1];
-			Vec3 j2 = p.RK_coeff[3];
-			Vec3 j3 = p.RK_coeff[5];
-			Vec3 j4 = p.RK_coeff[7];
+			Vec3 j1 = p->RK_coeff[1];
+			Vec3 j2 = p->RK_coeff[3];
+			Vec3 j3 = p->RK_coeff[5];
+			Vec3 j4 = p->RK_coeff[7];
 	
 			Vec3 diff_pos = 1. / 6. * (j1 + (2 * j2) + (2 * j3) + j4);
 	
@@ -818,43 +896,43 @@ public:
 			if (diff_speed.norm() < 1.0e-10)
 				diff_speed = Vec3(0, 0, 0);
 	
-			p.current_position_ += diff_pos;
+			p->current_position_ += diff_pos;
 	
-			p.speed_ = p.speed_ + diff_speed;
-			p.force_ = Vec3(0, 0, 0);
+			p->speed_ = p->speed_ + diff_speed;
+			p->force_ = Vec3(0, 0, 0);
 		}
 	}
 	
 	template <typename FUNC>
-	void set_particule_fixed(const FUNC& fn){
-		for(Particule_SPH_MR& p:particules_){
-			p.is_fixed = fn(p);
+	void set_particule_fixed(const FUNC& f){
+		for(Particule_SPH_MR* p:particules_){
+			p->is_fixed = f(*p);
 		}
 	}
 	
 	template <typename FUNC>
-	void set_particule_forces(const FUNC& fn){
-		for(Particule_SPH_MR& p:particules_){
-			p.force_ = fn(p);
+	void set_particule_forces(const FUNC& f){
+		for(Particule_SPH_MR* p:particules_){
+			p->force_ = f(*p);
 		}
 	}
 	
 	void test_particule_kernel(){
 		
-		for(Particule_SPH_MR& p:particules_){
+		for(Particule_SPH_MR* p:particules_){
 			using Real = double;
 			float eps = 1.0e-4f;
-			Vec3 xi = p.initial_position_;
+			Vec3 xi = p->initial_position_;
 			Real sum = 0.0;
 			Vec3 sumV = Vec3::Zero();
 			bool positive = true;
-			Real V =p.initial_volume_;
+			Real V =p->initial_volume_;
 			std::cout << V << std::endl;
-			for(Particule_SPH_MR* p2:p.neighborhood_){
+			for(Particule_SPH_MR* p2:p->neighborhood_){
 				const Vec3 xj = p2->initial_position_;
-				const Real W = Kernel_W((xi - xj).norm(), p.h_);
+				const Real W = Kernel_W((xi - xj).norm(), p->h_);
 				sum += W * V;
-				sumV += gradient(xi - xj, (xi - xj).norm(), p.h_) * V;
+				sumV += gradient(xi - xj, (xi - xj).norm(), p->h_) * V;
 				if (W < -eps)
 					positive = false;
 			}
@@ -878,7 +956,7 @@ public:
 	void solve_constraint(const MRMAP& m, Attribute<Vec3>* pos, Attribute<Vec3>* , double time_step) override
 	{
 		particule_integration(time_step);
-		SPH_skinning(m, pos);
+		//SPH_skinning(m, pos);
 	}
 };
 } // namespace simulation

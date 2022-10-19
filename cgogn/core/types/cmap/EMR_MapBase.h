@@ -58,7 +58,11 @@ struct CGOGN_CORE_EXPORT EMR_MapBase_T : public CMAP
 		{
 			auto new_rel = CMAP::add_relation((*r)[0]->name() + "_" + std::to_string(max));
 			r->push_back(new_rel);
-			new_rel->copy((*r)[max].get());
+			for (Dart d = this->begin(), end = this->end(); d != end; d = this->next(d))
+			{
+				(*new_rel)[d.index] = (*(*r)[max])[d.index];
+			}
+			// new_rel->copy((*r)[max].get());
 		}
 		maximum_level_++;
 	}

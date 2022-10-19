@@ -35,6 +35,7 @@
 #include <cgogn/core/functions/traversals/volume.h>
 #include <cgogn/core/types/cmap/phi.h>
 #include <cgogn/modeling/algos/subdivision.h>
+#include <cgogn/ui/modules/SPH_MR/SPH_MR.h>
 #include <cgogn/ui/modules/animation_multiresolution/animation_multiresolution.h>
 #include <cgogn/ui/modules/linked_volumes/linked_volumes.h>
 #include <cgogn/ui/modules/mesh_provider/mesh_provider.h>
@@ -754,6 +755,7 @@ int main(int argc, char** argv)
 	cgogn::ui::AnimationMultiresolution<MRMesh> am(app);
 	cgogn::ui::VolumeEMRModeling<MRMesh> vmrm(app);
 	cgogn::ui::MeshProvider<MRMesh> mrmp(app);
+	cgogn::ui::SPH_MR<MRMesh> sphMR(app);
 	cgogn::ui::LinkedVolumes<MRMesh> lv(app);
 
 	cgogn::ui::View* v1 = app.current_view();
@@ -762,6 +764,7 @@ int main(int argc, char** argv)
 	v1->link_module(&vs);
 	v1->link_module(&am);
 	v1->link_module(&lv);
+	v1->link_module(&sphMR);
 
 	/*cgogn::ui::View* v2 = app.add_view();
 	v2->link_module(&mrmp);
@@ -1224,19 +1227,6 @@ std::cos(8 * (2 * M_PI) * (dir.norm() / size_bb.y())); cgogn::value<Vec3>(*Visu_
 			}
 			toogle_vertices = !toogle_vertices;
 
-			break;
-		case GLFW_KEY_L:
-			if (selected_vertices != nullptr)
-			{
-				selected_vertices->foreach_cell([&](Vertex e) {
-					cgogn::foreach_incident_volume(*selected_mesh, e, [&](Volume v) -> bool {
-						std::cout << selected_mesh->volume_level(v.dart) << std::endl;
-						return true;
-					});
-				});
-
-				vmrm.changed_connectivity(*selected_mesh, position.get());
-			}
 			break;
 		}
 	};

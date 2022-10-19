@@ -34,6 +34,7 @@
 #include <cgogn/core/functions/traversals/edge.h>
 #include <cgogn/core/functions/traversals/volume.h>
 #include <cgogn/core/types/cmap/phi.h>
+#include <cgogn/geometry/algos/centroid.h>
 #include <cgogn/modeling/algos/subdivision.h>
 #include <cgogn/ui/modules/mesh_provider/mesh_provider.h>
 #include <cgogn/ui/modules/surface_render/surface_render.h>
@@ -66,10 +67,88 @@ void test_foreach_dart(MRMesh* mrm, Volume v)
 	foreach_dart_of_orbit(*mrm, v, [&](Dart) -> bool { return true; });
 };
 
-void test(MRMesh* mrm)
+void foreachcell_benchmark(MRMesh* mrm)
+{
+	std::clock_t start;
+	std::clock_t start2;
+	double duration;
+	double duration2;
+
+	start = std::clock();
+	duration2 = 0;
+	cgogn::CellMarker<MRMesh, Vertex> cm(*mrm);
+	for (Dart d = mrm->begin(), end = mrm->end(); d != end; d = mrm->next(d))
+	{
+		const Vertex c(d);
+		start2 = std::clock();
+		if (!is_boundary(*mrm, d) && !cm.is_marked(c))
+		{
+			cm.mark(c);
+		}
+		duration2 += (std::clock() - start2) / (double)CLOCKS_PER_SEC;
+	}
+	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+	std::cout << "temps parcours vertex : " << duration << std::endl;
+	std::cout << "temps it parcours vertex : " << duration2 << std::endl;
+
+	start = std::clock();
+	duration2 = 0;
+	cgogn::CellMarker<MRMesh, Edge> cm2(*mrm);
+	for (Dart d = mrm->begin(), end = mrm->end(); d != end; d = mrm->next(d))
+	{
+		const Edge c(d);
+		start2 = std::clock();
+		if (!is_boundary(*mrm, d) && !cm2.is_marked(c))
+		{
+			cm2.mark(c);
+		}
+		duration2 += (std::clock() - start2) / (double)CLOCKS_PER_SEC;
+	}
+	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+	std::cout << "temps parcours edge : " << duration << std::endl;
+	std::cout << "temps it parcours edge : " << duration2 << std::endl;
+
+	start = std::clock();
+	duration2 = 0;
+	cgogn::CellMarker<MRMesh, Face> cm3(*mrm);
+	for (Dart d = mrm->begin(), end = mrm->end(); d != end; d = mrm->next(d))
+	{
+		const Face c(d);
+		start2 = std::clock();
+		if (!is_boundary(*mrm, d) && !cm3.is_marked(c))
+		{
+			cm3.mark(c);
+		}
+		duration2 += (std::clock() - start2) / (double)CLOCKS_PER_SEC;
+	}
+	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+	std::cout << "temps parcours face : " << duration << std::endl;
+	std::cout << "temps it parcours face : " << duration2 << std::endl;
+
+	start = std::clock();
+	duration2 = 0;
+	cgogn::CellMarker<MRMesh, Volume> cm4(*mrm);
+	for (Dart d = mrm->begin(), end = mrm->end(); d != end; d = mrm->next(d))
+	{
+		const Volume c(d);
+		start2 = std::clock();
+		if (!is_boundary(*mrm, d) && !cm4.is_marked(c))
+		{
+			cm4.mark(c);
+		}
+		duration2 += (std::clock() - start2) / (double)CLOCKS_PER_SEC;
+	}
+	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+	std::cout << "temps parcours volume : " << duration << std::endl;
+	std::cout << "temps it parcours volume : " << duration2 << std::endl;
+}
+
+void test(MRMesh* mrm, Attribute<Vec3>* attr)
 {
 	std::clock_t start;
 	double duration;
+
+	// foreachcell_benchmark( mrm);
 
 	start = std::clock();
 
@@ -92,49 +171,13 @@ void test(MRMesh* mrm)
 	cgogn::foreach_cell(*mrm, [&](Volume) -> bool { return true; });
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 	std::cout << "temps parcours volume 2 : " << duration << std::endl;
-	start = std::clock();
-	duration = 0;
-	for (cgogn::Dart d = mrm->begin(), e = mrm->end(); d != e; d = mrm->next(d))
-	{
-		start = std::clock();
-		for (int i = 0; i < 100; i++)
-		{
-			cgogn::phi1(*mrm, d);
-		}
-		duration += (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	}
-
-	std::cout << "temps phi1 : " << duration / 100.0f << std::endl;
-
-	duration = 0;
-	for (cgogn::Dart d = mrm->begin(), e = mrm->end(); d != e; d = mrm->next(d))
-	{
-		start = std::clock();
-		for (int i = 0; i < 100; i++)
-		{
-			cgogn::phi2(*mrm, d);
-		}
-		duration += (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	}
-
-	std::cout << "temps phi2 : " << duration / 100.0f << std::endl;
-
-	duration = 0;
-	for (cgogn::Dart d = mrm->begin(), e = mrm->end(); d != e; d = mrm->next(d))
-	{
-		start = std::clock();
-		for (int i = 0; i < 100; i++)
-		{
-			cgogn::phi3(*mrm, d);
-		}
-		duration += (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	}
-
-	std::cout << "temps phi3 : " << duration / 100.0f << std::endl;
 
 	start = std::clock();
 	cgogn::foreach_cell(*mrm, [&](Vertex v) -> bool {
-		cgogn::foreach_incident_volume(*mrm, v, [&](Volume) -> bool { return true; });
+		cgogn::foreach_incident_volume(*mrm, v, [&](Volume w) -> bool {
+			cgogn::foreach_incident_vertex(*mrm, w, [&](Vertex) -> bool { return true; });
+			return true;
+		});
 		return true;
 	});
 
@@ -143,15 +186,27 @@ void test(MRMesh* mrm)
 
 	start = std::clock();
 	cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
-		cgogn::foreach_incident_vertex(*mrm, v, [&](Vertex) -> bool { return true; });
+		cgogn::foreach_incident_vertex(*mrm, v, [&](Vertex w) -> bool {
+			cgogn::foreach_incident_volume(*mrm, w, [&](Volume) -> bool { return true; });
+			return true;
+		});
 		return true;
 	});
 
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 	std::cout << "temps CirculatorB : " << duration << std::endl;
+
+	start = std::clock();
+	cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
+		cgogn::geometry::centroid<Vec3>(*mrm, v, attr);
+		return true;
+	});
+
+	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+	std::cout << "temps Centroid : " << duration << std::endl;
 };
 
-void test2(cgogn::CMap3* mrm)
+void test2(cgogn::CMap3* mrm, Attribute<Vec3>* attr)
 {
 	std::clock_t start;
 	double duration;
@@ -175,48 +230,11 @@ void test2(cgogn::CMap3* mrm)
 	std::cout << "temps parcours volume : " << duration << std::endl;
 
 	start = std::clock();
-	duration = 0;
-	for (cgogn::Dart d = mrm->begin(), e = mrm->end(); d != e; d = mrm->next(d))
-	{
-		start = std::clock();
-		for (int i = 0; i < 100; i++)
-		{
-			cgogn::phi1(*mrm, d);
-		}
-		duration += (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	}
-
-	std::cout << "temps phi1 : " << duration / 100.0f << std::endl;
-
-	duration = 0;
-	for (cgogn::Dart d = mrm->begin(), e = mrm->end(); d != e; d = mrm->next(d))
-	{
-		start = std::clock();
-		for (int i = 0; i < 100; i++)
-		{
-			cgogn::phi2(*mrm, d);
-		}
-		duration += (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	}
-
-	std::cout << "temps phi2 : " << duration / 100.0f << std::endl;
-
-	duration = 0;
-	for (cgogn::Dart d = mrm->begin(), e = mrm->end(); d != e; d = mrm->next(d))
-	{
-		start = std::clock();
-		for (int i = 0; i < 100; i++)
-		{
-			cgogn::phi3(*mrm, d);
-		}
-		duration += (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	}
-
-	std::cout << "temps phi3 : " << duration / 100.0f << std::endl;
-
-	start = std::clock();
 	cgogn::foreach_cell(*mrm, [&](Vertex v) -> bool {
-		cgogn::foreach_incident_volume(*mrm, v, [&](Volume) -> bool { return true; });
+		cgogn::foreach_incident_volume(*mrm, v, [&](Volume w) -> bool {
+			cgogn::foreach_incident_vertex(*mrm, w, [&](Vertex) -> bool { return true; });
+			return true;
+		});
 		return true;
 	});
 
@@ -225,13 +243,38 @@ void test2(cgogn::CMap3* mrm)
 
 	start = std::clock();
 	cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
-		cgogn::foreach_incident_vertex(*mrm, v, [&](Vertex) -> bool { return true; });
+		cgogn::foreach_incident_vertex(*mrm, v, [&](Vertex w) -> bool {
+			cgogn::foreach_incident_volume(*mrm, w, [&](Volume) -> bool { return true; });
+			return true;
+		});
 		return true;
 	});
 
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 	std::cout << "temps CirculatorB : " << duration << std::endl;
+
+	start = std::clock();
+	cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
+		Vec3 c = cgogn::geometry::centroid<Vec3>(*mrm, v, attr);
+		return true;
+	});
+
+	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+	std::cout << "temps Centroid : " << duration << std::endl;
 };
+
+void activate_all_volume(MRMesh* m)
+{
+	std::vector<Volume> vec_vol;
+	cgogn::foreach_cell(*m, [&](Volume v) -> bool {
+		vec_vol.push_back(v);
+		return true;
+	});
+	for (auto v : vec_vol)
+	{
+		m->activate_volume_subdivision(v);
+	}
+}
 
 int main(int argc, char** argv)
 {
@@ -248,12 +291,19 @@ int main(int argc, char** argv)
 
 	std::string ext = cgogn::extension(filename);
 	Mesh* m = new Mesh();
+	cgogn::CMap3* m2 = new cgogn::CMap3();
 	bool imported = false;
 
 	if (ext.compare("tet") == 0)
+	{
 		imported = cgogn::io::import_TET(*m, filename);
+		imported = cgogn::io::import_TET(*m2, filename);
+	}
 	else if (ext.compare("mesh") == 0 || ext.compare("meshb") == 0)
+	{
 		imported = cgogn::io::import_MESHB(*m, filename);
+		imported = cgogn::io::import_MESHB(*m2, filename);
+	}
 	else
 		imported = false;
 
@@ -269,6 +319,7 @@ int main(int argc, char** argv)
 	cgogn::index_cells<Mesh::Volume>(*mrm);
 	cgogn::index_cells<Mesh::Edge>(*mrm);
 
+	std::shared_ptr<Attribute<Vec3>> positionCmap = cgogn::get_attribute<Vec3, Vertex>(*m2, "position");
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*mrm, "position");
 	std::shared_ptr<Attribute<Vec3>> force = cgogn::add_attribute<Vec3, Vertex>(*mrm, "force");
 	std::shared_ptr<Attribute<double>> volume = cgogn::add_attribute<double, Volume>(*mrm, "volume");
@@ -276,12 +327,65 @@ int main(int argc, char** argv)
 		cgogn::add_attribute<std::array<Vertex, 4>, Vertex>(*m, "parents");
 	std::shared_ptr<Attribute<Vec3>> relative_pos = cgogn::add_attribute<Vec3, Vertex>(*m, "relative_position");
 
+	std::clock_t start;
+	double duration;
+
 	m->add_resolution();
 	mrm->change_resolution_level(1);
 	cgogn::modeling::butterflyMultiresolution(*mrm, 0.34f, {position.get()}, parent.get(), relative_pos.get());
+
 	m->add_resolution();
 	mrm->change_resolution_level(2);
 	cgogn::modeling::butterflyMultiresolution(*mrm, 0.34f, {position.get()}, parent.get(), relative_pos.get());
+
+	/*m->add_resolution();
+	mrm->change_resolution_level(3);
+	cgogn::modeling::butterflyMultiresolution(*mrm, 0.34f, {position.get()}, parent.get(), relative_pos.get());*/
+
+	mrm->change_resolution_level(0);
+
+	std::cout << "Resolution 0 : " << std::endl;
+	test(mrm, position.get());
+	test2(m2, position.get());
+
+	start = std::clock();
+	activate_all_volume(mrm);
+	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+	std::cout << "temps activate mrmap : " << duration << std::endl;
+	start = std::clock();
+	cgogn::modeling::butterflySubdivisionVolumeRegular(*m2, 0.0f, {position.get()});
+	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+	std::cout << "temps subdivise cmap : " << duration << std::endl;
+
+	std::cout << "Resolution 1 : " << std::endl;
+	test(mrm, position.get());
+	test2(m2, position.get());
+
+	start = std::clock();
+	activate_all_volume(mrm);
+	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+	std::cout << "temps activate mrmap : " << duration << std::endl;
+	start = std::clock();
+	cgogn::modeling::butterflySubdivisionVolumeRegular(*m2, 0.0f, {position.get()});
+	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+	std::cout << "temps subdivise cmap : " << duration << std::endl;
+
+	std::cout << "Resolution 2 : " << std::endl;
+	test(mrm, position.get());
+	test2(m2, position.get());
+
+	/*start = std::clock();
+	activate_all_volume(mrm);
+	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+	std::cout << "temps activate mrmap : " << duration << std::endl;
+	start = std::clock();
+	cgogn::modeling::butterflySubdivisionVolumeRegular(*m2,0.0f, {position.get()});
+	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+	std::cout << "temps subdivise cmap : " << duration << std::endl;
+
+	std::cout << "Resolution 3 : " << std::endl;
+	test(mrm, position.get());
+	test2(m2, position.get());*/
 
 	mrm->change_resolution_level(1);
 	// std::srand(std::time(nullptr));
@@ -329,12 +433,7 @@ int main(int argc, char** argv)
 	}
 #endif
 
-	mrm->change_resolution_level(0);
-	test(mrm);
-	auto map = mrm->get_map();
-	test2(map);
-
-	cgogn::simulation::Simulation_solver_multiresolution<MRMesh> simu_solver;
+	/*cgogn::simulation::Simulation_solver_multiresolution<MRMesh> simu_solver;
 	cgogn::simulation::Propagation_Plastique<MRMesh> ps_;
 
 	cgogn::simulation::lattice_shape_matching_constraint_solver<MRMesh> sm_solver_(0.9);
@@ -353,7 +452,7 @@ int main(int argc, char** argv)
 	for (int i = 0; i < 100; i++)
 	{
 		simu_solver.compute_time_step(*mrm, position.get(), sm_solver_.masse_.get(), 0.005f, tmp);
-	}
+	}*/
 
 	/*cgogn::launch_thread([&]() {
 		bool tmp;
@@ -425,7 +524,7 @@ int main(int argc, char** argv)
 	{
 		simu_solver.compute_time_step(*mrm, position.get(), sm_solver_.masse_.get(), 0.005f, tmp);
 	}*/
-	delete map;
+	delete m2;
 	delete mrm;
 	delete m;
 

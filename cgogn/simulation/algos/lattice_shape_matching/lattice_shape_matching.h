@@ -82,11 +82,11 @@ public:
 	void init_solver(MAP& m, Attribute<Vec3>* pos)
 	{
 		vertex_init_position_ =
-			get_attribute<Vec3, Vertex>(m, "lattice_shape_matching_constraint_solver_vertex_init_position" + id);
+			get_attribute<Vec3, Vertex>(m, "lattice_shape_matching_constraint_solver_vertex_init_position" + std::to_string(id));
 		if (vertex_init_position_ == nullptr)
 		{
 			vertex_init_position_ =
-				add_attribute<Vec3, Vertex>(m, "lattice_shape_matching_constraint_solver_vertex_init_position" + id);
+				add_attribute<Vec3, Vertex>(m, "lattice_shape_matching_constraint_solver_vertex_init_position" + std::to_string(id));
 			parallel_foreach_cell(static_cast<CMap3&>(m), [&](Vertex v) -> bool {
 				value<Vec3>(m, vertex_init_position_.get(), v) = value<Vec3>(m, pos, v);
 				return true;
@@ -94,16 +94,16 @@ public:
 		}
 
 		this->init_volume_ =
-			get_attribute<double, Volume>(m, "lattice_shape_matching_constraint_solver_init_volume" + id);
+			get_attribute<double, Volume>(m, "lattice_shape_matching_constraint_solver_init_volume" + std::to_string(id));
 		if (this->init_volume_ == nullptr)
 			this->init_volume_ =
-				add_attribute<double, Volume>(m, "lattice_shape_matching_constraint_solver_init_volume" + id);
+				add_attribute<double, Volume>(m, "lattice_shape_matching_constraint_solver_init_volume" + std::to_string(id));
 		geometry::compute_volume(m, vertex_init_position_.get(), init_volume_.get());
 
-		this->masse_ = get_attribute<double, Vertex>(m, "lattice_shape_matching_constraint_solver_masse" + id);
+		this->masse_ = get_attribute<double, Vertex>(m, "lattice_shape_matching_constraint_solver_masse" + std::to_string(id));
 		if (this->masse_ == nullptr)
 		{
-			this->masse_ = add_attribute<double, Vertex>(m, "lattice_shape_matching_constraint_solver_masse" + id);
+			this->masse_ = add_attribute<double, Vertex>(m, "lattice_shape_matching_constraint_solver_masse" + std::to_string(id));
 			foreach_cell(m, [&](Volume v) -> bool {
 				double vol = value<double>(m, init_volume_, v) * 100000;
 				std::vector<Vertex> inc_vertices;

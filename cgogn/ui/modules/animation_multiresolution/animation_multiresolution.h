@@ -866,7 +866,7 @@ protected:
 		{
 
 			MeshData<MR_MESH>* md = mesh_provider_->mesh_data(m);
-			if (md == nullptr)
+			if (md == nullptr || md->mesh_ == nullptr)
 				continue;
 			const typename MR_MESH::CMAP& map = static_cast<const typename MR_MESH::CMAP&>(*md->mesh_);
 			map.start_reader();

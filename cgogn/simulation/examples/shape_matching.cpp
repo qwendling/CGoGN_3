@@ -33,6 +33,7 @@
 #include <cgogn/core/functions/traversals/edge.h>
 #include <cgogn/core/functions/traversals/volume.h>
 #include <cgogn/modeling/algos/subdivision.h>
+#include <cgogn/ui/modules/SPH_MR/SPH_MR.h>
 #include <cgogn/ui/modules/SPH_simulation/SPH_simulation.h>
 #include <cgogn/ui/modules/mesh_provider/mesh_provider.h>
 #include <cgogn/ui/modules/shape_matching/shape_matching.h>

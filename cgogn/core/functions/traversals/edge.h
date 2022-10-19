@@ -90,8 +90,6 @@ auto foreach_incident_edge(const MESH& m, CELL c, const FUNC& func)
 			CellMarkerStore<MESH, Edge> marker(m);
 			foreach_dart_of_orbit(m, c, [&](Dart d) -> bool {
 				Edge e(d);
-				bool tmp = is_boundary(m, d);
-				bool tmp2 = is_boundary(m, c.dart);
 				if (!marker.is_marked(e))
 				{
 					marker.mark(e);
