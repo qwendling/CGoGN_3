@@ -167,6 +167,7 @@ struct EMR_Map3_Adaptative : EMR_Map3
 	bool disable_edge_subdivision(Edge e);
 	bool disable_face_subdivision(Face f, bool disable_edge = false, bool disable_subface = false);
 	bool disable_volume_subdivision(Volume v, bool disable_face = false);
+	bool disable_volume_subdivision_fast(Volume v, bool disable_face = false);
 };
 
 } // namespace cgogn

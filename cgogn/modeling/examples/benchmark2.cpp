@@ -51,6 +51,7 @@
 using MRMesh = cgogn::EMR_Map3_Adaptative;
 using Mesh = MRMesh::BASE;
 using EMR_Map3 = cgogn::EMR_Map3;
+using MAP = cgogn::CPH3;
 
 template <typename T>
 using Attribute = typename cgogn::mesh_traits<MRMesh>::Attribute<T>;
@@ -61,87 +62,6 @@ using Volume = typename cgogn::mesh_traits<MRMesh>::Volume;
 using Dart = cgogn::Dart;
 
 using Vec3 = cgogn::geometry::Vec3;
-
-void test_foreach_dart(MRMesh* mrm, Volume v)
-{
-	foreach_dart_of_orbit(*mrm, v, [&](Dart) -> bool { return true; });
-};
-
-void foreachcell_benchmark(MRMesh* mrm)
-{
-	std::clock_t start;
-	std::clock_t start2;
-	double duration;
-	double duration2;
-
-	start = std::clock();
-	duration2 = 0;
-	cgogn::CellMarker<MRMesh, Vertex> cm(*mrm);
-	for (Dart d = mrm->begin(), end = mrm->end(); d != end; d = mrm->next(d))
-	{
-		const Vertex c(d);
-		start2 = std::clock();
-		if (!is_boundary(*mrm, d) && !cm.is_marked(c))
-		{
-			cm.mark(c);
-		}
-		duration2 += (std::clock() - start2) / (double)CLOCKS_PER_SEC;
-	}
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps parcours vertex : " << duration << std::endl;
-	std::cout << "temps it parcours vertex : " << duration2 << std::endl;
-
-	start = std::clock();
-	duration2 = 0;
-	cgogn::CellMarker<MRMesh, Edge> cm2(*mrm);
-	for (Dart d = mrm->begin(), end = mrm->end(); d != end; d = mrm->next(d))
-	{
-		const Edge c(d);
-		start2 = std::clock();
-		if (!is_boundary(*mrm, d) && !cm2.is_marked(c))
-		{
-			cm2.mark(c);
-		}
-		duration2 += (std::clock() - start2) / (double)CLOCKS_PER_SEC;
-	}
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps parcours edge : " << duration << std::endl;
-	std::cout << "temps it parcours edge : " << duration2 << std::endl;
-
-	start = std::clock();
-	duration2 = 0;
-	cgogn::CellMarker<MRMesh, Face> cm3(*mrm);
-	for (Dart d = mrm->begin(), end = mrm->end(); d != end; d = mrm->next(d))
-	{
-		const Face c(d);
-		start2 = std::clock();
-		if (!is_boundary(*mrm, d) && !cm3.is_marked(c))
-		{
-			cm3.mark(c);
-		}
-		duration2 += (std::clock() - start2) / (double)CLOCKS_PER_SEC;
-	}
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps parcours face : " << duration << std::endl;
-	std::cout << "temps it parcours face : " << duration2 << std::endl;
-
-	start = std::clock();
-	duration2 = 0;
-	cgogn::CellMarker<MRMesh, Volume> cm4(*mrm);
-	for (Dart d = mrm->begin(), end = mrm->end(); d != end; d = mrm->next(d))
-	{
-		const Volume c(d);
-		start2 = std::clock();
-		if (!is_boundary(*mrm, d) && !cm4.is_marked(c))
-		{
-			cm4.mark(c);
-		}
-		duration2 += (std::clock() - start2) / (double)CLOCKS_PER_SEC;
-	}
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps parcours volume : " << duration << std::endl;
-	std::cout << "temps it parcours volume : " << duration2 << std::endl;
-}
 
 void test(MRMesh* mrm, Attribute<Vec3>* attr)
 {
@@ -330,6 +250,7 @@ int main(int argc, char** argv)
 	std::clock_t start;
 	double duration;
 
+	std::cout << "subdivision mr" << std::endl;
 	m->add_resolution();
 	mrm->change_resolution_level(1);
 	cgogn::modeling::butterflyMultiresolution(*mrm, 0.34f, {position.get()}, parent.get(), relative_pos.get());
@@ -338,58 +259,98 @@ int main(int argc, char** argv)
 	mrm->change_resolution_level(2);
 	cgogn::modeling::butterflyMultiresolution(*mrm, 0.34f, {position.get()}, parent.get(), relative_pos.get());
 
-	/*m->add_resolution();
+	m->add_resolution();
 	mrm->change_resolution_level(3);
-	cgogn::modeling::butterflyMultiresolution(*mrm, 0.34f, {position.get()}, parent.get(), relative_pos.get());*/
+	cgogn::modeling::butterflyMultiresolution(*mrm, 0.34f, {position.get()}, parent.get(), relative_pos.get());
 
-	mrm->change_resolution_level(0);
+	mrm->change_resolution_level(2);
 
-	std::cout << "Resolution 0 : " << std::endl;
-	test(mrm, position.get());
-	test2(m2, position.get());
-
-	start = std::clock();
-	activate_all_volume(mrm);
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps activate mrmap : " << duration << std::endl;
-	start = std::clock();
+	std::cout << "subdivision mono" << std::endl;
 	cgogn::modeling::butterflySubdivisionVolumeRegular(*m2, 0.0f, {position.get()});
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps subdivise cmap : " << duration << std::endl;
-
-	std::cout << "Resolution 1 : " << std::endl;
-	test(mrm, position.get());
-	test2(m2, position.get());
-
-	start = std::clock();
-	activate_all_volume(mrm);
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps activate mrmap : " << duration << std::endl;
-	start = std::clock();
 	cgogn::modeling::butterflySubdivisionVolumeRegular(*m2, 0.0f, {position.get()});
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps subdivise cmap : " << duration << std::endl;
+	MAP* cph = new MAP(*m2);
 
-	std::cout << "Resolution 2 : " << std::endl;
-	test(mrm, position.get());
-	test2(m2, position.get());
-
-	/*start = std::clock();
-	activate_all_volume(mrm);
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps activate mrmap : " << duration << std::endl;
-	start = std::clock();
-	cgogn::modeling::butterflySubdivisionVolumeRegular(*m2, 0.0f, {position.get()});
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps subdivise cmap : " << duration << std::endl;
-
-	std::cout << "Resolution 3 : " << std::endl;
-	test(mrm, position.get());
-	test2(m2, position.get());*/
-
-	mrm->change_resolution_level(1);
-	// std::srand(std::time(nullptr));
 	std::srand(2124512438);
+
+	std::list<Volume> volume_to_subdivided;
+	std::list<Volume> volume_to_simplified;
+
+	cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
+		volume_to_subdivided.push_back(Volume(mrm->volume_youngest_dart(v.dart)));
+		return true;
+	});
+
+	std::cout << "debut benchmark" << std::endl;
+
+	std::vector<Volume> choix_volume;
+
+	for (int i = 0; i < 10; i++)
+	{
+		for (auto it = volume_to_subdivided.begin(); it != volume_to_subdivided.end();)
+		{
+			if (rand() % 100 < 10)
+			{
+				Volume v = *it;
+				choix_volume.push_back(v);
+				volume_to_simplified.push_back(v);
+				it = volume_to_subdivided.erase(it);
+			}
+			else
+			{
+				++it;
+			}
+		}
+		start = std::clock();
+		for (Volume v : choix_volume)
+		{
+			mrm->activate_volume_subdivision_fast(v);
+		}
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << "temps subdivided 10% volume mr : " << duration << std::endl;
+
+		start = std::clock();
+		for (Volume v : choix_volume)
+		{
+			auto fn = [](Vertex) {};
+			cgogn::modeling::butterflySubdivisionVolume(*cph, 0.0f, {position.get()}, v, fn, fn, fn);
+		}
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << "temps subdivided 10% volume mono : " << duration << std::endl;
+
+		choix_volume.clear();
+
+		for (auto it = volume_to_simplified.begin(); it != volume_to_simplified.end();)
+		{
+			if (rand() % 100 < 10)
+			{
+				Volume v = *it;
+				choix_volume.push_back(v);
+				volume_to_subdivided.push_back(v);
+				it = volume_to_simplified.erase(it);
+			}
+			else
+			{
+				++it;
+			}
+		}
+		start = std::clock();
+		for (Volume v : choix_volume)
+		{
+			mrm->disable_volume_subdivision_fast(Volume(cgogn::phi1(*mrm, v.dart)), true);
+		}
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << "temps simplified 10% volume mr : " << duration << std::endl;
+
+		start = std::clock();
+		for (Volume v : choix_volume)
+		{
+			cph->disable_volume_subdivision(v, true);
+		}
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << "temps simplified 10% volume mono : " << duration << std::endl;
+
+		choix_volume.clear();
+	}
 
 	delete m2;
 	delete mrm;

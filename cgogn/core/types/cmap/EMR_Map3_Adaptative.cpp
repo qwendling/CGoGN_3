@@ -1125,4 +1125,95 @@ bool EMR_Map3_Adaptative::disable_volume_subdivision(Volume v, bool disable_face
 	return true;
 }
 
+bool EMR_Map3_Adaptative::disable_volume_subdivision_fast(Volume v, bool disable_face)
+{
+	uint32 v_level = dart_level(v.dart);
+	if (v_level <= current_level_)
+		return false;
+
+	EMR_Map3 m2(m_);
+	m2.current_level_ = v_level;
+	Dart old;
+	foreach_dart_of_orbit(m2, v, [&](Dart d) -> bool {
+		if (dart_level(d) <= v_level - 1)
+		{
+			old = d;
+			return false;
+		}
+		return true;
+	});
+
+	static DartMarker<EMR_Map3> dm(*this);
+	static CellMarker<EMR_Map3, Vertex> vm(*this);
+
+	std::vector<Dart> vect_vertices;
+	std::vector<Dart> vect_volume;
+
+	m2.current_level_ = v_level - 1;
+	foreach_dart_of_orbit(m2, Volume(old), [&](Dart d) -> bool {
+		dm.mark(d);
+		vect_volume.push_back(d);
+		if (!vm.is_marked(Vertex(d)))
+		{
+			vm.mark(Vertex(d));
+			vect_vertices.push_back(d);
+		}
+		return true;
+	});
+
+	for (Dart d : vect_vertices)
+	{
+		while (volume_level(d) != v_level)
+			disable_volume_subdivision(Volume(d), disable_face);
+	}
+
+	m2.current_level_ = v_level;
+	std::vector<Dart> vect_dart;
+	for (Dart d : vect_volume)
+	{
+		Dart tmp = phi<12>(m2, d);
+		if (dm.is_marked(tmp))
+			continue;
+		while (face_level(tmp) != v_level)
+			disable_face_subdivision(Face(tmp), true, true);
+		Dart it = tmp;
+		do
+		{
+			Dart it2 = phi3(m2, it);
+			vect_dart.push_back(it);
+			dm.mark(it);
+			vect_dart.push_back(it2);
+			dm.mark(it2);
+			it = phi1(m2, it);
+		} while (it != tmp);
+	}
+	for (Dart d : vect_dart)
+	{
+		set_dart_visibility(d, UINT_MAX);
+	}
+	clock_views_++;
+	if (disable_face)
+	{
+		for (Dart d : vect_volume)
+		{
+			while (face_level(d) != v_level - 1)
+			{
+				if (!disable_face_subdivision(Face(d), true, true))
+					break;
+			}
+		}
+	}
+
+	for (Dart d : vect_volume)
+	{
+		dm.unmark(d);
+	}
+	for (Dart d : vect_vertices)
+	{
+		vm.unmark(Vertex(d));
+	}
+
+	return true;
+}
+
 } // namespace cgogn
