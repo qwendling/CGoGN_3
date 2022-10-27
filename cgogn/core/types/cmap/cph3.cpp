@@ -29,6 +29,70 @@
 namespace cgogn
 {
 
+bool CPH3::check_integrity() const
+{
+	for (Dart d = this->begin(), end = this->end(); d != end; d = this->next(d))
+	{
+
+		int limit = INT_MAX;
+		int i = 0;
+		Dart it = phi1(*this, d);
+		bool is_permutation = false;
+		while (i < limit && !is_permutation)
+		{
+			is_permutation = it == d;
+			it = phi1(*this, it);
+			i++;
+		}
+		if (i == 1)
+		{
+			std::cerr << "phi1 have a fix point : " << d.index << std::endl;
+			return false;
+		}
+		if (!is_permutation)
+		{
+			std::cerr << "phi1 must be a permutation" << std::endl;
+			return false;
+		}
+		if (phi2(*this, phi2(*this, d)) != d)
+		{
+			std::cerr << "phi2 must be an involution" << std::endl;
+			return false;
+		}
+		if (phi2(*this, d) == d)
+		{
+			std::cerr << "phi2 have a fixpoint" << std::endl;
+			return false;
+		}
+		if (phi3(*this, phi3(*this, d)) != d)
+		{
+			std::cerr << "phi3 must be an involution" << std::endl;
+			return false;
+		}
+		if (phi3(*this, d) == d)
+		{
+			std::cerr << "phi3 have a fixpoint" << std::endl;
+			return false;
+		}
+		if (phi1(*this, phi3(*this, phi1(*this, phi3(*this, d)))) != d)
+		{
+			std::cerr << "phi1(phi3(d)) must be an involution" << std::endl;
+			return false;
+		}
+		if (phi1(*this, phi_1(*this, d)) != d || phi1(*this, phi_1(*this, d)) != phi_1(*this, phi1(*this, d)))
+		{
+			std::cerr << "phi1(phi_1(d)) must be an involution" << std::endl;
+			return false;
+		}
+		if (is_boundary(*this, d) != is_boundary(*this, phi1(*this, d)))
+		{
+			std::cerr << "Face must be only boundary or not" << std::endl;
+			return false;
+		}
+	}
+	return true;
+}
+
 /***************************************************
  *              LEVELS MANAGEMENT                  *
  ***************************************************/
@@ -440,6 +504,274 @@ bool CPH3::volume_is_subdivided(Dart d) const
 		subd = true;
 
 	return subd;
+}
+
+bool CPH3::disable_edge_subdivision(Edge e)
+{
+	if (current_level_ != maximum_level_ || current_level_ == 0)
+		return false;
+	uint32 e_level = edge_level(e.dart);
+	if (e_level == 0)
+		return false;
+	Dart old = edge_oldest_dart(e.dart);
+	if (dart_level(old) == e_level)
+		return false;
+	CPH3 m2(m_);
+	m2.current_level_ = e_level - 1;
+
+	// equilibrage des deux parties de l'arete
+	Dart d2 = phi3(m2, old);
+	while (edge_level(d2) != e_level)
+		if (!disable_edge_subdivision(Edge(d2)))
+			return false;
+
+	// test des faces adjacentes
+	Dart test = old;
+	do
+	{
+		if (phi3(*this, phi1(*this, test)) != phi3(m2, test))
+			return false;
+		test = phi2(*this, phi3(*this, test));
+	} while (test != old);
+
+	// deactivation de l'arete
+	m2.current_level_ = maximum_level_;
+	Dart it, it2;
+	it = old;
+	it2 = d2;
+
+	std::vector<std::pair<Dart, Dart>> list_phi1;
+	std::vector<std::pair<Dart, Dart>> list_phi_1;
+	std::vector<std::pair<Dart, Dart>> list_phi2;
+	std::vector<std::pair<Dart, Dart>> list_phi3;
+	std::vector<Dart> dart_to_remove;
+	auto fn = [&](Dart dd) {
+		Dart d1 = phi1(m2, dd);
+		Dart d_1 = phi_1(m2, dd);
+		Dart d2 = phi2(m2, dd);
+		Dart d3 = phi3(m2, dd);
+		uint32 cur = m2.current_level_;
+		m2.current_level_ = e_level - 1;
+		list_phi1.push_back(std::make_pair(d_1, d1));
+		list_phi_1.push_back(std::make_pair(d1, d_1));
+		list_phi2.push_back(std::make_pair(d2, phi2(m2, d2)));
+		list_phi3.push_back(std::make_pair(d3, phi3(m2, d3)));
+		m2.current_level_ = cur;
+		dart_to_remove.push_back(dd);
+	};
+
+	do
+	{
+		Dart tmp = phi2(m2, it);
+		Dart tmp2 = phi2(m2, it2);
+		fn(tmp);
+		fn(tmp2);
+		it = phi3(m2, tmp);
+		it2 = phi3(m2, tmp2);
+	} while (it != old);
+
+	for (Dart dd : dart_to_remove)
+	{
+		remove_dart(m_, dd);
+	}
+	for (auto [dd, dd2] : list_phi1)
+	{
+		(*(m_.phi1_))[dd.index] = dd2;
+	}
+	for (auto [dd, dd2] : list_phi_1)
+	{
+		(*(m_.phi_1_))[dd.index] = dd2;
+	}
+	for (auto [dd, dd2] : list_phi2)
+	{
+		(*(m_.phi2_))[dd.index] = dd2;
+	}
+	for (auto [dd, dd2] : list_phi3)
+	{
+		(*(m_.phi3_))[dd.index] = dd2;
+	}
+
+	// this->check_integrity();
+	return true;
+}
+bool CPH3::disable_face_subdivision(Face f, bool disable_edge, bool)
+{
+	if (current_level_ != maximum_level_ || current_level_ == 0)
+		return false;
+	uint32 f_level = face_level(f.dart);
+	if (f_level == 0)
+		return false;
+	CPH3 m2(m_);
+	m2.current_level_ = f_level;
+	Dart old = face_oldest_dart(f.dart);
+	Dart test = phi1(m2, old);
+	// Check that the two adjacents volumes are not subdivide
+	if (phi<2323>(*this, test) != test)
+		return false;
+
+	std::vector<Dart> vec_vertices;
+	m2.current_level_ = f_level - 1;
+	Dart it = old;
+	// Simplification of the subfaces
+	do
+	{
+		vec_vertices.push_back(it);
+		it = phi1(m2, it);
+	} while (it != old);
+
+	m2.current_level_ = f_level;
+	std::vector<std::pair<Dart, Dart>> list_phi1;
+	std::vector<std::pair<Dart, Dart>> list_phi_1;
+	std::vector<Dart> dart_to_remove;
+	auto fn = [&](Dart dd) {
+		Dart d1 = phi<21>(m2, dd);
+		Dart d_1 = phi_1(m2, dd);
+		list_phi1.push_back(std::make_pair(d_1, d1));
+		list_phi_1.push_back(std::make_pair(d1, d_1));
+		dart_to_remove.push_back(dd);
+	};
+	for (Dart d : vec_vertices)
+	{
+		Dart it = phi1(m2, d);
+		Dart d11 = phi<11>(m2, d);
+		while (it != d11)
+		{
+			Dart d3 = phi3(*this, it);
+			Dart it2 = d3;
+			m2.current_level_ = std::max(dart_level(it), dart_level(d3));
+			do
+			{
+				fn(it2);
+				it2 = phi2(m2, it2);
+				fn(it2);
+				it2 = phi3(m2, it2);
+			} while (it2 != d3);
+			m2.current_level_ = f_level;
+			it = phi1(*this, it);
+		}
+	}
+
+	for (auto [dd, dd2] : list_phi1)
+	{
+		(*(m_.phi1_))[dd.index] = dd2;
+	}
+	for (auto [dd, dd2] : list_phi_1)
+	{
+		(*(m_.phi_1_))[dd.index] = dd2;
+	}
+	for (Dart dd : dart_to_remove)
+	{
+		remove_dart(m_, dd);
+	}
+	// this->check_integrity();
+
+	if (disable_edge)
+	{
+		for (Dart d : vec_vertices)
+		{
+			disable_edge_subdivision(Edge(d));
+		}
+	}
+
+	return true;
+}
+bool CPH3::disable_volume_subdivision(Volume v, bool disable_face)
+{
+	if (current_level_ != maximum_level_ || current_level_ == 0)
+		return false;
+	uint32 v_level = volume_level(v.dart);
+	if (v_level == 0)
+		return false;
+
+	CPH3 m2(m_);
+	m2.current_level_ = v_level;
+	Dart old;
+	foreach_dart_of_orbit(m2, v, [&](Dart d) -> bool {
+		if (dart_level(d) <= v_level - 1)
+		{
+			old = d;
+			return false;
+		}
+		return true;
+	});
+	DartMarker<CPH3> dm(*this);
+	CellMarker<CPH3, Vertex> vm(*this);
+	std::vector<Dart> vect_vertices;
+	std::vector<Dart> vect_volume;
+
+	m2.current_level_ = v_level - 1;
+	foreach_dart_of_orbit(m2, Volume(old), [&](Dart d) -> bool {
+		dm.mark(d);
+		vect_volume.push_back(d);
+		if (!vm.is_marked(Vertex(d)))
+		{
+			vm.mark(Vertex(d));
+			vect_vertices.push_back(d);
+		}
+		return true;
+	});
+	bool test = false;
+	for (Dart d : vect_vertices)
+	{
+		while (volume_level(d) != v_level)
+		{
+			test = disable_volume_subdivision(Volume(d), disable_face) || test;
+		}
+	}
+	if (test)
+		return true;
+
+	m2.current_level_ = v_level;
+	std::vector<std::pair<Dart, Dart>> list_phi2;
+	std::vector<Dart> dart_to_remove;
+	auto fn = [&](Dart dd) {
+		Dart d2 = phi2(m2, dd);
+		// Ici attention on veut le phi2 du maximum level
+		list_phi2.push_back(std::make_pair(d2, phi<32>(m2, dd)));
+		list_phi2.push_back(std::make_pair(phi<32>(m2, dd), d2));
+		dart_to_remove.push_back(dd);
+	};
+
+	for (Dart d : vect_volume)
+	{
+		Dart tmp = phi<12>(m2, d);
+		if (dm.is_marked(tmp))
+			continue;
+		while (face_level(tmp) != v_level)
+			disable_face_subdivision(Face(tmp), true, true);
+		Dart it = tmp;
+		do
+		{
+			Dart it2 = phi3(m2, it);
+			fn(it);
+			dm.mark(it);
+			fn(it2);
+			dm.mark(it2);
+			it = phi1(m2, it);
+		} while (it != tmp);
+	}
+	for (auto [dd, dd2] : list_phi2)
+	{
+		(*(m_.phi2_))[dd.index] = dd2;
+	}
+	for (Dart dd : dart_to_remove)
+	{
+		remove_dart(m_, dd);
+	}
+	// this->check_integrity();
+	if (disable_face)
+	{
+		for (Dart d : vect_volume)
+		{
+			while (face_level(d) != v_level - 1)
+			{
+				if (!disable_face_subdivision(Face(d), true, true))
+					break;
+			}
+		}
+	}
+
+	return true;
 }
 
 } // namespace cgogn

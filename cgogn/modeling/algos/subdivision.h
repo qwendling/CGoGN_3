@@ -1214,6 +1214,162 @@ auto butterflyMultiresolution(
 	}
 }
 
+template <typename FUNC>
+auto butterflySubdivisionVolume(CPH3& m, double,
+								std::vector<typename mesh_traits<CPH3>::template Attribute<Vec3>*> attributes,
+								typename CPH3::Volume v, const FUNC& after_cut_edge, const FUNC& after_cut_face,
+								const FUNC& after_cut_volume)
+	-> std::enable_if_t<std::is_convertible_v<CPH3&, CMapBase&>>
+{
+	using Volume = typename CPH3::Volume;
+	using Face = typename CPH3::Face;
+	using Edge = typename CPH3::Edge;
+	using Vertex = typename CPH3::Vertex;
+
+	std::vector<typename mesh_traits<CPH3>::template Attribute<Vec3>*> attrs;
+	for (auto a : attributes)
+		if (a)
+			attrs.push_back(a);
+
+	CellMarker<CPH3, Edge> cm_edge(m);
+	CellMarker<CPH3, Face> cm_face(m);
+	CellMarker<CPH3, Volume> cm_volume(m);
+	std::queue<std::queue<Vec3>> volume_points, face_points, edge_points;
+	std::vector<Dart> edges, faces, volumes;
+	std::vector<Dart> p_point, q_point, r_point, s_point, t_point;
+	uint32 v_level = m.volume_level(v.dart);
+	m.current_level_ = v_level;
+	CPH3 m2(m.m_);
+	m2.current_level_ = m.current_level_ + 1;
+
+	// computing the new vertices's embedding
+	foreach_dart_of_orbit(m, v, [&](Dart t) -> bool {
+		// edges vertices
+		if (m2.edge_level(t) == v_level && (!cm_edge.is_marked(Edge(t))))
+		{
+			if (is_incident_to_boundary(m, Edge(t)) && !is_boundary(m, phi3(m, t)))
+			{
+				// we ignore the surfaces darts which are in junction of two volumes
+			}
+			// surface case
+			else if (is_boundary(m, phi3(m, t)))
+			{
+				p_point.clear();
+				q_point.clear();
+				r_point.clear();
+				surfaceEdgePointMask(m, t, p_point, q_point, r_point);
+				std::queue<Vec3> list_points;
+				for (auto a : attrs)
+					list_points.push(surfaceEdgePointRule<Vec3>(m, p_point, q_point, r_point, a));
+
+				edge_points.push(list_points);
+				edges.push_back(t);
+				cm_edge.mark(Edge(t));
+			}
+			// volume case
+			else
+			{
+				p_point.clear();
+				q_point.clear();
+				r_point.clear();
+				s_point.clear();
+				edgePointMask(m, t, p_point, q_point, r_point, s_point);
+
+				std::queue<Vec3> list_points;
+				for (auto a : attrs)
+					list_points.push(edgePointRule<Vec3>(m, p_point, q_point, r_point, s_point, a));
+
+				edge_points.push(list_points);
+
+				edges.push_back(t);
+				cm_edge.mark(Edge(t));
+			}
+		}
+		// faces vertices
+		if (m2.face_level(t) == v_level && !cm_face.is_marked(Face(t)))
+		{
+			// cas surface
+			if (is_incident_to_boundary(m, Face(t)))
+			{
+				p_point.clear();
+				q_point.clear();
+				surfaceFacePointMask(m, t, p_point, q_point);
+
+				std::queue<Vec3> list_points;
+				for (auto a : attrs)
+					list_points.push(surfaceFacePointRule<Vec3>(m, p_point, q_point, a));
+
+				face_points.push(list_points);
+			}
+			// volume case
+			else
+			{
+				p_point.clear();
+				q_point.clear();
+				r_point.clear();
+				s_point.clear();
+				t_point.clear();
+				facePointMask(m, t, p_point, q_point, r_point, s_point, t_point);
+
+				std::queue<Vec3> list_points;
+				for (auto a : attrs)
+					list_points.push(facePointRule<Vec3>(m, p_point, q_point, r_point, s_point, t_point, a));
+
+				face_points.push(list_points);
+			}
+			faces.push_back(t);
+			cm_face.mark(Face(t));
+		}
+		// volumes vertices
+		if (!cm_volume.is_marked(Volume(t)))
+		{
+			p_point.clear();
+			q_point.clear();
+			volumePointMask(m, t, p_point, q_point);
+
+			std::queue<Vec3> list_points;
+			for (auto a : attrs)
+				list_points.push(volumePointRule<Vec3>(m, p_point, q_point, a));
+
+			volume_points.push(list_points);
+			volumes.push_back(t);
+			cm_volume.mark(Volume(t));
+		}
+		return true;
+	});
+
+	m.current_level_++;
+	subdivideListEdges<CPH3>(m, edges, [&](Vertex v) {
+		for (auto a : attrs)
+		{
+			value<Vec3>(m, a, v) = edge_points.front().front();
+			edge_points.front().pop();
+		}
+		edge_points.pop();
+		after_cut_edge(v);
+	});
+
+	subdivideListFaces(m, faces, [&](Vertex v) {
+		for (auto a : attrs)
+		{
+			value<Vec3>(m, a, v) = face_points.front().front();
+			face_points.front().pop();
+		}
+		face_points.pop();
+		after_cut_face(v);
+	});
+
+	subdivideListVolumes(m, volumes, [&](Vertex v) {
+		for (auto a : attrs)
+		{
+			value<Vec3>(m, a, v) = volume_points.front().front();
+			volume_points.front().pop();
+		}
+		volume_points.pop();
+		after_cut_volume(v);
+	});
+}
+
 } // namespace modeling
 
 } // namespace cgogn

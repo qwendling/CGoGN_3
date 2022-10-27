@@ -43,7 +43,7 @@ namespace ui
 
 class VolumeMRModeling : public Module
 {
-	using CPH = CPH3_adaptative;
+	using CPH = CPH3;
 
 	template <typename T>
 	using Attribute = typename mesh_traits<CPH>::template Attribute<T>;

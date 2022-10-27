@@ -125,6 +125,9 @@ Dart phi_1(const CPH3& m, Dart d)
 
 	const CPH3::CMAP& map = static_cast<const CPH3::CMAP&>(m);
 
+	if (m.current_level_ == m.maximum_level_)
+		return phi_1(map, d);
+
 	bool finished = false;
 	Dart it = phi_1(map, d);
 	uint32 edge_id = m.edge_id(it);

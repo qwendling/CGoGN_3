@@ -101,6 +101,8 @@ struct CPH3
 		return m_;
 	}
 
+	bool check_integrity() const;
+
 	inline Dart begin() const
 	{
 		Dart d(m_.darts_->first_index());
@@ -176,6 +178,10 @@ struct CPH3
 	Dart volume_oldest_dart(Dart d) const;
 	Dart volume_youngest_dart(Dart d) const;
 	bool volume_is_subdivided(Dart d) const;
+
+	bool disable_edge_subdivision(Edge e);
+	bool disable_face_subdivision(Face f, bool disable_edge = false, bool disable_subface = false);
+	bool disable_volume_subdivision(Volume v, bool disable_face = false);
 };
 
 } // namespace cgogn

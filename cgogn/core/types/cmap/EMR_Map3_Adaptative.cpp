@@ -883,18 +883,6 @@ bool EMR_Map3_Adaptative::activate_volume_subdivision_fast(Volume v)
 
 	uint32 v_level = dart_level(d);
 
-	/*if (current_level_ == maximum_level_)
-		return false;
-	m2.current_level_ = v_level;
-	if (dart_level(v.dart) > m2.current_level_)
-		return false;
-	if (!m2.volume_is_subdivided(v.dart))
-	{
-		return false;
-	}*/
-
-	// Dart d = volume_oldest_dart(v.dart);
-
 	m2.current_level_ = v_level;
 
 	std::vector<Vertex> vect_vertices;
@@ -904,11 +892,6 @@ bool EMR_Map3_Adaptative::activate_volume_subdivision_fast(Volume v)
 		vect_vertices.push_back(w);
 		return true;
 	});
-	/*foreach_incident_edge(m2, Volume(d), [this, &v_level](Edge e) -> bool {
-		if (edge_level(e.dart) == v_level)
-			activate_edge_subdivision(e);
-		return true;
-	});*/
 
 	foreach_dart_of_orbit(m2, Volume(d), [&vect_edge](Dart d2) -> bool {
 		vect_edge.push_back(d2);

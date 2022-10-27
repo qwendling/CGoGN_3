@@ -338,9 +338,9 @@ int main(int argc, char** argv)
 	mrm->change_resolution_level(2);
 	cgogn::modeling::butterflyMultiresolution(*mrm, 0.34f, {position.get()}, parent.get(), relative_pos.get());
 
-	m->add_resolution();
+	/*m->add_resolution();
 	mrm->change_resolution_level(3);
-	cgogn::modeling::butterflyMultiresolution(*mrm, 0.34f, {position.get()}, parent.get(), relative_pos.get());
+	cgogn::modeling::butterflyMultiresolution(*mrm, 0.34f, {position.get()}, parent.get(), relative_pos.get());*/
 
 	mrm->change_resolution_level(0);
 
@@ -374,7 +374,7 @@ int main(int argc, char** argv)
 	test(mrm, position.get());
 	test2(m2, position.get());
 
-	start = std::clock();
+	/*start = std::clock();
 	activate_all_volume(mrm);
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 	std::cout << "temps activate mrmap : " << duration << std::endl;
@@ -385,7 +385,7 @@ int main(int argc, char** argv)
 
 	std::cout << "Resolution 3 : " << std::endl;
 	test(mrm, position.get());
-	test2(m2, position.get());
+	test2(m2, position.get());*/
 
 	mrm->change_resolution_level(1);
 	// std::srand(std::time(nullptr));
