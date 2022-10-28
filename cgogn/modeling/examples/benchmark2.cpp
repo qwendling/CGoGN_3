@@ -282,10 +282,14 @@ int main(int argc, char** argv)
 
 	std::cout << "debut benchmark" << std::endl;
 
-	std::vector<Volume> choix_volume;
+	std::cout << "nb_volume;subdivide mr;subdivide mono;simplified mr;simplified mono" << std::endl;
 
-	for (int i = 0; i < 10; i++)
+	std::vector<Volume> choix_volume;
+	int nb_cell = cgogn::nb_cells<Volume>(*mrm);
+
+	for (int i = 0; i < 1000; i++)
 	{
+		std::cout << nb_cell << ";";
 		for (auto it = volume_to_subdivided.begin(); it != volume_to_subdivided.end();)
 		{
 			if (rand() % 100 < 10)
@@ -294,6 +298,7 @@ int main(int argc, char** argv)
 				choix_volume.push_back(v);
 				volume_to_simplified.push_back(v);
 				it = volume_to_subdivided.erase(it);
+				nb_cell += 7;
 			}
 			else
 			{
@@ -306,7 +311,8 @@ int main(int argc, char** argv)
 			mrm->activate_volume_subdivision_fast(v);
 		}
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << "temps subdivided 10% volume mr : " << duration << std::endl;
+		std::cout << duration << ";";
+		// std::cout << "temps subdivided 10% volume mr : " << duration << std::endl;
 
 		start = std::clock();
 		for (Volume v : choix_volume)
@@ -315,7 +321,8 @@ int main(int argc, char** argv)
 			cgogn::modeling::butterflySubdivisionVolume(*cph, 0.0f, {position.get()}, v, fn, fn, fn);
 		}
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << "temps subdivided 10% volume mono : " << duration << std::endl;
+		std::cout << duration << ";";
+		// std::cout << "temps subdivided 10% volume mono : " << duration << std::endl;
 
 		choix_volume.clear();
 
@@ -327,6 +334,7 @@ int main(int argc, char** argv)
 				choix_volume.push_back(v);
 				volume_to_subdivided.push_back(v);
 				it = volume_to_simplified.erase(it);
+				nb_cell -= 7;
 			}
 			else
 			{
@@ -339,7 +347,8 @@ int main(int argc, char** argv)
 			mrm->disable_volume_subdivision_fast(Volume(cgogn::phi1(*mrm, v.dart)), true);
 		}
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << "temps simplified 10% volume mr : " << duration << std::endl;
+		std::cout << duration << ";";
+		// std::cout << "temps simplified 10% volume mr : " << duration << std::endl;
 
 		start = std::clock();
 		for (Volume v : choix_volume)
@@ -347,7 +356,8 @@ int main(int argc, char** argv)
 			cph->disable_volume_subdivision(v, true);
 		}
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << "temps simplified 10% volume mono : " << duration << std::endl;
+		std::cout << duration << std::endl;
+		// std::cout << "temps simplified 10% volume mono : " << duration << std::endl;
 
 		choix_volume.clear();
 	}

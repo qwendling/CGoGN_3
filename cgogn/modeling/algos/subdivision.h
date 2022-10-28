@@ -1231,9 +1231,9 @@ auto butterflySubdivisionVolume(CPH3& m, double,
 		if (a)
 			attrs.push_back(a);
 
-	CellMarker<CPH3, Edge> cm_edge(m);
-	CellMarker<CPH3, Face> cm_face(m);
-	CellMarker<CPH3, Volume> cm_volume(m);
+	CellMarkerStore<CPH3, Edge> cm_edge(m);
+	CellMarkerStore<CPH3, Face> cm_face(m);
+	CellMarkerStore<CPH3, Volume> cm_volume(m);
 	std::queue<std::queue<Vec3>> volume_points, face_points, edge_points;
 	std::vector<Dart> edges, faces, volumes;
 	std::vector<Dart> p_point, q_point, r_point, s_point, t_point;

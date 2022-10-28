@@ -694,8 +694,8 @@ bool CPH3::disable_volume_subdivision(Volume v, bool disable_face)
 		}
 		return true;
 	});
-	DartMarker<CPH3> dm(*this);
-	CellMarker<CPH3, Vertex> vm(*this);
+	static DartMarker<CPH3> dm(*this);
+	static CellMarker<CPH3, Vertex> vm(*this);
 	std::vector<Dart> vect_vertices;
 	std::vector<Dart> vect_volume;
 
@@ -718,8 +718,6 @@ bool CPH3::disable_volume_subdivision(Volume v, bool disable_face)
 			test = disable_volume_subdivision(Volume(d), disable_face) || test;
 		}
 	}
-	if (test)
-		return true;
 
 	m2.current_level_ = v_level;
 	std::vector<std::pair<Dart, Dart>> list_phi2;
@@ -769,6 +767,15 @@ bool CPH3::disable_volume_subdivision(Volume v, bool disable_face)
 					break;
 			}
 		}
+	}
+
+	for (Dart d : vect_volume)
+	{
+		dm.unmark(d);
+	}
+	for (Dart d : vect_vertices)
+	{
+		vm.unmark(Vertex(d));
 	}
 
 	return true;
