@@ -282,12 +282,15 @@ int main(int argc, char** argv)
 
 	std::cout << "debut benchmark" << std::endl;
 
-	std::cout << "nb_volume;subdivide mr;subdivide mono;simplified mr;simplified mono" << std::endl;
+	std::cout << "nb_volume;subdivide mr;subdivide mono;simplified mr;simplified mono;centroid+volume MR;centroid + "
+				 "volume mono"
+			  << std::endl;
 
 	std::vector<Volume> choix_volume;
+	std::vector<Volume> vect_vol;
 	int nb_cell = cgogn::nb_cells<Volume>(*mrm);
 
-	for (int i = 0; i < 1000; i++)
+	for (int i = 0; i < 100; i++)
 	{
 		std::cout << nb_cell << ";";
 		for (auto it = volume_to_subdivided.begin(); it != volume_to_subdivided.end();)
@@ -356,10 +359,40 @@ int main(int argc, char** argv)
 			cph->disable_volume_subdivision(v, true);
 		}
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << duration << std::endl;
+		std::cout << duration << ";";
 		// std::cout << "temps simplified 10% volume mono : " << duration << std::endl;
 
 		choix_volume.clear();
+
+		cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
+			vect_vol.push_back(v);
+			return true;
+		});
+
+		start = std::clock();
+
+		for (Volume v : vect_vol)
+		{
+			cgogn::geometry::centroid<Vec3>(*mrm, v, position.get());
+			// cgogn::geometry::volume(*mrm, v, position.get());
+		}
+
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << duration << ";";
+
+		start = std::clock();
+
+		for (Volume v : vect_vol)
+		{
+			cgogn::geometry::centroid<Vec3>(cph->m_, v, position.get());
+			// cgogn::geometry::volume(cph->m_, v, position.get());
+		}
+
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << duration;
+
+		std::cout << std::endl;
+		vect_vol.clear();
 	}
 
 	delete m2;
