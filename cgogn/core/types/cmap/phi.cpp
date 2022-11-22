@@ -151,6 +151,8 @@ Dart phi2(const CPH3& m, Dart d)
 	cgogn_message_assert(m.dart_level(d) <= m.current_level_, "Access to a dart introduced after current level");
 
 	const CPH3::CMAP& map = static_cast<const CPH3::CMAP&>(m);
+	if (m.current_level_ == m.maximum_level_)
+		return phi2(map, d);
 	return phi2(map, phi_1(map, phi1(m, d)));
 }
 
@@ -159,6 +161,8 @@ Dart phi3(const CPH3& m, Dart d)
 	cgogn_message_assert(m.dart_level(d) <= m.current_level_, "Access to a dart introduced after current level");
 
 	const CPH3::CMAP& map = static_cast<const CPH3::CMAP&>(m);
+	if (m.current_level_ == m.maximum_level_)
+		return phi3(map, d);
 	if (phi3(map, d) == d)
 		return d;
 	return phi3(map, phi_1(map, phi1(m, d)));

@@ -82,6 +82,36 @@ target_link_libraries(benchmark2
 	${CMAKE_DL_LIBS}
 )
 
+add_executable(benchmark_topo_Mono benchmark_topo_Mono.cpp)
+target_link_libraries(benchmark_topo_Mono
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::modeling
+	${CMAKE_DL_LIBS}
+)
+
+add_executable(benchmark_topo_MR benchmark_topo_MR.cpp)
+target_link_libraries(benchmark_topo_MR
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::modeling
+	${CMAKE_DL_LIBS}
+)
+
+add_executable(benchmark_geom benchmark_geom.cpp)
+target_link_libraries(benchmark_geom
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::modeling
+	${CMAKE_DL_LIBS}
+)
+
 if(APPLE)
 	find_library(CORE_FOUNDATION CoreFoundation)
 	find_library(CARBON Carbon)

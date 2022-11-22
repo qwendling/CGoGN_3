@@ -604,6 +604,7 @@ bool CPH3::disable_face_subdivision(Face f, bool disable_edge, bool)
 	CPH3 m2(m_);
 	m2.current_level_ = f_level;
 	Dart old = face_oldest_dart(f.dart);
+	uint32 id_f = index_of(static_cast<const CPH3::CMAP&>(*this), Face(old));
 	Dart test = phi1(m2, old);
 	// Check that the two adjacents volumes are not subdivide
 	if (phi<2323>(*this, test) != test)
@@ -673,6 +674,15 @@ bool CPH3::disable_face_subdivision(Face f, bool disable_edge, bool)
 		}
 	}
 
+	/*if (is_indexed<CPH3::Face>(*this))
+	{
+
+		foreach_dart_of_orbit(*this, f, [&](Dart d) -> bool {
+			set_index<CPH3::Face>(*this, d, id_f);
+			return true;
+		});
+	}*/
+
 	return true;
 }
 bool CPH3::disable_volume_subdivision(Volume v, bool disable_face)
@@ -694,8 +704,9 @@ bool CPH3::disable_volume_subdivision(Volume v, bool disable_face)
 		}
 		return true;
 	});
-	static DartMarker<CPH3> dm(*this);
-	static CellMarker<CPH3, Vertex> vm(*this);
+	uint32 id_v = index_of(static_cast<const CPH3::CMAP&>(*this), Volume(old));
+	DartMarkerStore<CPH3> dm(*this);
+	CellMarkerStore<CPH3, Vertex> vm(*this);
 	std::vector<Dart> vect_vertices;
 	std::vector<Dart> vect_volume;
 
@@ -710,14 +721,14 @@ bool CPH3::disable_volume_subdivision(Volume v, bool disable_face)
 		}
 		return true;
 	});
-	bool test = false;
+	/*bool test = false;
 	for (Dart d : vect_vertices)
 	{
 		while (volume_level(d) != v_level)
 		{
 			test = disable_volume_subdivision(Volume(d), disable_face) || test;
 		}
-	}
+	}*/
 
 	m2.current_level_ = v_level;
 	std::vector<std::pair<Dart, Dart>> list_phi2;
@@ -735,8 +746,8 @@ bool CPH3::disable_volume_subdivision(Volume v, bool disable_face)
 		Dart tmp = phi<12>(m2, d);
 		if (dm.is_marked(tmp))
 			continue;
-		while (face_level(tmp) != v_level)
-			disable_face_subdivision(Face(tmp), true, true);
+		/*while (face_level(tmp) != v_level)
+			disable_face_subdivision(Face(tmp), true, true);*/
 		Dart it = tmp;
 		do
 		{
@@ -769,14 +780,14 @@ bool CPH3::disable_volume_subdivision(Volume v, bool disable_face)
 		}
 	}
 
-	for (Dart d : vect_volume)
+	/*if (is_indexed<CPH3::Volume>(*this))
 	{
-		dm.unmark(d);
-	}
-	for (Dart d : vect_vertices)
-	{
-		vm.unmark(Vertex(d));
-	}
+
+		foreach_dart_of_orbit(*this, v, [&](Dart d) -> bool {
+			set_index<CPH3::Volume>(*this, d, id_v);
+			return true;
+		});
+	}*/
 
 	return true;
 }

@@ -1,4 +1,4 @@
-﻿/*******************************************************************************
+/*******************************************************************************
  * CGoGN: Combinatorial and Geometric modeling with Generic N-dimensional Maps  *
  * Copyright (C), IGG Group, ICube, University of Strasbourg, France            *
  *                                                                              *
@@ -113,31 +113,31 @@ std::shared_ptr<Attribute<Vec3>> extract_cmap(cgogn::CMap3* m, EMR_Map3& mrm, At
 
 int main(int argc, char** argv)
 {
+	int percent_nb_modif = 10;
 	std::string filename;
 	if (argc < 2)
 	{
-		std::cout << "Usage: " << argv[0] << " volume_mesh_file" << std::endl;
+		std::cout << "Usage: " << argv[0] << " volume_mesh_file [Percent modif topo]" << std::endl;
 		return 1;
 	}
 	else
 		filename = std::string(argv[1]);
+	if (argc == 3)
+		percent_nb_modif = atoi(argv[2]);
 
 	cgogn::thread_start();
 
 	std::string ext = cgogn::extension(filename);
 	Mesh* m = new Mesh();
-	cgogn::CMap3* m2 = new cgogn::CMap3();
 	bool imported = false;
 
 	if (ext.compare("tet") == 0)
 	{
 		imported = cgogn::io::import_TET(*m, filename);
-		imported = cgogn::io::import_TET(*m2, filename);
 	}
 	else if (ext.compare("mesh") == 0 || ext.compare("meshb") == 0)
 	{
 		imported = cgogn::io::import_MESHB(*m, filename);
-		imported = cgogn::io::import_MESHB(*m2, filename);
 	}
 	else
 		imported = false;
@@ -154,7 +154,6 @@ int main(int argc, char** argv)
 	cgogn::index_cells<Mesh::Volume>(*mrm);
 	cgogn::index_cells<Mesh::Edge>(*mrm);
 
-	std::shared_ptr<Attribute<Vec3>> positionCmap = cgogn::get_attribute<Vec3, Vertex>(*m2, "position");
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*mrm, "position");
 	std::shared_ptr<Attribute<Vec3>> force = cgogn::add_attribute<Vec3, Vertex>(*mrm, "force");
 	std::shared_ptr<Attribute<double>> volume = cgogn::add_attribute<double, Volume>(*mrm, "volume");
@@ -180,11 +179,6 @@ int main(int argc, char** argv)
 
 	mrm->change_resolution_level(2);
 
-	std::cout << "subdivision mono" << std::endl;
-	cgogn::modeling::butterflySubdivisionVolumeRegular(*m2, 0.0f, {position.get()});
-	cgogn::modeling::butterflySubdivisionVolumeRegular(*m2, 0.0f, {position.get()});
-	MAP* cph = new MAP(*m2);
-
 	std::srand(2124512438);
 
 	std::vector<Volume> volume_to_subdivided;
@@ -204,9 +198,7 @@ int main(int argc, char** argv)
 	std::vector<Vertex> vect_vertex2;
 	int nb_cell = cgogn::nb_cells<Volume>(*mrm);
 	bool test_dis = false;
-	std::cout << "nb_volume;nb subdivision;subdivide mr;subdivide mono;nb simplification;simplified mr;simplified "
-				 "mono;centroid+smoothing MR;centroid + volume mono"
-			  << std::endl;
+	std::cout << "nb_volume;nb subdivision;subdivide mr;nb simplification;simplified mr" << std::endl;
 	for (int i = 0; i < 100; i++)
 	{
 		// std::cout << "Volume mono :" << cgogn::nb_cells<Volume>(*cph) << "Volume MR :" <<
@@ -217,7 +209,7 @@ int main(int argc, char** argv)
 		std::cout << nb_cell << ";";
 		for (auto it = volume_to_subdivided.begin(); it != volume_to_subdivided.end();)
 		{
-			if (rand() % 100 < PERCENT_MODIF)
+			if (rand() % 100 < percent_nb_modif)
 			{
 				Volume v = *it;
 				choix_volume.push_back(v);
@@ -239,17 +231,6 @@ int main(int argc, char** argv)
 
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << duration << ";";
-		// std::cout << "temps subdivided 10% volume mr : " << duration << std::endl;
-
-		start = std::clock();
-		for (Volume v : choix_volume)
-		{
-			auto fn = [](Vertex) {};
-			cgogn::modeling::butterflySubdivisionVolume(*cph, 0.0f, {position.get()}, v, fn, fn, fn);
-		}
-		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << duration << ";";
-		// std::cout << "temps subdivided 10% volume mono : " << duration << std::endl;
 
 		choix_volume.clear();
 
@@ -257,7 +238,7 @@ int main(int argc, char** argv)
 		{
 			if (test_dis)
 				break;
-			if (rand() % 100 < PERCENT_MODIF)
+			if (rand() % 100 < percent_nb_modif)
 			{
 				Volume v = *it;
 				choix_volume.push_back(v);
@@ -277,87 +258,19 @@ int main(int argc, char** argv)
 			mrm->disable_volume_subdivision(Volume(cgogn::phi1(*mrm, v.dart)), true);
 		}
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << duration << ";";
+		std::cout << duration;
 		// std::cout << "temps simplified 10% volume mr : " << duration << std::endl;
 
-		start = std::clock();
-		for (Volume v : choix_volume)
-		{
-			cph->disable_volume_subdivision(v, true);
-		}
-		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << duration << ";";
-		// std::cout << "temps simplified 10% volume mono : " << duration << std::endl;
-
 		choix_volume.clear();
-
-		start = std::clock();
-
-		cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
-			cgogn::geometry::centroid<Vec3>(*mrm, v, position.get());
-			return true;
-		});
-		cgogn::foreach_cell(*mrm, [&](Vertex v) -> bool {
-			cgogn::CellMarkerStore<MRMesh, Vertex> mv(*mrm);
-			Vec3 cm(0, 0, 0);
-			cgogn::foreach_incident_volume(*mrm, v, [&](Volume w) -> bool {
-				cgogn::foreach_incident_vertex(*mrm, w, [&](Vertex v2) -> bool {
-					if (!mv.is_marked(v2))
-					{
-						cm += cgogn::value<Vec3>(*mrm, position.get(), v2);
-						mv.mark(v2);
-					}
-					return true;
-				});
-				return true;
-			});
-			return true;
-		});
-
-		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << duration << ";";
-
-		cgogn::CMap3* tmp_map = new cgogn::CMap3();
-		std::shared_ptr<Attribute<Vec3>> pos_cmap = extract_cmap(tmp_map, *mrm, position.get());
-
-		start = std::clock();
-
-		cgogn::foreach_cell(*tmp_map, [&](Volume v) -> bool {
-			cgogn::geometry::centroid<Vec3>(*tmp_map, v, pos_cmap.get());
-			return true;
-		});
-		cgogn::foreach_cell(*tmp_map, [&](cgogn::CMap3::Vertex v) -> bool {
-			cgogn::CellMarkerStore<cgogn::CMap3, cgogn::CMap3::Vertex> mv(*tmp_map);
-			Vec3 cm(0, 0, 0);
-			cgogn::foreach_incident_volume(*tmp_map, v, [&](cgogn::CMap3::Volume w) -> bool {
-				cgogn::foreach_incident_vertex(*tmp_map, w, [&](cgogn::CMap3::Vertex v2) -> bool {
-					if (!mv.is_marked(v2))
-					{
-						cm += cgogn::value<Vec3>(*tmp_map, pos_cmap.get(), v2);
-						mv.mark(v2);
-					}
-					return true;
-				});
-				return true;
-			});
-			return true;
-		});
-
-		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << duration;
-
 		std::cout << std::endl;
-		delete tmp_map;
 	}
 
 	std::cout << "bench volume constant" << std::endl;
-	std::cout << "nb_volume;nb subdivision;subdivide mr;subdivide mono;nb simplification;simplified mr;simplified "
-				 "mono;centroid+smoothing MR;centroid + smoothing mono"
-			  << std::endl;
+	std::cout << "nb_volume;nb subdivision;subdivide mr;nb simplification;simplified mr" << std::endl;
 
 	int nb_modif = volume_to_subdivided.size() * 0.1;
 	std::random_device rd;
-	std::mt19937 g(rd());
+	std::mt19937 g(19111996);
 	for (int i = 0; i < 100; i++)
 	{
 		// std::clog << cph->current_level_ << ";" << cph->maximum_level_ << std::endl;
@@ -383,25 +296,6 @@ int main(int argc, char** argv)
 		std::cout << duration << ";";
 		// std::cout << "temps subdivided 10% volume mr : " << duration << std::endl;
 
-		start = std::clock();
-		for (Volume v : choix_volume)
-		{
-			auto fn = [](Vertex) {};
-			cgogn::modeling::butterflySubdivisionVolume(*cph, 0.0f, {position.get()}, v, fn, fn, fn);
-		}
-		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << duration << ";";
-		// std::cout << "temps subdivided 10% volume mono : " << duration << std::endl;
-		start = std::clock();
-
-		for (Volume v : choix_volume)
-		{
-			cgogn::foreach_dart_of_orbit(*cph, v, [&](Dart d) -> bool { return true; });
-		}
-
-		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		// std::clog << ";" << duration << std::endl;
-
 		choix_volume.clear();
 		// std::shuffle(volume_to_simplified.begin(), volume_to_simplified.end(), g);
 
@@ -420,99 +314,14 @@ int main(int argc, char** argv)
 			mrm->disable_volume_subdivision(v, true);
 		}
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << duration << ";";
+		std::cout << duration;
 		// std::cout << "temps simplified 10% volume mr : " << duration << std::endl;
-
-		start = std::clock();
-		for (Volume v : choix_volume)
-		{
-			cph->disable_volume_subdivision(v, true);
-		}
-		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << duration << ";";
-		// std::cout << "temps simplified 10% volume mono : " << duration << std::endl;
 
 		choix_volume.clear();
 
-		cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
-			vect_vol.push_back(v);
-			return true;
-		});
-		cgogn::foreach_cell(*mrm, [&](Vertex v) -> bool {
-			vect_vertex.push_back(v);
-			return true;
-		});
-		cgogn::foreach_cell(*cph, [&](Volume v) -> bool {
-			vect_vol2.push_back(v);
-			return true;
-		});
-		cgogn::foreach_cell(*cph, [&](Vertex v) -> bool {
-			vect_vertex2.push_back(v);
-			return true;
-		});
-
-		start = std::clock();
-
-		for (Volume v : vect_vol)
-		{
-			cgogn::geometry::centroid<Vec3>(*mrm, v, position.get());
-			// cgogn::geometry::volume(*mrm, v, position.get());
-		}
-		for (Vertex v : vect_vertex)
-		{
-			cgogn::CellMarkerStore<MRMesh, Vertex> mv(*mrm);
-			Vec3 cm(0, 0, 0);
-			cgogn::foreach_incident_volume(*mrm, v, [&](Volume w) -> bool {
-				cgogn::foreach_incident_vertex(*mrm, w, [&](Vertex v2) -> bool {
-					if (!mv.is_marked(v2))
-					{
-						cm += cgogn::value<Vec3>(*mrm, position.get(), v2);
-						mv.mark(v2);
-					}
-					return true;
-				});
-				return true;
-			});
-		}
-
-		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << duration << ";";
-
-		start = std::clock();
-
-		for (Volume v : vect_vol2)
-		{
-			cgogn::geometry::centroid<Vec3>(*cph, v, position.get());
-			// cgogn::geometry::volume(cph->m_, v, position.get());
-		}
-		for (Vertex v : vect_vertex2)
-		{
-			cgogn::CellMarkerStore<MAP, Vertex> mv(*cph);
-			Vec3 cm(0, 0, 0);
-			cgogn::foreach_incident_volume(*cph, v, [&](Volume w) -> bool {
-				cgogn::foreach_incident_vertex(*cph, w, [&](Vertex v2) -> bool {
-					if (!mv.is_marked(v2))
-					{
-						cm += cgogn::value<Vec3>(*cph, position.get(), v2);
-						mv.mark(v2);
-					}
-					return true;
-				});
-				return true;
-			});
-		}
-
-		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << duration;
-
 		std::cout << std::endl;
-		vect_vol.clear();
-		vect_vertex.clear();
-		vect_vol2.clear();
-		vect_vertex2.clear();
 	}
 
-	delete m2;
 	delete mrm;
 	delete m;
 

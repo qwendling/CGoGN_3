@@ -105,6 +105,8 @@ struct CPH3
 
 	inline Dart begin() const
 	{
+		if(current_level_ == maximum_level_)
+			return m_.begin();
 		Dart d(m_.darts_->first_index());
 		uint32 lastidx = m_.darts_->last_index();
 		while (dart_level(d) > current_level_ && d.index < lastidx)
@@ -119,6 +121,8 @@ struct CPH3
 
 	inline Dart next(Dart d) const
 	{
+		if(current_level_ == maximum_level_)
+			return m_.next(d);
 		uint32 lastidx = m_.darts_->last_index();
 		do
 		{

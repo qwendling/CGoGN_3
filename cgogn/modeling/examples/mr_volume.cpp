@@ -39,6 +39,7 @@
 #include <cgogn/ui/modules/volume_mr_modeling/volume_mr_modeling.h>
 #include <cgogn/ui/modules/volume_render/volume_render.h>
 #include <cgogn/ui/modules/volume_selection/volume_selection.h>
+#include <random>
 
 using MRMesh = cgogn::CPH3;
 using Mesh = MRMesh::CMAP;
@@ -115,11 +116,22 @@ int main(int argc, char** argv)
 
 	cph2->current_level_ = 1;
 	vmrm.subdivide(*cph2, position.get());
+	/*cph2->current_level_ = 2;
+	vmrm.subdivide(*cph2, position.get());*/
 	cph2->current_level_ = 2;
-	vmrm.subdivide(*cph2, position.get());
 
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 	// std::cout << "temps subdivide  : " << duration << std::endl;
+
+	std::vector<Volume> volume_to_subdivided;
+	std::vector<Volume> volume_to_simplified;
+	std::random_device rd;
+	std::mt19937 g(rd());
+
+	cgogn::foreach_cell(*cph2, [&](Volume v) -> bool {
+		volume_to_subdivided.push_back(Volume(cph2->volume_youngest_dart(v.dart)));
+		return true;
+	});
 
 	vs.f_keypress = [&](cgogn::ui::View* view, MRMesh* selected_mesh, std::int32_t k,
 						cgogn::ui::CellsSet<MRMesh, Vertex>*, cgogn::ui::CellsSet<MRMesh, Edge>*) {
@@ -127,23 +139,57 @@ int main(int argc, char** argv)
 		{
 		case GLFW_KEY_I: {
 
-			if (selected_mesh->disable_volume_subdivision(Volume(cgogn::Dart(0)), true))
+			std::vector<Volume> choix_volume;
+			std::shuffle(volume_to_simplified.begin(), volume_to_simplified.end(), g);
+			int n = 0;
+			for (auto it = volume_to_simplified.begin(); it != volume_to_simplified.end();)
 			{
-				std::cout << "Yes" << std::endl;
+				Volume v = *it;
+				choix_volume.push_back(v);
+				volume_to_subdivided.push_back(v);
+				it = volume_to_simplified.erase(it);
+				n++;
+				if (n >= 100)
+					break;
 			}
-			else
+			// std::cout << "temps subdivided 10% volume mr : " << duration << std::endl;
+
+			start = std::clock();
+			for (Volume v : choix_volume)
 			{
-				std::cout << "Nope" << std::endl;
+				cph2->disable_volume_subdivision(v, true);
 			}
-			selected_mesh->check_integrity();
+			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << duration << ";" << std::endl;
 			vmrm.changed_connectivity(*selected_mesh, position.get());
 		}
 		break;
 		case GLFW_KEY_J: {
-			auto fn = [](Vertex) {};
-			cgogn::modeling::butterflySubdivisionVolume(*selected_mesh, 0.0f, {position.get()}, Volume(cgogn::Dart(0)),
-														fn, fn, fn);
-			selected_mesh->check_integrity();
+			std::vector<Volume> choix_volume;
+			std::shuffle(volume_to_subdivided.begin(), volume_to_subdivided.end(), g);
+			int n = 0;
+			for (auto it = volume_to_subdivided.begin(); it != volume_to_subdivided.end();)
+			{
+
+				Volume v = *it;
+				choix_volume.push_back(v);
+				volume_to_simplified.push_back(v);
+				it = volume_to_subdivided.erase(it);
+
+				n++;
+				if (n >= 100)
+					break;
+			}
+			// std::cout << "temps subdivided 10% volume mr : " << duration << std::endl;
+
+			start = std::clock();
+			for (Volume v : choix_volume)
+			{
+				auto fn = [](Vertex) {};
+				cgogn::modeling::butterflySubdivisionVolume(*cph2, 0.0f, {position.get()}, v, fn, fn, fn);
+			}
+			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << duration << ";" << std::endl;
 			vmrm.changed_connectivity(*selected_mesh, position.get());
 		}
 		break;

@@ -1062,8 +1062,8 @@ bool EMR_Map3_Adaptative::disable_volume_subdivision(Volume v, bool disable_face
 		}
 		return true;
 	});
-	DartMarker<EMR_Map3_Adaptative> dm(*this);
-	CellMarker<EMR_Map3_Adaptative, Vertex> vm(*this);
+	DartMarkerStore<EMR_Map3_Adaptative> dm(*this);
+	CellMarkerStore<EMR_Map3_Adaptative, Vertex> vm(*this);
 	std::vector<Dart> vect_vertices;
 	std::vector<Dart> vect_volume;
 
@@ -1078,7 +1078,6 @@ bool EMR_Map3_Adaptative::disable_volume_subdivision(Volume v, bool disable_face
 		}
 		return true;
 	});
-
 	for (Dart d : vect_vertices)
 	{
 		while (volume_level(d) != v_level)
