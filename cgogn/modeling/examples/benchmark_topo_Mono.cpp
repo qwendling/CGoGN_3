@@ -181,7 +181,8 @@ int main(int argc, char** argv)
 	std::vector<Vertex> vect_vertex2;
 	int nb_cell = cgogn::nb_cells<Volume>(*m2);
 	bool test_dis = false;
-	std::cout << "nb_volume;nb subdivision;subdivide mono;nb simplificationr;simplified mono" << std::endl;
+	std::cout << "nb_volume;nb subdivision;subdivide mono;nb simplificationr;simplified mono"
+			  << std::endl;
 	for (int i = 0; i < 100; i++)
 	{
 		std::cout << nb_cell << ";";
@@ -240,7 +241,7 @@ int main(int argc, char** argv)
 		}
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << duration;
-		// std::cout << "temps simplified 10% volume mono : " << duration << std::endl;
+		// std::cout << "temps simplified 10% volume mr : " << duration << std::endl;
 
 		choix_volume.clear();
 
@@ -248,7 +249,7 @@ int main(int argc, char** argv)
 	}
 
 	std::cout << "bench volume constant" << std::endl;
-	std::cout << "nb_volume;nb subdivision;subdivide mono;nb simplification;simplified mono;centroid + smoothing mono"
+	std::cout << "nb_volume;nb subdivision;subdivide mono;nb simplification;simplified mono"
 			  << std::endl;
 
 	int nb_modif = volume_to_subdivided.size() * 0.1;
@@ -300,8 +301,8 @@ int main(int argc, char** argv)
 			cph->disable_volume_subdivision(v, true);
 		}
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << duration << ";";
-		// std::cout << "temps simplified 10% volume mono : " << duration << std::endl;
+		std::cout << duration;
+		// std::cout << "temps simplified 10% volume mr : " << duration << std::endl;
 
 		choix_volume.clear();
 

@@ -235,8 +235,8 @@ void import_volume_data(CMap3& m, const VolumeImportData& volume_data)
 	if (nb_boundary_faces > 0u)
 	{
 		uint32 nb_holes = close(m);
-		std::cout << nb_holes << " hole(s) have been closed" << std::endl;
-		std::cout << nb_boundary_faces << " boundary faces" << std::endl;
+		std::clog << nb_holes << " hole(s) have been closed" << std::endl;
+		std::clog << nb_boundary_faces << " boundary faces" << std::endl;
 	}
 
 	remove_attribute<Vertex>(m, darts_per_vertex);

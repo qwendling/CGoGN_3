@@ -192,13 +192,14 @@ int main(int argc, char** argv)
 	std::cout << "debut benchmark" << std::endl;
 
 	std::vector<Volume> choix_volume;
-	std::vector<Volume> vect_vol;
-	std::vector<Vertex> vect_vertex;
-	std::vector<Volume> vect_vol2;
-	std::vector<Vertex> vect_vertex2;
+
+	std::vector<Vertex> vec_vertex;
+	std::vector<Volume> vec_volume;
+
 	int nb_cell = cgogn::nb_cells<Volume>(*mrm);
 	bool test_dis = false;
-	std::cout << "nb_volume;nb subdivision;subdivide mr;nb simplification;simplified mr" << std::endl;
+	std::cout << "nb_volume;nb subdivision;subdivide mr;nb simplification;simplified mr;centroid + smoothing MR"
+			  << std::endl;
 	for (int i = 0; i < 100; i++)
 	{
 		// std::cout << "Volume mono :" << cgogn::nb_cells<Volume>(*cph) << "Volume MR :" <<
@@ -258,15 +259,53 @@ int main(int argc, char** argv)
 			mrm->disable_volume_subdivision(Volume(cgogn::phi1(*mrm, v.dart)), true);
 		}
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << duration;
+		std::cout << duration << ";";
 		// std::cout << "temps simplified 10% volume mr : " << duration << std::endl;
 
 		choix_volume.clear();
+
+		cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
+			vec_volume.push_back(v);
+			return true;
+		});
+		cgogn::foreach_cell(*mrm, [&](Vertex v) -> bool {
+			vec_vertex.push_back(v);
+			return true;
+		});
+
+		start = std::clock();
+
+		for(Volume v:vec_volume){
+			cgogn::geometry::centroid<Vec3>(*mrm, v, position.get());
+			return true;
+		}
+		for(Vertex v:vec_vertex){
+			cgogn::CellMarkerStore<MRMesh, Vertex> mv(*mrm);
+			Vec3 cm(0, 0, 0);
+			cgogn::foreach_incident_volume(*mrm, v, [&](Volume w) -> bool {
+				cgogn::foreach_incident_vertex(*mrm, w, [&](Vertex v2) -> bool {
+					if (!mv.is_marked(v2))
+					{
+						cm += cgogn::value<Vec3>(*mrm, position.get(), v2);
+						mv.mark(v2);
+					}
+					return true;
+				});
+				return true;
+			});
+			return true;
+		}
+
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << duration;
 		std::cout << std::endl;
+		vec_vertex.clear();
+		vec_volume.clear();
 	}
 
 	std::cout << "bench volume constant" << std::endl;
-	std::cout << "nb_volume;nb subdivision;subdivide mr;nb simplification;simplified mr" << std::endl;
+	std::cout << "nb_volume;nb subdivision;subdivide mr;nb simplification;simplified mr;centroid + smoothing MR"
+			  << std::endl;
 
 	int nb_modif = volume_to_subdivided.size() * 0.1;
 	std::random_device rd;
@@ -314,12 +353,47 @@ int main(int argc, char** argv)
 			mrm->disable_volume_subdivision(v, true);
 		}
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << duration;
+		std::cout << duration << ";";
 		// std::cout << "temps simplified 10% volume mr : " << duration << std::endl;
 
 		choix_volume.clear();
+		cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
+			vec_volume.push_back(v);
+			return true;
+		});
+		cgogn::foreach_cell(*mrm, [&](Vertex v) -> bool {
+			vec_vertex.push_back(v);
+			return true;
+		});
 
+		start = std::clock();
+
+		for(Volume v:vec_volume){
+			cgogn::geometry::centroid<Vec3>(*mrm, v, position.get());
+			return true;
+		}
+		for(Vertex v:vec_vertex){
+			cgogn::CellMarkerStore<MRMesh, Vertex> mv(*mrm);
+			Vec3 cm(0, 0, 0);
+			cgogn::foreach_incident_volume(*mrm, v, [&](Volume w) -> bool {
+				cgogn::foreach_incident_vertex(*mrm, w, [&](Vertex v2) -> bool {
+					if (!mv.is_marked(v2))
+					{
+						cm += cgogn::value<Vec3>(*mrm, position.get(), v2);
+						mv.mark(v2);
+					}
+					return true;
+				});
+				return true;
+			});
+			return true;
+		}
+
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << duration;
 		std::cout << std::endl;
+		vec_vertex.clear();
+		vec_volume.clear();
 	}
 
 	delete mrm;
