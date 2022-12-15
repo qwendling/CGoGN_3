@@ -149,70 +149,64 @@ void test(MRMesh* mrm, Attribute<Vec3>* attr)
 	std::clock_t start;
 	double duration;
 
-	// foreachcell_benchmark( mrm);
-
 	start = std::clock();
-
-	cgogn::foreach_cell(*mrm, [&](Vertex) -> bool { return true; });
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps parcours vertex : " << duration << std::endl;
-	start = std::clock();
-	cgogn::foreach_cell(*mrm, [&](Edge) -> bool { return true; });
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps parcours edge : " << duration << std::endl;
-	start = std::clock();
-	cgogn::foreach_cell(*mrm, [&](Face) -> bool { return true; });
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps parcours face : " << duration << std::endl;
-	start = std::clock();
-	cgogn::foreach_cell(*mrm, [&](Volume) -> bool { return true; });
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps parcours volume : " << duration << std::endl;
-	start = std::clock();
-	cgogn::foreach_cell(*mrm, [&](Volume) -> bool { return true; });
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps parcours volume 2 : " << duration << std::endl;
-
-	start = std::clock();
-	cgogn::foreach_cell(*mrm, [&](Vertex v) -> bool {
-		cgogn::foreach_incident_volume(*mrm, v, [&](Volume w) -> bool {
-			cgogn::foreach_incident_vertex(*mrm, w, [&](Vertex) -> bool { return true; });
+	for (int i = 0; i < 10; i++)
+	{
+		cgogn::foreach_cell(*mrm, [&](Vertex v) -> bool {
+			cgogn::foreach_incident_volume(*mrm, v, [&](Volume w) -> bool {
+				cgogn::foreach_incident_vertex(*mrm, w, [&](Vertex) -> bool { return true; });
+				return true;
+			});
 			return true;
 		});
-		return true;
-	});
+	}
 
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps CirculatorA : " << duration << std::endl;
+	std::cout << "temps CirculatorA : " << duration / 10.0f << std::endl;
 
 	start = std::clock();
-	cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
-		cgogn::foreach_incident_vertex(*mrm, v, [&](Vertex w) -> bool {
-			cgogn::foreach_incident_volume(*mrm, w, [&](Volume) -> bool { return true; });
+
+	for (int i = 0; i < 10; i++)
+	{
+		cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
+			cgogn::foreach_incident_vertex(*mrm, v, [&](Vertex w) -> bool {
+				cgogn::foreach_incident_volume(*mrm, w, [&](Volume) -> bool { return true; });
+				return true;
+			});
 			return true;
 		});
-		return true;
-	});
+	}
 
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps CirculatorB : " << duration << std::endl;
+	std::cout << "temps CirculatorB : " << duration / 10.0f << std::endl;
 
 	start = std::clock();
-	cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
-		cgogn::geometry::centroid<Vec3>(*mrm, v, attr);
-		return true;
-	});
+	for (int i = 0; i < 10; i++)
+	{
+		cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
+			cgogn::geometry::centroid<Vec3>(*mrm, v, attr);
+			return true;
+		});
+		cgogn::foreach_cell(*mrm, [&](cgogn::CMap3::Vertex v) -> bool {
+			cgogn::CellMarkerStore<MRMesh, cgogn::CMap3::Vertex> mv(*mrm);
+			Vec3 cm(0, 0, 0);
+			cgogn::foreach_incident_volume(*mrm, v, [&](cgogn::CMap3::Volume w) -> bool {
+				cgogn::foreach_incident_vertex(*mrm, w, [&](cgogn::CMap3::Vertex v2) -> bool {
+					if (!mv.is_marked(v2))
+					{
+						cm += cgogn::value<Vec3>(*mrm, attr, v2);
+						mv.mark(v2);
+					}
+					return true;
+				});
+				return true;
+			});
+			return true;
+		});
+	}
 
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps Centroid : " << duration << std::endl;
-	start = std::clock();
-	cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
-		cgogn::geometry::volume(*mrm, v, attr);
-		return true;
-	});
-
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps Volume : " << duration << std::endl;
+	std::cout << "temps centroid + smooth : " << duration / 10.0f << std::endl;
 };
 
 void test2(cgogn::CMap3* mrm, Attribute<Vec3>* attr)
@@ -221,63 +215,63 @@ void test2(cgogn::CMap3* mrm, Attribute<Vec3>* attr)
 	double duration;
 
 	start = std::clock();
-
-	cgogn::foreach_cell(*mrm, [&](Vertex) -> bool { return true; });
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps parcours vertex : " << duration << std::endl;
-	start = std::clock();
-	cgogn::foreach_cell(*mrm, [&](Edge) -> bool { return true; });
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps parcours edge : " << duration << std::endl;
-	start = std::clock();
-	cgogn::foreach_cell(*mrm, [&](Face) -> bool { return true; });
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps parcours face : " << duration << std::endl;
-	start = std::clock();
-	cgogn::foreach_cell(*mrm, [&](Volume) -> bool { return true; });
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps parcours volume : " << duration << std::endl;
-
-	start = std::clock();
-	cgogn::foreach_cell(*mrm, [&](Vertex v) -> bool {
-		cgogn::foreach_incident_volume(*mrm, v, [&](Volume w) -> bool {
-			cgogn::foreach_incident_vertex(*mrm, w, [&](Vertex) -> bool { return true; });
+	for (int i = 0; i < 10; i++)
+	{
+		cgogn::foreach_cell(*mrm, [&](Vertex v) -> bool {
+			cgogn::foreach_incident_volume(*mrm, v, [&](Volume w) -> bool {
+				cgogn::foreach_incident_vertex(*mrm, w, [&](Vertex) -> bool { return true; });
+				return true;
+			});
 			return true;
 		});
-		return true;
-	});
+	}
 
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps CirculatorA : " << duration << std::endl;
+	std::cout << "temps CirculatorA : " << duration / 10.0f << std::endl;
 
 	start = std::clock();
-	cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
-		cgogn::foreach_incident_vertex(*mrm, v, [&](Vertex w) -> bool {
-			cgogn::foreach_incident_volume(*mrm, w, [&](Volume) -> bool { return true; });
+
+	for (int i = 0; i < 10; i++)
+	{
+		cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
+			cgogn::foreach_incident_vertex(*mrm, v, [&](Vertex w) -> bool {
+				cgogn::foreach_incident_volume(*mrm, w, [&](Volume) -> bool { return true; });
+				return true;
+			});
 			return true;
 		});
-		return true;
-	});
+	}
 
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps CirculatorB : " << duration << std::endl;
+	std::cout << "temps CirculatorB : " << duration / 10.0f << std::endl;
 
 	start = std::clock();
-	cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
-		Vec3 c = cgogn::geometry::centroid<Vec3>(*mrm, v, attr);
-		return true;
-	});
+	for (int i = 0; i < 10; i++)
+	{
+		cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
+			cgogn::geometry::centroid<Vec3>(*mrm, v, attr);
+			return true;
+		});
+		cgogn::foreach_cell(*mrm, [&](cgogn::CMap3::Vertex v) -> bool {
+			cgogn::CellMarkerStore<cgogn::CMap3, cgogn::CMap3::Vertex> mv(*mrm);
+			Vec3 cm(0, 0, 0);
+			cgogn::foreach_incident_volume(*mrm, v, [&](cgogn::CMap3::Volume w) -> bool {
+				cgogn::foreach_incident_vertex(*mrm, w, [&](cgogn::CMap3::Vertex v2) -> bool {
+					if (!mv.is_marked(v2))
+					{
+						cm += cgogn::value<Vec3>(*mrm, attr, v2);
+						mv.mark(v2);
+					}
+					return true;
+				});
+				return true;
+			});
+			return true;
+		});
+	}
 
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps Centroid : " << duration << std::endl;
-	start = std::clock();
-	cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
-		cgogn::geometry::volume(*mrm, v, attr);
-		return true;
-	});
-
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps Volume : " << duration << std::endl;
+	std::cout << "temps centroid + smooth : " << duration / 10.0f << std::endl;
 };
 
 void activate_all_volume(MRMesh* m)

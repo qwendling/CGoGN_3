@@ -200,7 +200,7 @@ int main(int argc, char** argv)
 	bool test_dis = false;
 	std::cout << "nb_volume;nb subdivision;subdivide mr;nb simplification;simplified mr;centroid + smoothing MR"
 			  << std::endl;
-	for (int i = 0; i < 100; i++)
+	for (int i = 0; i < 500; i++)
 	{
 		// std::cout << "Volume mono :" << cgogn::nb_cells<Volume>(*cph) << "Volume MR :" <<
 		// cgogn::nb_cells<Volume>(*mrm) << std::endl; std::cout << "Face mono :" << cgogn::nb_cells<Face>(*cph) <<
@@ -275,11 +275,11 @@ int main(int argc, char** argv)
 
 		start = std::clock();
 
-		for(Volume v:vec_volume){
+		cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
 			cgogn::geometry::centroid<Vec3>(*mrm, v, position.get());
 			return true;
-		}
-		for(Vertex v:vec_vertex){
+		});
+		cgogn::foreach_cell(*mrm, [&](Vertex v) -> bool {
 			cgogn::CellMarkerStore<MRMesh, Vertex> mv(*mrm);
 			Vec3 cm(0, 0, 0);
 			cgogn::foreach_incident_volume(*mrm, v, [&](Volume w) -> bool {
@@ -294,7 +294,7 @@ int main(int argc, char** argv)
 				return true;
 			});
 			return true;
-		}
+		});
 
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << duration;
@@ -307,7 +307,7 @@ int main(int argc, char** argv)
 	std::cout << "nb_volume;nb subdivision;subdivide mr;nb simplification;simplified mr;centroid + smoothing MR"
 			  << std::endl;
 
-	int nb_modif = volume_to_subdivided.size() * 0.1;
+	int nb_modif = volume_to_subdivided.size() * (1.0f/double(percent_nb_modif));
 	std::random_device rd;
 	std::mt19937 g(19111996);
 	for (int i = 0; i < 100; i++)
@@ -368,11 +368,11 @@ int main(int argc, char** argv)
 
 		start = std::clock();
 
-		for(Volume v:vec_volume){
+		cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
 			cgogn::geometry::centroid<Vec3>(*mrm, v, position.get());
 			return true;
-		}
-		for(Vertex v:vec_vertex){
+		});
+		cgogn::foreach_cell(*mrm, [&](Vertex v) -> bool {
 			cgogn::CellMarkerStore<MRMesh, Vertex> mv(*mrm);
 			Vec3 cm(0, 0, 0);
 			cgogn::foreach_incident_volume(*mrm, v, [&](Volume w) -> bool {
@@ -387,7 +387,7 @@ int main(int argc, char** argv)
 				return true;
 			});
 			return true;
-		}
+		});
 
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << duration;

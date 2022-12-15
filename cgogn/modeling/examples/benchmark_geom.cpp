@@ -148,16 +148,12 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-
 	cgogn::index_cells<Mesh::Face>(*m);
 	cgogn::index_cells<Mesh::Volume>(*m);
 	cgogn::index_cells<Mesh::Edge>(*m);
-	
 
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*m, "position");
 	std::shared_ptr<Attribute<Vec3>> position2;
-
-	
 
 	std::clock_t start;
 	double duration;
@@ -166,7 +162,7 @@ int main(int argc, char** argv)
 	cgogn::modeling::butterflySubdivisionVolumeRegular(*m, 0.0f, {position.get()});
 	cgogn::modeling::butterflySubdivisionVolumeRegular(*m, 0.0f, {position.get()});
 
-	auto fn = [&]()->Mesh*{
+	auto fn = [&]() -> Mesh* {
 		Mesh* m2 = new Mesh();
 		if (ext.compare("tet") == 0)
 		{
@@ -201,9 +197,8 @@ int main(int argc, char** argv)
 	std::vector<Volume> choix_volume;
 	int nb_cell = cgogn::nb_cells<Volume>(*m);
 	bool test_dis = false;
-	std::cout << "nb_volume;centroid + smoothing mono"
-			  << std::endl;
-	//Mesh* m2;
+	std::cout << "nb_volume;creation carte;centroid + smoothing mono" << std::endl;
+	// Mesh* m2;
 	for (int i = 0; i < 100; i++)
 	{
 		std::cout << nb_cell << ";";
@@ -242,13 +237,18 @@ int main(int argc, char** argv)
 				++it;
 			}
 		}
-		std::cout << choix_volume.size() << ";";
-		// std::cout << "temps simplified 10% volume mr : " << duration << std::endl;
+		// std::cout << choix_volume.size() << ";";
+		//  std::cout << "temps simplified 10% volume mr : " << duration << std::endl;
 
 		choix_volume.clear();
 
+		start = std::clock();
+
 		m2 = fn();
-		cgogn::modeling::butterflySubdivisionVolume(*m2, 0.0f,{position2.get()},volume_to_simplified);
+		cgogn::modeling::butterflySubdivisionVolume(*m2, 0.0f, {position2.get()}, volume_to_simplified);
+
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << duration << ";";
 
 		start = std::clock();
 
@@ -281,8 +281,7 @@ int main(int argc, char** argv)
 	}
 
 	std::cout << "bench volume constant" << std::endl;
-	std::cout << "nb_volume;centroid + smoothing mono"
-			  << std::endl;
+	std::cout << "nb_volume;creation carte;centroid + smoothing mono" << std::endl;
 
 	int nb_modif = volume_to_subdivided.size() * 0.1;
 	std::random_device rd;
@@ -301,7 +300,7 @@ int main(int argc, char** argv)
 			volume_to_subdivided.pop_back();
 			nb_cell += 7;
 		}
-		std::cout << choix_volume.size() << ";";
+		// std::cout << choix_volume.size() << ";";
 
 		choix_volume.clear();
 
@@ -313,9 +312,14 @@ int main(int argc, char** argv)
 			volume_to_simplified.pop_back();
 			nb_cell -= 7;
 		}
-		std::cout << choix_volume.size() << ";";
+		// std::cout << choix_volume.size() << ";";
+		start = std::clock();
+
 		m2 = fn();
-		cgogn::modeling::butterflySubdivisionVolume(*m2, 0.0f,{position2.get()},volume_to_simplified);
+		cgogn::modeling::butterflySubdivisionVolume(*m2, 0.0f, {position2.get()}, volume_to_simplified);
+
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << duration << ";";
 
 		start = std::clock();
 

@@ -109,6 +109,46 @@ std::shared_ptr<Attribute<Vec3>> extract_cmap(cgogn::CMap3* m, EMR_Map3& mrm, At
 	return pos_cmap;
 }
 
+void clear_cph(cgogn::CPH3& m)
+{
+	m.current_level_ = 0;
+	std::vector<std::pair<Dart, Dart>> vect_phi1;
+	std::vector<std::pair<Dart, Dart>> vect_phi_1;
+	std::vector<std::pair<Dart, Dart>> vect_phi2;
+	std::vector<std::pair<Dart, Dart>> vect_phi3;
+	for (Dart d = m.begin(), end = m.end(); d != end; d = m.next(d))
+	{
+		vect_phi1.push_back(std::make_pair(d, phi1(m, d)));
+		vect_phi_1.push_back(std::make_pair(d, phi_1(m, d)));
+		vect_phi2.push_back(std::make_pair(d, phi2(m, d)));
+		vect_phi3.push_back(std::make_pair(d, phi3(m, d)));
+	}
+	for (auto&& [d1, d2] : vect_phi1)
+	{
+		(*(m.m_.phi1_))[d1.index] = d2;
+	}
+	for (auto&& [d1, d2] : vect_phi_1)
+	{
+		(*(m.m_.phi_1_))[d1.index] = d2;
+	}
+	for (auto&& [d1, d2] : vect_phi2)
+	{
+		(*(m.m_.phi2_))[d1.index] = d2;
+	}
+	for (auto&& [d1, d2] : vect_phi3)
+	{
+		(*(m.m_.phi3_))[d1.index] = d2;
+	}
+	m.current_level_ = 1;
+	for (Dart d = m.begin(), end = m.end(); d != end; d = m.next(d))
+	{
+		if (m.dart_level(d))
+		{
+			cgogn::remove_dart(m.m_, d);
+		}
+	}
+}
+
 #define PERCENT_MODIF 10
 
 int main(int argc, char** argv)
@@ -181,9 +221,10 @@ int main(int argc, char** argv)
 	std::vector<Vertex> vect_vertex2;
 	int nb_cell = cgogn::nb_cells<Volume>(*m2);
 	bool test_dis = false;
-	std::cout << "nb_volume;nb subdivision;subdivide mono;nb simplificationr;simplified mono"
+	std::cout << "nb_volume;nb subdivision;subdivide mono;nb simplificationr;simplified mono;nb_volume Carte;nb_vertex "
+				 "Carte;temps_repair;subdivide + smoothing mono"
 			  << std::endl;
-	for (int i = 0; i < 100; i++)
+	for (int i = 0; i < 500; i++)
 	{
 		std::cout << nb_cell << ";";
 		for (auto it = volume_to_subdivided.begin(); it != volume_to_subdivided.end();)
@@ -207,7 +248,7 @@ int main(int argc, char** argv)
 		for (Volume v : choix_volume)
 		{
 			auto fn = [](Vertex) {};
-			cgogn::modeling::butterflySubdivisionVolume(*cph, 0.0f, {position.get()}, v, fn, fn, fn);
+			cgogn::modeling::butterflySubdivisionVolume(*cph, 0.0f, {position.get()}, {v}, fn, fn, fn);
 		}
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << duration << ";";
@@ -240,19 +281,59 @@ int main(int argc, char** argv)
 			cph->disable_volume_subdivision(v, true);
 		}
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << duration;
+		std::cout << duration << ";";
 		// std::cout << "temps simplified 10% volume mr : " << duration << std::endl;
 
 		choix_volume.clear();
+
+		std::cout << cgogn::nb_cells<Volume>(*m2) << ";" << cgogn::nb_cells<Vertex>(*m2) << ";";
+
+		start = std::clock();
+		if (i % 15 == 0)
+		{
+			clear_cph(*cph);
+			auto fn = [](Vertex) {};
+			cgogn::modeling::butterflySubdivisionVolume(*cph, 0.0f, {position.get()}, volume_to_simplified, fn, fn, fn);
+		}
+
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << duration << ";";
+
+		start = std::clock();
+
+		cgogn::foreach_cell(cph->m_, [&](Volume v) -> bool {
+			cgogn::geometry::centroid<Vec3>(cph->m_, v, position.get());
+			return true;
+		});
+		cgogn::foreach_cell(cph->m_, [&](cgogn::CMap3::Vertex v) -> bool {
+			cgogn::CellMarkerStore<cgogn::CMap3, cgogn::CMap3::Vertex> mv(cph->m_);
+			Vec3 cm(0, 0, 0);
+			cgogn::foreach_incident_volume(cph->m_, v, [&](cgogn::CMap3::Volume w) -> bool {
+				cgogn::foreach_incident_vertex(cph->m_, w, [&](cgogn::CMap3::Vertex v2) -> bool {
+					if (!mv.is_marked(v2))
+					{
+						cm += cgogn::value<Vec3>(cph->m_, position.get(), v2);
+						mv.mark(v2);
+					}
+					return true;
+				});
+				return true;
+			});
+			return true;
+		});
+
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << duration;
 
 		std::cout << std::endl;
 	}
 
 	std::cout << "bench volume constant" << std::endl;
-	std::cout << "nb_volume;nb subdivision;subdivide mono;nb simplification;simplified mono"
+	std::cout << "nb_volume;nb subdivision;subdivide mono;nb simplification;simplified mono;nb_volume Carte;nb_vertex "
+				 "Carte;subdivide + smoothing mono"
 			  << std::endl;
 
-	int nb_modif = volume_to_subdivided.size() * 0.1;
+	int nb_modif = volume_to_subdivided.size() * (1.0f/double(percent_nb_modif));
 	std::random_device rd;
 	std::mt19937 g(19111996);
 	for (int i = 0; i < 100; i++)
@@ -276,7 +357,7 @@ int main(int argc, char** argv)
 		for (Volume v : choix_volume)
 		{
 			auto fn = [](Vertex) {};
-			cgogn::modeling::butterflySubdivisionVolume(*cph, 0.0f, {position.get()}, v, fn, fn, fn);
+			cgogn::modeling::butterflySubdivisionVolume(*cph, 0.0f, {position.get()}, {v}, fn, fn, fn);
 		}
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << duration << ";";
@@ -301,11 +382,38 @@ int main(int argc, char** argv)
 			cph->disable_volume_subdivision(v, true);
 		}
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << duration;
+		std::cout << duration << ";";
 		// std::cout << "temps simplified 10% volume mr : " << duration << std::endl;
 
 		choix_volume.clear();
 
+		std::cout << cgogn::nb_cells<Volume>(*m2) << ";" << cgogn::nb_cells<Vertex>(*m2) << ";";
+
+		start = std::clock();
+
+		cgogn::foreach_cell(cph->m_, [&](Volume v) -> bool {
+			cgogn::geometry::centroid<Vec3>(cph->m_, v, position.get());
+			return true;
+		});
+		cgogn::foreach_cell(cph->m_, [&](cgogn::CMap3::Vertex v) -> bool {
+			cgogn::CellMarkerStore<cgogn::CMap3, cgogn::CMap3::Vertex> mv(cph->m_);
+			Vec3 cm(0, 0, 0);
+			cgogn::foreach_incident_volume(cph->m_, v, [&](cgogn::CMap3::Volume w) -> bool {
+				cgogn::foreach_incident_vertex(cph->m_, w, [&](cgogn::CMap3::Vertex v2) -> bool {
+					if (!mv.is_marked(v2))
+					{
+						cm += cgogn::value<Vec3>(cph->m_, position.get(), v2);
+						mv.mark(v2);
+					}
+					return true;
+				});
+				return true;
+			});
+			return true;
+		});
+
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << duration;
 		std::cout << std::endl;
 	}
 

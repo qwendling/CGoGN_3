@@ -780,14 +780,14 @@ bool CPH3::disable_volume_subdivision(Volume v, bool disable_face)
 		}
 	}
 
-	/*if (is_indexed<CPH3::Volume>(*this))
+	if (is_indexed<CPH3::Volume>(*this))
 	{
 
 		foreach_dart_of_orbit(*this, v, [&](Dart d) -> bool {
 			set_index<CPH3::Volume>(*this, d, id_v);
 			return true;
 		});
-	}*/
+	}
 
 	return true;
 }

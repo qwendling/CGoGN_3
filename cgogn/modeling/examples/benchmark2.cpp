@@ -245,7 +245,7 @@ int main(int argc, char** argv)
 		for (Volume v : choix_volume)
 		{
 			auto fn = [](Vertex) {};
-			cgogn::modeling::butterflySubdivisionVolume(*cph, 0.0f, {position.get()}, v, fn, fn, fn);
+			cgogn::modeling::butterflySubdivisionVolume(*cph, 0.0f, {position.get()}, {v}, fn, fn, fn);
 		}
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << duration << ";";
@@ -387,7 +387,7 @@ int main(int argc, char** argv)
 		for (Volume v : choix_volume)
 		{
 			auto fn = [](Vertex) {};
-			cgogn::modeling::butterflySubdivisionVolume(*cph, 0.0f, {position.get()}, v, fn, fn, fn);
+			cgogn::modeling::butterflySubdivisionVolume(*cph, 0.0f, {position.get()}, {v}, fn, fn, fn);
 		}
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		std::cout << duration << ";";

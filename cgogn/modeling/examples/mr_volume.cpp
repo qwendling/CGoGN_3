@@ -95,6 +95,9 @@ int main(int argc, char** argv)
 	vmrm.selected_vertex_parents_ = cgogn::add_attribute<std::array<Vertex, 4>, Vertex>(*m, "parents");
 	vmrm.selected_vertex_relative_position_ = cgogn::add_attribute<Vec3, Vertex>(*m, "relative_position");
 
+	/*cgogn::modeling::butterflySubdivisionVolumeRegular(*m, 0.0f, {position.get()});
+	cgogn::modeling::butterflySubdivisionVolumeRegular(*m, 0.0f, {position.get()});*/
+
 	MRMesh* cph2 = vmrm.create_cph3(*m, mp.mesh_name(m));
 
 	vs.selected_mesh_ = cph2;
@@ -114,11 +117,11 @@ int main(int argc, char** argv)
 
 	start = std::clock();
 
-	cph2->current_level_ = 1;
-	vmrm.subdivide(*cph2, position.get());
+	// cph2->current_level_ = 1;
+	//  vmrm.subdivide(*cph2, position.get());
 	/*cph2->current_level_ = 2;
 	vmrm.subdivide(*cph2, position.get());*/
-	cph2->current_level_ = 2;
+	// cph2->current_level_ = 2;
 
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 	// std::cout << "temps subdivide  : " << duration << std::endl;
@@ -140,7 +143,7 @@ int main(int argc, char** argv)
 		case GLFW_KEY_I: {
 
 			std::vector<Volume> choix_volume;
-			std::shuffle(volume_to_simplified.begin(), volume_to_simplified.end(), g);
+			// std::shuffle(volume_to_simplified.begin(), volume_to_simplified.end(), g);
 			int n = 0;
 			for (auto it = volume_to_simplified.begin(); it != volume_to_simplified.end();)
 			{
@@ -166,7 +169,7 @@ int main(int argc, char** argv)
 		break;
 		case GLFW_KEY_J: {
 			std::vector<Volume> choix_volume;
-			std::shuffle(volume_to_subdivided.begin(), volume_to_subdivided.end(), g);
+			// std::shuffle(volume_to_subdivided.begin(), volume_to_subdivided.end(), g);
 			int n = 0;
 			for (auto it = volume_to_subdivided.begin(); it != volume_to_subdivided.end();)
 			{
@@ -186,7 +189,7 @@ int main(int argc, char** argv)
 			for (Volume v : choix_volume)
 			{
 				auto fn = [](Vertex) {};
-				cgogn::modeling::butterflySubdivisionVolume(*cph2, 0.0f, {position.get()}, v, fn, fn, fn);
+				cgogn::modeling::butterflySubdivisionVolume(*cph2, 0.0f, {position.get()}, {v}, fn, fn, fn);
 			}
 			duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 			std::cout << duration << ";" << std::endl;

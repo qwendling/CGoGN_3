@@ -87,11 +87,11 @@ int main(int argc, char** argv)
 	v1->link_module(&vr);
 	v1->link_module(&vs);
 
-	cgogn::ui::View* v2 = app.add_view();
+	/*cgogn::ui::View* v2 = app.add_view();
 	v2->link_module(&mp);
 	v2->link_module(&mrmp);
 	v2->link_module(&vr);
-	v2->link_module(&vs);
+	v2->link_module(&vs);*/
 
 	Mesh* m = mp.load_volume_from_file(filename);
 	if (!m)
@@ -126,8 +126,6 @@ int main(int argc, char** argv)
 
 	vr.set_vertex_position(*v1, *mrm, position);
 	vr.set_vertex_position(*v1, *mrm2, nullptr);
-	vr.set_vertex_position(*v2, *mrm, nullptr);
-	vr.set_vertex_position(*v2, *mrm2, position);
 
 	// std::srand(std::time(nullptr));
 	std::srand(2124512438);
