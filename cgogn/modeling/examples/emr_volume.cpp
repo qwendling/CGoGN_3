@@ -129,6 +129,10 @@ int main(int argc, char** argv)
 
 	// std::srand(std::time(nullptr));
 	std::srand(2124512438);
+	mrm->current_level_ = 0;
+	std::vector<Volume> vol_vec;
+	std::vector<Volume> vol_vec_simpl;
+	cgogn::CellMarker<MRMesh, Volume> vm(*mrm);
 
 	vs.f_keypress = [&](cgogn::ui::View* view, MRMesh* selected_mesh, std::int32_t k,
 						cgogn::ui::CellsSet<MRMesh, Vertex>* selected_vertices,
@@ -316,45 +320,67 @@ int main(int argc, char** argv)
 
 		break;
 		case GLFW_KEY_T: {
-			std::vector<Edge> vec_edge;
-
-			cgogn::foreach_cell(*mrm, [&](Edge e) -> bool {
-				if ((rand() / (double)RAND_MAX) * 100 < 10)
+			auto fn = [&]() {
+				if (vol_vec.empty())
 				{
-					vec_edge.push_back(e);
+					vm.unmark_all();
+					Volume selected_volume;
+					while (!selected_volume.is_valid())
+					{
+						cgogn::foreach_cell(*mrm, [&](Volume v) {
+							if (rand() % 100 < 3)
+							{
+								selected_volume = v;
+								return false;
+							}
+							return true;
+						});
+					}
+					vol_vec.push_back(selected_volume);
+					vm.mark(selected_volume);
 				}
-				return true;
-			});
-			for (auto e : vec_edge)
-			{
-				mrm->activate_edge_subdivision(e);
-			}
-			vmrm.changed_connectivity(*selected_mesh, position.get());
+				for (Volume v : vol_vec_simpl)
+				{
+					mrm->disable_volume_subdivision(v, true);
+				}
+				vol_vec_simpl.clear();
+				std::vector<Volume> vol_vec_tmp;
+				for (Volume v : vol_vec)
+				{
+					cgogn::foreach_incident_vertex(*mrm, v, [&](Vertex w) -> bool {
+						cgogn::foreach_incident_volume(*mrm, w, [&](Volume v2) -> bool {
+							cgogn::foreach_incident_vertex(*mrm, v2, [&](Vertex w2) -> bool {
+								cgogn::foreach_incident_volume(*mrm, w2, [&](Volume v3) -> bool {
+									if (vm.is_marked(v3))
+									{
+										return true;
+									}
+									vm.mark(v3);
+									vol_vec_tmp.push_back(v3);
+									return true;
+								});
+								return true;
+							});
+							return true;
+						});
+						return true;
+					});
+					vol_vec_simpl.push_back(v);
+				}
+
+				for (Volume v : vol_vec)
+				{
+					mrm->activate_volume_subdivision(v);
+				}
+				vol_vec.swap(vol_vec_tmp);
+				vol_vec_tmp.clear();
+				vmrm.changed_connectivity(*mrm, position.get());
+			};
+			fn();
 		}
 
 		break;
 		case GLFW_KEY_U: {
-			std::vector<Face> vec_face;
-
-			cgogn::foreach_cell(*mrm, [&](Face f) -> bool {
-				if ((rand() / (double)RAND_MAX) * 100 < 10)
-				{
-					vec_face.push_back(f);
-				}
-				return true;
-			});
-			for (auto f : vec_face)
-			{
-				if (view->shift_pressed())
-				{
-					selected_mesh->disable_face_subdivision(f, true);
-				}
-				else
-				{
-					selected_mesh->activate_face_subdivision(f);
-				}
-			}
-			vmrm.changed_connectivity(*selected_mesh, position.get());
 		}
 
 		break;

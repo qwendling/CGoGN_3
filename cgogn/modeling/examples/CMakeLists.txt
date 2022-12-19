@@ -52,6 +52,16 @@ target_link_libraries(mr_volume
 	${CMAKE_DL_LIBS}
 )
 
+add_executable(mr_import mr_import.cpp)
+target_link_libraries(mr_import
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::modeling
+	${CMAKE_DL_LIBS}
+)
+
 add_executable(emr_volume emr_volume.cpp)
 target_link_libraries(emr_volume
 	cgogn::core

@@ -149,8 +149,8 @@ public:
 		: ViewModule(app, "Animation_multiresolution (" + std::string{mesh_traits<MR_MESH>::name} + ")"),
 		  mecanical_mesh_(nullptr), selected_view_(app.current_view()), sm_solver_(0.9f), running_(false), ps_(0.9f),
 		  geometric_mesh_(nullptr), modif_topo_(false), ground_(false), animation_cut(false), cut_animation_timer(0),
-		  animation_cylinder(false), radius_cylinder(0.9f), pos_cylinder1(4.2, 0, 5), Zaxis_cylinder1(0, 1, 0),
-		  pos_cylinder2(-1, 0, 2), Zaxis_cylinder2(0, 1, 0), pos_cylinder3(1, 0, 7), Zaxis_cylinder3(0, 1, 0),
+		  animation_cylinder(false), radius_cylinder(0.9f), pos_cylinder1(1.7, 2.2, 5), Zaxis_cylinder1(0, 0, 1),
+		  pos_cylinder2(-5.8, 0.9, 2), Zaxis_cylinder2(0, 0, 1), pos_cylinder3(1, 0, 7), Zaxis_cylinder3(0, 1, 0),
 		  animation_cylinder_timer(0), shape_(nullptr), draw_cylinder(false), sens_cylindre(1)
 	{
 		f_keypress = [](View*, MR_MESH*, int32, CellsSet<MR_MESH, Vertex>*, CellsSet<MR_MESH, Edge>*) {};
@@ -451,6 +451,7 @@ protected:
 		if (key_code == GLFW_KEY_Q)
 		{
 			animation_cylinder = !animation_cylinder;
+			std::cout << "debut animation cylindre" << std::endl;
 		}
 		if (key_code == GLFW_KEY_E)
 		{
@@ -604,7 +605,8 @@ protected:
 
 		launch_thread([this, &p]() {
 			typename MR_MESH::CMAP& map = static_cast<typename MR_MESH::CMAP&>(*mecanical_mesh_);
-			while (this->running_)
+			int iter_avant_fin = 0;
+			while (this->running_ && iter_avant_fin++ < 10)
 			{
 
 				if (animation_cut)
@@ -690,7 +692,7 @@ protected:
 							return true;
 						}
 
-						axis_z = Zaxis_cylinder3;
+						/*axis_z = Zaxis_cylinder3;
 
 						pos2 = pos - pos_cylinder3.cast<double>();
 
@@ -707,17 +709,19 @@ protected:
 							{
 								speed += dir_col_norm * tmp;
 							}
-						}
+						}*/
 						return true;
 					});
 
-					if (animation_cylinder_timer < 100)
+					if (animation_cylinder_timer < 200)
 					{
-						pos_cylinder1 -= Eigen::Vector3f(0, 0, 0.01);
+						// pos_cylinder1 -= Eigen::Vector3f(0, 0.01, 0);
+						pos_cylinder2 += Eigen::Vector3f(0.01, 0, 0);
 					}
 					else
 					{
-						pos_cylinder1 += Eigen::Vector3f(0, 0, 0.01);
+						// pos_cylinder1 += Eigen::Vector3f(0, 0.01, 0);
+						pos_cylinder2 -= Eigen::Vector3f(0.01, 0, 0);
 						if (animation_cylinder_timer < 200)
 						{
 							pos_cylinder2 += Eigen::Vector3f(0.01, 0, 0);
@@ -792,6 +796,8 @@ protected:
 
 				// std::this_thread::sleep_for(std::chrono::milliseconds(5));
 			}
+
+			running_ = false;
 		});
 		/*launch_thread([this, &p]() {
 			cv_m.try_lock();
@@ -914,14 +920,15 @@ protected:
 					  Eigen::Scaling(radius_cylinder, radius_cylinder, 10.0f);
 			shape_->draw(rendering::ShapeDrawer::CYLINDER, proj_matrix, view_matrix * transfo.matrix());
 
-			transfo = Eigen::Translation3f(pos_cylinder3) *
+			/*transfo = Eigen::Translation3f(pos_cylinder3) *
 					  Eigen::AngleAxisf(std::acos(Zaxis_cylinder3.x()), Eigen::Vector3f::UnitZ()) *
 					  Eigen::AngleAxisf(std::acos(Zaxis_cylinder3.z()), Eigen::Vector3f::UnitY()) *
 					  Eigen::Scaling(radius_cylinder, radius_cylinder, 10.0f);
-			shape_->draw(rendering::ShapeDrawer::CYLINDER, proj_matrix, view_matrix * transfo.matrix());
-			transfo = Eigen::Scaling(100.0f, 100.0f, 100.0f) * Eigen::Translation3f(Eigen::Vector3f(0.0f, 0.0f, -1.0f));
+			shape_->draw(rendering::ShapeDrawer::CYLINDER, proj_matrix, view_matrix * transfo.matrix());*/
+			// transfo = Eigen::Scaling(100.0f, 100.0f, 100.0f) * Eigen::Translation3f(Eigen::Vector3f(0.0f, 1.0f,
+			// 0.0f));
 
-			shape_->draw(rendering::ShapeDrawer::CUBE, proj_matrix, view_matrix * transfo.matrix());
+			// shape_->draw(rendering::ShapeDrawer::CUBE, proj_matrix, view_matrix * transfo.matrix());
 		}
 	}
 
