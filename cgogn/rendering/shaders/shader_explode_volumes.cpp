@@ -76,11 +76,11 @@ ShaderExplodeVolumes::ShaderExplodeVolumes()
 		#version 330
 		uniform vec4 color;
 		uniform vec3 light_position;
-		
+
 		in vec3 position;
 
 		out vec4 frag_out;
-		
+
 		void main()
 		{
 			vec3 N = normalize(cross(dFdx(position), dFdy(position)));
@@ -91,8 +91,8 @@ ShaderExplodeVolumes::ShaderExplodeVolumes()
 	)";
 
 	load(vertex_shader_source, fragment_shader_source);
-	get_uniforms("vertex_ind", "vertex_position", "volume_center", "volume_clipping", "color", "light_position",
-				 "explode", "plane_clip", "plane_clip2");
+	get_uniforms("vertex_ind", "vertex_position", "volume_center", "volume_clipping","color", "light_position", "explode", "plane_clip",
+				 "plane_clip2");
 
 	nb_attributes_ = 2;
 }

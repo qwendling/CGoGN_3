@@ -403,7 +403,7 @@ Dart CPH3_adaptative::volume_youngest_dart(Dart d) const
 		}
 		else
 		{
-			it = phi<21>(*this, it);
+			it = phi<2, 1>(*this, it);
 		}
 	}
 
@@ -421,7 +421,7 @@ Dart CPH3_adaptative::volume_youngest_dart(Dart d) const
 			break;
 		do
 		{
-			it = phi<21>(*this, it);
+			it = phi<2, 1>(*this, it);
 		} while (get_representative(it) != eRep);
 	} while (1);
 
@@ -438,7 +438,7 @@ Dart CPH3_adaptative::volume_youngest_dart(Dart d) const
 			break;
 		do
 		{
-			it = phi<21>(*this, it);
+			it = phi<2, 1>(*this, it);
 		} while (get_representative(it) != eRep);
 	} while (1);
 	if (dart_level(it) > dart_level(y))
@@ -671,7 +671,7 @@ bool CPH3_adaptative::disable_edge_subdivision(CMAP::Edge e, bool disable_neighb
 		Dart it2 = phi1(*this, it);
 		if (get_representative(it) != get_representative(it2))
 			return false;
-		it = phi<23>(*this, it);
+		it = phi<2, 3>(*this, it);
 	} while (it != d);
 	Dart tmp = phi1(*this, d);
 	if (edge_level(tmp) != eLevel)
@@ -707,7 +707,7 @@ bool CPH3_adaptative::disable_face_subdivision(CMAP::Face f, bool disable_edge, 
 	Dart old = m2.face_oldest_dart(y);
 	if (face_id(phi2(*this, phi1(m2, old))) != face_id(old))
 		return false;
-	Dart tmp = phi<13>(m2, old);
+	Dart tmp = phi<1, 3>(m2, old);
 	if (face_id(phi2(*this, tmp)) != face_id(old))
 		return false;
 	m2.current_level_--;
@@ -771,12 +771,12 @@ bool CPH3_adaptative::disable_volume_subdivision(CMAP::Volume v, bool disable_fa
 	}
 	m2.current_level_++;
 	bool test = false;
-	foreach_incident_face(m2, CMAP::Vertex(phi<12111>(m2, vect_vertices[0].dart)), [&](Face f) -> bool {
+	foreach_incident_face(m2, CMAP::Vertex(phi<1, 2, 1, 1, 1>(m2, vect_vertices[0].dart)), [&](Face f) -> bool {
 		bool tmp = disable_face_subdivision(f, true);
 		test = test || tmp;
 		return true;
 	});
-	foreach_dart_of_orbit(m2, CMAP::Vertex(phi<12111>(m2, vect_vertices[0].dart)), [&](Dart d) -> bool {
+	foreach_dart_of_orbit(m2, CMAP::Vertex(phi<1, 2, 1, 1, 1>(m2, vect_vertices[0].dart)), [&](Dart d) -> bool {
 		Dart d2 = phi2(m2, d);
 		Dart d1 = phi1(m2, d);
 		Dart d11 = phi1(m2, d1);

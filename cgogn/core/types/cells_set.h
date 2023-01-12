@@ -25,7 +25,6 @@
 #define CGOGN_CORE_TYPES_CELLS_SET_H_
 
 #include <cgogn/core/types/cell_marker.h>
-#include <cgogn/core/types/mesh_traits.h>
 
 #include <cgogn/core/functions/traversals/global.h>
 
@@ -83,7 +82,7 @@ public:
 		}
 	}
 
-	inline bool contains(CELL c)
+	inline bool contains(CELL c) const
 	{
 		return marker_.is_marked(c);
 	}
@@ -98,8 +97,14 @@ public:
 		});
 	}
 
+	inline void clear()
+	{
+		cells_.clear();
+		marker_.unmark_all();
+	}
+
 	template <typename FUNC>
-	void foreach_cell(const FUNC& f)
+	void foreach_cell(const FUNC& f) const
 	{
 		static_assert(is_func_parameter_same<FUNC, CELL>::value, "Wrong function parameter type");
 		for (auto& [index, cell] : cells_)
@@ -107,7 +112,7 @@ public:
 	}
 
 	template <typename FUNC>
-	void foreach_cell_index(const FUNC& f)
+	void foreach_cell_index(const FUNC& f) const
 	{
 		static_assert(is_func_parameter_same<FUNC, uint32>::value, "Wrong function parameter type");
 		for (auto& [index, cell] : cells_)

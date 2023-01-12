@@ -39,9 +39,9 @@ ShaderFlat::ShaderFlat()
 		uniform mat4 model_view_matrix;
 
 		in vec3 vertex_position;
-		
+
 		out vec3 position;
-		
+
 		void main()
 		{
 			vec4 position4 = model_view_matrix * vec4(vertex_position, 1.0);
@@ -57,7 +57,8 @@ ShaderFlat::ShaderFlat()
 		uniform vec4 ambiant_color;
 		uniform vec3 light_position;
 		uniform bool double_side;
-		
+		uniform bool ghost_mode;
+
 		in vec3 position;
 
 		out vec4 frag_out;
@@ -67,6 +68,8 @@ ShaderFlat::ShaderFlat()
 			vec3 N = normalize(cross(dFdx(position), dFdy(position)));
 			vec3 L = normalize(light_position - position);
 			float lambert = dot(N, L);
+			if (ghost_mode)
+				lambert = 0.4 * pow(1.0 - lambert, 2);
 			if (gl_FrontFacing)
 				frag_out = vec4(ambiant_color.rgb + lambert * front_color.rgb, front_color.a);
 			else
@@ -77,12 +80,12 @@ ShaderFlat::ShaderFlat()
 	)";
 
 	load2_bind(vertex_shader_source, fragment_shader_source, "vertex_position");
-	get_uniforms("front_color", "back_color", "ambiant_color", "light_position", "double_side");
+	get_uniforms("front_color", "back_color", "ambiant_color", "light_position", "double_side", "ghost_mode");
 }
 
 void ShaderParamFlat::set_uniforms()
 {
-	shader_->set_uniforms_values(front_color_, back_color_, ambiant_color_, light_position_, double_side_);
+	shader_->set_uniforms_values(front_color_, back_color_, ambiant_color_, light_position_, double_side_, ghost_mode_);
 }
 
 } // namespace rendering

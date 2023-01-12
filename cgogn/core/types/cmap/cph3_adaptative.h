@@ -164,6 +164,12 @@ struct CPH3_adaptative : public CPH3
 	bool disable_volume_subdivision(CMAP::Volume v, bool disable_face = false);
 };
 
+template <>
+struct mesh_traits<CPH3_adaptative> : public mesh_traits<CPH3>
+{
+	static constexpr const char* name = "CPH3_adaptative";
+};
+
 } // namespace cgogn
 
 #endif // CGOGN_CORE_TYPES_CMAP_CPH3_ADAPTATIVE_H

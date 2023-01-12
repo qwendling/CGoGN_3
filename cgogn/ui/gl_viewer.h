@@ -30,6 +30,8 @@
 #include <cgogn/ui/cgogn_ui_export.h>
 #include <cgogn/ui/inputs.h>
 
+#include <fstream>
+
 namespace cgogn
 {
 
@@ -56,20 +58,42 @@ public:
 	{
 		return camera_;
 	}
+	inline void save_camera()
+	{
+		std::ofstream out_file;
+		out_file.open("saved_camera");
+		if (out_file.is_open())
+		{
+			out_file << camera_;
+			out_file.close();
+		}
+		camera_saved_ = camera_;
+	}
+	inline void restore_camera()
+	{
+		camera_ = camera_saved_;
+		std::ifstream in_file("saved_camera", std::ios::in);
+		if (in_file.is_open())
+		{
+			in_file >> camera_;
+			in_file.close();
+		}
+		need_redraw_ = true;
+	}
 
-	inline rendering::GLMat4 projection_matrix() const
+	inline const rendering::GLMat4& projection_matrix() const
 	{
 		return camera_.projection_matrix();
 	}
-	inline rendering::GLMat4d projection_matrix_d() const
+	inline const rendering::GLMat4d& projection_matrix_d() const
 	{
 		return camera_.projection_matrix_d();
 	}
-	inline rendering::GLMat4 modelview_matrix() const
+	inline const rendering::GLMat4& modelview_matrix() const
 	{
 		return camera_.modelview_matrix();
 	}
-	inline rendering::GLMat4d modelview_matrix_d() const
+	inline const rendering::GLMat4d& modelview_matrix_d() const
 	{
 		return camera_.modelview_matrix_d();
 	}
@@ -83,28 +107,19 @@ public:
 	inline void set_scene_center(const rendering::GLVec3d& center)
 	{
 		scene_center_ = center;
-		camera_.set_pivot_point(scene_center_);
+		if (!camera_.pivot_point_initialized())
+			camera_.set_pivot_point(scene_center_);
 	}
 	inline void set_scene_center(const rendering::GLVec3& center)
 	{
 		scene_center_ = center.cast<float64>();
-		camera_.set_pivot_point(scene_center_);
-	}
-	inline void set_scene_pivot(const rendering::GLVec3d& piv)
-	{
-		camera_.change_pivot_point(piv);
-	}
-	inline void set_scene_pivot(const rendering::GLVec3& piv)
-	{
-		camera_.change_pivot_point(piv.cast<float64>());
-	}
-	inline void center_scene()
-	{
-		camera_.center_scene();
+		if (!camera_.pivot_point_initialized())
+			camera_.set_pivot_point(scene_center_);
 	}
 	inline void show_entire_scene()
 	{
 		camera_.show_entire_scene();
+		request_update();
 	}
 
 	inline int32 viewport_width() const
@@ -183,8 +198,8 @@ protected:
 	void spin();
 
 	Camera camera_;
+	Camera camera_saved_;
 	MovingFrame* current_frame_;
-	rendering::Transfo3d inv_camera_;
 	rendering::GLVec3d scene_center_;
 	int32 viewport_width_;
 	int32 viewport_height_;

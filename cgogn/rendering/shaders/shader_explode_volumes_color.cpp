@@ -78,7 +78,7 @@ ShaderExplodeVolumesColor::ShaderExplodeVolumesColor()
 	const char* fragment_shader_source = R"(
 		#version 330
 		uniform vec3 light_position;
-		
+
 		in vec3 position;
 		flat in vec3 color;
 
@@ -94,8 +94,8 @@ ShaderExplodeVolumesColor::ShaderExplodeVolumesColor()
 	)";
 
 	load(vertex_shader_source, fragment_shader_source);
-	get_uniforms("vertex_ind", "vertex_position", "volume_center", "volume_color", "volume_clipping", "light_position",
-				 "explode", "plane_clip", "plane_clip2");
+	get_uniforms("vertex_ind", "vertex_position", "volume_center", "volume_color", "volume_clipping", "light_position", "explode",
+				 "plane_clip", "plane_clip2");
 
 	nb_attributes_ = 3;
 }

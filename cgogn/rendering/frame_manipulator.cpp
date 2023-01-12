@@ -54,7 +54,7 @@ FrameManipulator::FrameManipulator()
 
 void FrameManipulator::set_size(float32 radius)
 {
-	if (scale_rendering_ > 0.0f)
+	if (scale_rendering_ >= 0.0f)
 		scale_rendering_ = radius;
 }
 
@@ -502,7 +502,6 @@ void FrameManipulator::store_projection(uint32 ax)
 			// compute screen orientation
 			GLVec3 V = (view_mat_.block<3, 3>(0, 0) * A);
 			axis_orientation_ = V[2] > 0;
-			std::cout << std::boolalpha << axis_orientation_ << std::endl;
 		}
 
 		A = A + trans_;
@@ -525,7 +524,7 @@ float32 FrameManipulator::angle_from_mouse(int x, int y, int dx, int dy)
 	Vo.normalize();
 	dV.normalize();
 	Vec3 W = Vo.cross(dV);
-	return (axis_orientation_ ? W[2] : -W[2]) / 100.0f;
+	return float32(axis_orientation_ ? W[2] : -W[2]) / 100.0f;
 }
 
 float32 FrameManipulator::distance_from_mouse(int dx, int dy)
@@ -580,7 +579,7 @@ void FrameManipulator::translate_in_screen(int dx, int dy)
 void FrameManipulator::rotate_in_screen(int dx, int dy)
 {
 	GLMat4 inv_mat = (proj_mat_ * view_mat_).inverse();
-	GLVec4 P(dx, -dy, 0.0f, 1.0f);
+	GLVec4 P(float32(dx), float32(-dy), 0.0f, 1.0f);
 	P = inv_mat * P;
 	P /= P[3];
 

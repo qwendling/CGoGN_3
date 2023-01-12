@@ -76,6 +76,8 @@ using GLColor = Eigen::Vector4f;
 
 using Transfo3d = Eigen::Affine3d;
 
+using Transfo3f = Eigen::Affine3f;
+
 // inline GLColor col4i(uint8 R, uint8 G, uint8 B, uint8 A)
 // {
 // 	return GLColor(R/255.0f, G/255.0f, B/255.0f, A/255.0f);
@@ -90,45 +92,6 @@ using Transfo3d = Eigen::Affine3d;
 // {
 // 	return GLColor(R/255.0f, R/255.0f, R/255.0f, 1.0f);
 // }
-
-class CGOGN_RENDERING_EXPORT GLImage
-{
-	uint8* data_;
-	int32 width_;
-	int32 height_;
-	int32 bpp_; // 1:grey, 3 RGB, 4 RGBA
-	bool stb_;
-
-public:
-	GLImage(int32 w, int32 h, int32 d);
-	GLImage(const std::string& filename);
-	~GLImage();
-
-	CGOGN_NOT_COPYABLE_NOR_MOVABLE(GLImage);
-
-	inline int32 width() const
-	{
-		return width_;
-	}
-	inline int32 height() const
-	{
-		return height_;
-	}
-	inline int32 depth() const
-	{
-		return bpp_;
-	}
-	inline const uint8* data() const
-	{
-		return data_;
-	}
-	inline void set_pixel(int32 x, int32 y, const GLColor& col)
-	{
-		uint8* ptr = data_ + (uint64(bpp_) * (y * width_ + x));
-		for (int32 i = 0; i < bpp_; ++i)
-			*ptr++ = uint8(255 * col[i]);
-	}
-};
 
 static std::map<GLenum, std::string> GL_ERRORS_NAMES = {
 	{GL_INVALID_ENUM, "GL_INVALID_ENUM"},

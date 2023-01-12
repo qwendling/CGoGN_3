@@ -26,12 +26,17 @@
 
 #include <cgogn/core/cgogn_core_export.h>
 
-#include <cgogn/core/functions/cells.h>
-#include <cgogn/core/functions/mesh_info.h>
-#include <cgogn/core/functions/mesh_ops/face.h>
-#include <cgogn/core/types/cmap/orbit_traversal.h>
-#include <cgogn/core/types/mesh_traits.h>
+#include <cgogn/core/types/cmap/EMR_Map3.h>
+#include <cgogn/core/types/cmap/EMR_Map3_Adaptative.h>
+#include <cgogn/core/types/cmap/cmap3.h>
+#include <cgogn/core/types/cmap/cph3.h>
+#include <cgogn/core/types/cmap/cph3_adaptative.h>
+#include <cgogn/core/types/cmap/graph.h>
+#include <cgogn/core/types/incidence_graph/incidence_graph.h>
+
 #include <cgogn/core/utils/type_traits.h>
+
+#include <cgogn/core/functions/mesh_info.h>
 
 namespace cgogn
 {
@@ -63,6 +68,20 @@ CMap2::Volume CGOGN_CORE_EXPORT add_pyramid(CMap2& m, uint32 size, bool set_indi
 ///////////
 
 CMap2::Volume CGOGN_CORE_EXPORT add_prism(CMap2& m, uint32 size, bool set_indices = true);
+
+/*****************************************************************************/
+
+// template <typename MESH>
+// typename mesh_traits<MESH>::Volume
+// remove_volume(MESH& m, typename mesh_traits<MESH>::Volume v);
+
+/*****************************************************************************/
+
+///////////
+// CMap2 //
+///////////
+
+void CGOGN_CORE_EXPORT remove_volume(CMap2& m, CMap2::Volume v);
 
 /*****************************************************************************/
 
@@ -171,11 +190,11 @@ void unsew_volume(CMap3& m, const mesh_traits<CMap3>::Face f, const FUNC& callba
 
 	std::vector<std::pair<Vertex, Vertex>> list_pair_vertex;
 	foreach_dart_of_orbit(m, Face2(f.dart), [&](Dart d) -> bool {
-		list_pair_vertex.push_back({Vertex(d), Vertex(phi<31>(m, d))});
+		list_pair_vertex.push_back({Vertex(d), Vertex(phi<3, 1>(m, d))});
 		Dart tmp = d;
 		do
 		{
-			tmp = phi<23>(m, tmp);
+			tmp = phi<2, 3>(m, tmp);
 			if (is_boundary(m, tmp))
 			{
 				phi2_unsew(m, tmp);
@@ -611,7 +630,7 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 		// phi3
 		do
 		{
-			Dart d3 = phi<23>(m2, phi2(m, it));
+			Dart d3 = phi<2, 3>(m2, phi2(m, it));
 			(*((*m.m_.MR_phi3_)[m.current_level_]))[it.index] = d3;
 			(*((*m.m_.MR_phi3_)[m.current_level_]))[d3.index] = it;
 			m.m_.clock_++;
@@ -651,7 +670,7 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 		// phi1
 		do
 		{
-			Dart d3_1 = phi<13>(m, it);
+			Dart d3_1 = phi<1, 3>(m, it);
 			Dart d3 = phi3(m, it);
 			(*((*m.m_.MR_phi1_)[m.current_level_]))[d3_1.index] = d3;
 			(*((*m.m_.MR_phi_1_)[m.current_level_]))[d3.index] = d3_1;

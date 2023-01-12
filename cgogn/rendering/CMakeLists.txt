@@ -25,6 +25,7 @@ target_sources(${PROJECT_NAME}
 #		"${CMAKE_CURRENT_LIST_DIR}/text_drawer.h"
 #		"${CMAKE_CURRENT_LIST_DIR}/text_drawer.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/types.h"
+		"${CMAKE_CURRENT_LIST_DIR}/gl_image.h"
 		"${CMAKE_CURRENT_LIST_DIR}/gl_image.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/vbo.h"
 		"${CMAKE_CURRENT_LIST_DIR}/ebo.h"
@@ -33,11 +34,14 @@ target_sources(${PROJECT_NAME}
 		"${CMAKE_CURRENT_LIST_DIR}/fbo.h"
 		"${CMAKE_CURRENT_LIST_DIR}/fbo.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/vbo_update.h"
-		"${CMAKE_CURRENT_LIST_DIR}/shape_drawer.h"
-		"${CMAKE_CURRENT_LIST_DIR}/shape_drawer.cpp"
+		"${CMAKE_CURRENT_LIST_DIR}/shader_program.h"
+		"${CMAKE_CURRENT_LIST_DIR}/shader_program.cpp"
 
-		"${CMAKE_CURRENT_LIST_DIR}/shaders/shader_program.h"
-		"${CMAKE_CURRENT_LIST_DIR}/shaders/shader_program.cpp"
+		"${CMAKE_CURRENT_LIST_DIR}/ui_modules/graph_render.h"
+		"${CMAKE_CURRENT_LIST_DIR}/ui_modules/surface_render.h"
+		"${CMAKE_CURRENT_LIST_DIR}/ui_modules/vector_per_vertex_render.h"
+		"${CMAKE_CURRENT_LIST_DIR}/ui_modules/volume_render.h"
+		"${CMAKE_CURRENT_LIST_DIR}/ui_modules/topo_render.h"
 
 		"${CMAKE_CURRENT_LIST_DIR}/shaders/shader_no_illum.h"
 		"${CMAKE_CURRENT_LIST_DIR}/shaders/shader_no_illum.cpp"
@@ -74,7 +78,7 @@ target_sources(${PROJECT_NAME}
 
 		"${CMAKE_CURRENT_LIST_DIR}/shaders/shader_vector_per_vertex.h"
 		"${CMAKE_CURRENT_LIST_DIR}/shaders/shader_vector_per_vertex.cpp"
-		
+
 		"${CMAKE_CURRENT_LIST_DIR}/shaders/shader_bold_line.h"
 		"${CMAKE_CURRENT_LIST_DIR}/shaders/shader_bold_line.cpp"
 
@@ -105,13 +109,15 @@ target_sources(${PROJECT_NAME}
 
 		"${CMAKE_CURRENT_LIST_DIR}/shaders/shader_function_color_maps.h"
 		"${CMAKE_CURRENT_LIST_DIR}/shaders/shader_function_color_maps.cpp"
-		
+
 		"${CMAKE_CURRENT_LIST_DIR}/shaders/outliner.h"
 		"${CMAKE_CURRENT_LIST_DIR}/shaders/outliner.cpp"
 
 		"${CMAKE_CURRENT_LIST_DIR}/shaders/frame_manip_drawer.h"
 		"${CMAKE_CURRENT_LIST_DIR}/shaders/frame_manip_drawer.cpp"
-		
+
+		"${CMAKE_CURRENT_LIST_DIR}/shape_drawer.h"
+		"${CMAKE_CURRENT_LIST_DIR}/shape_drawer.cpp"
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

@@ -25,7 +25,7 @@
 #define CGOGN_RENDERING_SHADERS_BOLD_LINE_H_
 
 #include <cgogn/rendering/cgogn_rendering_export.h>
-#include <cgogn/rendering/shaders/shader_program.h>
+#include <cgogn/rendering/shader_program.h>
 
 namespace cgogn
 {
@@ -49,7 +49,7 @@ public:
 	using ShaderType = ShaderBoldLine;
 
 	ShaderParamBoldLine(ShaderType* sh)
-		: ShaderParam(sh, true), color_(1, 1, 0, 1), width_(1.0f), lighted_(0.25f), plane_clip_(0, 0, 0, 0),
+		: ShaderParam(sh, true), color_(1, 1, 0, 1), width_(1.0f), lighted_(0.0f), plane_clip_(0, 0, 0, 0),
 		  plane_clip2_(0, 0, 0, 0)
 	{
 	}

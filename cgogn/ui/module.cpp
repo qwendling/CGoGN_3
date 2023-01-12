@@ -51,7 +51,11 @@ void Module::main_menu()
 {
 }
 
-void Module::interface()
+void Module::left_panel()
+{
+}
+
+void Module::popups()
 {
 }
 

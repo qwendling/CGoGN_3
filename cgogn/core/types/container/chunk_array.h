@@ -45,7 +45,7 @@ template <typename T>
 class CGOGN_CORE_EXPORT ChunkArray : public AttributeGenT
 {
 public:
-	static const uint32 CHUNK_SIZE = 1024;
+	static const uint32 CHUNK_SIZE = 1024u;
 
 private:
 	std::vector<T*> chunks_;
@@ -61,7 +61,8 @@ private:
 	}
 
 public:
-	ChunkArray(AttributeContainerGen* container, const std::string& name) : AttributeGenT(container, name)
+	ChunkArray(AttributeContainerGen* container, const std::string& name)
+		: AttributeGenT(container, name)
 	{
 		chunks_.reserve(512u);
 		capacity_ = 0u;
@@ -93,13 +94,13 @@ public:
 
 	inline void swap(ChunkArray<T>* ca)
 	{
-		if (ca->container_ == this->container_)
+		if (ca->container_ == this->container_) // only swap from same container
 			chunks_.swap(ca->chunks_);
 	}
 
 	inline void copy(ChunkArray<T>* ca)
 	{
-		if (ca->container_ == this->container_)
+		if (ca->container_ == this->container_) // only copy from same container
 			for (uint32 i = 0; i < uint32(chunks_.size()); ++i)
 				std::copy(ca->chunks_[i], ca->chunks_[i] + CHUNK_SIZE, chunks_[i]);
 	}

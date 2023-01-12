@@ -28,12 +28,24 @@ struct CGOGN_CORE_EXPORT EMR_Map2_T : public EMR_Map1_T<CMAP>
 	}
 };
 
+template <>
+struct mesh_traits<EMR_Map2_T<CMap2>> : public mesh_traits<CMap2>
+{
+	static constexpr const char* name = "EMR_Map2_T";
+};
+
 struct EMR_Map2 : EMR_MapBase<EMR_Map2_T<CMap2>>
 {
 
 	EMR_Map2(EMR_Map2_T<CMap2>& m) : EMR_MapBase<EMR_Map2_T<CMap2>>(m)
 	{
 	}
+};
+
+template <>
+struct mesh_traits<EMR_Map2> : public mesh_traits<CMap2>
+{
+	static constexpr const char* name = "EMR_Map2";
 };
 
 } // namespace cgogn

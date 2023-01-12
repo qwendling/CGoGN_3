@@ -24,8 +24,6 @@
 #ifndef CGOGN_GEOMETRY_ALGOS_AREA_H_
 #define CGOGN_GEOMETRY_ALGOS_AREA_H_
 
-#include <cgogn/core/types/mesh_traits.h>
-
 #include <cgogn/core/functions/attributes.h>
 #include <cgogn/core/functions/mesh_info.h>
 #include <cgogn/core/functions/traversals/face.h>
@@ -42,53 +40,46 @@ namespace geometry
 {
 
 template <typename MESH>
-Scalar convex_area(const MESH& m, typename mesh_traits<MESH>::Face f,
-				   const typename mesh_traits<MESH>::template Attribute<Vec3>* vertex_position)
-{
-	using Vertex = typename mesh_traits<MESH>::Vertex;
-	if (codegree(m, f) == 3)
-	{
-		std::vector<Vertex> vertices = incident_vertices(m, f);
-		return area(value<Vec3>(m, vertex_position, vertices[0]), value<Vec3>(m, vertex_position, vertices[1]),
-					value<Vec3>(m, vertex_position, vertices[2]));
-	}
-	else
-	{
-		Scalar face_area{0};
-		Vec3 center = centroid<Vec3>(m, f, vertex_position);
-		std::vector<Vertex> vertices = incident_vertices(m, f);
-		for (uint32 i = 0, size = uint32(vertices.size()); i < size; ++i)
-		{
-			face_area += area(center, value<Vec3>(m, vertex_position, vertices[i]),
-							  value<Vec3>(m, vertex_position, vertices[(i + 1) % size]));
-		}
-
-		/*std::vector<Vertex> vertices = incident_vertices(m, f);
-		for (uint32 i = 0, size = uint32(vertices.size()); i < size-1; ++i)
-		{
-			Vec3
-			face_area += value<Vec3>(m, vertex_position, vertices[i])
-					   .cross(value<Vec3>(m, vertex_position, vertices[(i + 1) % size]));
-		}*/
-
-		/*Vec3 n = normal(m, f, vertex_position);
-		// std::vector<Vertex> vertices = incident_vertices(m, f);
-		Vec3 tmp = Vec3::Zero();
-		for (uint32 i = 0, size = uint32(vertices.size()); i < size; ++i)
-		{
-			tmp += value<Vec3>(m, vertex_position, vertices[i])
-					   .cross(value<Vec3>(m, vertex_position, vertices[(i + 1) % size]));
-		}
-		face_area = fabs(n.dot(tmp)) / 2;*/
-		return face_area;
-	}
-}
-
-template <typename MESH>
 Scalar area(const MESH& m, typename mesh_traits<MESH>::Face f,
 			const typename mesh_traits<MESH>::template Attribute<Vec3>* vertex_position)
 {
-	return convex_area(m, f, vertex_position);
+	using Vertex = typename mesh_traits<MESH>::Vertex;
+	std::vector<Vertex> vertices = incident_vertices(m, f);
+	Scalar face_area{0};
+	for (uint32 i = 1, size = uint32(vertices.size()); i < size - 1; ++i)
+	{
+		face_area += area(value<Vec3>(m, vertex_position, vertices[0]), value<Vec3>(m, vertex_position, vertices[i]),
+						  value<Vec3>(m, vertex_position, vertices[(i + 1) % size]));
+	}
+	return face_area;
+}
+
+template <typename MESH>
+Scalar area(const MESH& m, typename mesh_traits<MESH>::Vertex v,
+			const typename mesh_traits<MESH>::template Attribute<Vec3>* vertex_position)
+{
+	static_assert(mesh_traits<MESH>::dimension == 2, "MESH dimension should be 2");
+
+	using Face = typename mesh_traits<MESH>::Face;
+	Scalar vertex_area{0};
+	foreach_incident_face(m, v, [&](Face iface) -> bool {
+		vertex_area += area(m, iface, vertex_position) / 3.0;
+		return true;
+	});
+	return vertex_area;
+}
+
+template <typename CELL, typename MESH>
+void compute_area(const MESH& m, const typename mesh_traits<MESH>::template Attribute<Vec3>* vertex_position,
+				  typename mesh_traits<MESH>::template Attribute<Scalar>* cell_area)
+{
+	static_assert(mesh_traits<MESH>::dimension >= 2, "MESH dimension should be >= 2");
+	static_assert(is_in_tuple_v<CELL, typename mesh_traits<MESH>::Cells>, "CELL not supported in this MESH");
+
+	parallel_foreach_cell(m, [&](CELL c) -> bool {
+		value<Scalar>(m, cell_area, c) = area(m, c, vertex_position);
+		return true;
+	});
 }
 
 template <typename MESH>

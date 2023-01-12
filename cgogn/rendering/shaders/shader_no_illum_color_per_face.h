@@ -21,31 +21,40 @@
  *                                                                              *
  *******************************************************************************/
 
-#ifndef CGOGN_RENDERING_SHADERS_NoIllum_COLOR_PER_FACE_H_
-#define CGOGN_RENDERING_SHADERS_NoIllum_COLOR_PER_FACE_H_
+#ifndef CGOGN_RENDERING_SHADERS_NO_ILLUM_COLOR_PER_FACE_H_
+#define CGOGN_RENDERING_SHADERS_NO_ILLUM_COLOR_PER_FACE_H_
 
 #include <cgogn/rendering/cgogn_rendering_export.h>
-#include <cgogn/rendering/shaders/shader_program.h>
+#include <cgogn/rendering/shader_program.h>
 
 namespace cgogn
 {
 
 namespace rendering
 {
+
 DECLARE_SHADER_CLASS(NoIllumColorPerFace, true, CGOGN_STR(NoIllumColorPerFace))
 
 class CGOGN_RENDERING_EXPORT ShaderParamNoIllumColorPerFace : public ShaderParam
 {
 	void set_uniforms() override;
 
-public:
 	std::array<VBO*, 2> vbos_;
-	bool double_side_;
-
-	inline void pick_parameters(const PossibleParameters& pp) override
+	inline void set_texture_buffer_vbo(uint32 i, VBO* vbo) override
 	{
-		double_side_ = pp.double_side_;
+		vbos_[i] = vbo;
 	}
+	void bind_texture_buffers() override;
+	void release_texture_buffers() override;
+
+	enum VBOName : uint32
+	{
+		VERTEX_POSITION = 0,
+		FACE_COLOR
+	};
+
+public:
+	bool double_side_;
 
 	using ShaderType = ShaderNoIllumColorPerFace;
 
@@ -58,14 +67,10 @@ public:
 	inline ~ShaderParamNoIllumColorPerFace() override
 	{
 	}
-
-	inline VBO** vbo_tb(uint32 i) override
-	{
-		return &vbos_[i];
-	}
 };
 
 } // namespace rendering
+
 } // namespace cgogn
 
-#endif // CGOGN_RENDERING_SHADERS_NoIllum_H_
+#endif // CGOGN_RENDERING_SHADERS_NO_ILLUM_COLOR_PER_FACE_H_

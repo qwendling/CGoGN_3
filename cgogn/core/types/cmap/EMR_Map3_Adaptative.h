@@ -170,6 +170,12 @@ struct EMR_Map3_Adaptative : EMR_Map3
 	bool disable_volume_subdivision_fast(Volume v, bool disable_face = false);
 };
 
+template <>
+struct mesh_traits<EMR_Map3_Adaptative> : public mesh_traits<CMap3>
+{
+	static constexpr const char* name = "EMR_Map3_Adaptative";
+};
+
 } // namespace cgogn
 
 #endif

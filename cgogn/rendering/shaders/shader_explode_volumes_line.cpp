@@ -72,7 +72,7 @@ ShaderExplodeVolumesLine::ShaderExplodeVolumesLine()
 	const char* fragment_shader_source = R"(
 		#version 330
 		uniform vec4 color;
-		
+
 		out vec4 frag_out;
 
 		void main()
@@ -106,6 +106,7 @@ void ShaderParamExplodeVolumesLine::release_texture_buffers()
 	vbos_[VOLUME_CENTER]->release_texture_buffer(12);
 	vbos_[VOLUME_CLIPPING]->release_texture_buffer(13);
 }
+
 } // namespace rendering
 
 } // namespace cgogn

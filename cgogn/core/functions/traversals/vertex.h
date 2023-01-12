@@ -30,7 +30,6 @@
 #include <cgogn/core/utils/type_traits.h>
 
 #include <cgogn/core/types/cell_marker.h>
-#include <cgogn/core/types/mesh_traits.h>
 
 #include <cgogn/core/types/cmap/cmap_info.h>
 #include <cgogn/core/types/cmap/dart_marker.h>
@@ -54,6 +53,13 @@ template <typename MESH, typename CELL, typename FUNC>
 auto foreach_incident_vertex(const MESH& m, CELL c, const FUNC& func)
 	-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&>>
 {
+	foreach_incident_vertex(m, c, func, CMapBase::TraversalPolicy::AUTO);
+}
+
+template <typename MESH, typename CELL, typename FUNC>
+auto foreach_incident_vertex(const MESH& m, CELL c, const FUNC& func, CMapBase::TraversalPolicy traversal_policy)
+	-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&>>
+{
 	using Vertex = typename mesh_traits<MESH>::Vertex;
 
 	static_assert(is_in_tuple<CELL, typename mesh_traits<MESH>::Cells>::value, "CELL not supported in this MESH");
@@ -72,12 +78,14 @@ auto foreach_incident_vertex(const MESH& m, CELL c, const FUNC& func)
 	}
 	else if constexpr (std::is_convertible_v<MESH&, CMap2&> && mesh_traits<MESH>::dimension == 2 &&
 					   (std::is_same_v<CELL, typename mesh_traits<MESH>::Edge> ||
+						std::is_same_v<CELL, typename mesh_traits<MESH>::HalfEdge> ||
 						std::is_same_v<CELL, typename mesh_traits<MESH>::Face>))
 	{
 		foreach_dart_of_orbit(m, c, [&](Dart d) -> bool { return func(Vertex(d)); });
 	}
 	else if constexpr (std::is_convertible_v<MESH&, CMap3&> && mesh_traits<MESH>::dimension == 3 &&
-					   std::is_same_v<CELL, typename mesh_traits<MESH>::Edge>)
+					   (std::is_same_v<CELL, typename mesh_traits<MESH>::Edge> ||
+						std::is_same_v<CELL, typename mesh_traits<MESH>::HalfEdge>))
 	{
 		foreach_dart_of_orbit(m, typename mesh_traits<MESH>::Edge2(c.dart),
 							  [&](Dart d) -> bool { return func(Vertex(d)); });
@@ -90,7 +98,7 @@ auto foreach_incident_vertex(const MESH& m, CELL c, const FUNC& func)
 	}
 	else
 	{
-		if (is_indexed<Vertex>(m))
+		if (traversal_policy == CMapBase::TraversalPolicy::AUTO && is_indexed<Vertex>(m))
 		{
 			CellMarkerStore<MESH, Vertex> marker(m);
 			foreach_dart_of_orbit(m, c, [&](Dart d) -> bool {
@@ -122,6 +130,69 @@ auto foreach_incident_vertex(const MESH& m, CELL c, const FUNC& func)
 	}
 }
 
+////////////////////
+// IncidenceGraph //
+////////////////////
+
+template <typename CELL, typename FUNC>
+auto foreach_incident_vertex(const IncidenceGraph& ig, CELL c, const FUNC& func)
+{
+	using Vertex = IncidenceGraph::Vertex;
+	using Edge = IncidenceGraph::Edge;
+	using Face = IncidenceGraph::Face;
+
+	static_assert(is_in_tuple<CELL, mesh_traits<IncidenceGraph>::Cells>::value, "CELL not supported in this MESH");
+	static_assert(is_func_parameter_same<FUNC, Vertex>::value, "Wrong function cell parameter type");
+	static_assert(is_func_return_same<FUNC, bool>::value, "Given function should return a bool");
+
+	if constexpr (std::is_same_v<CELL, Edge>)
+	{
+		const std::pair<Vertex, Vertex>& evs = (*ig.edge_incident_vertices_)[c.index_];
+		if (func(evs.first))
+			func(evs.second);
+	}
+	else if constexpr (std::is_same_v<CELL, Face>)
+	{
+		// strong precondition: edges are sorted in the face & edges dirs are computed
+		const std::vector<Edge>& edges = (*ig.face_incident_edges_)[c.index_];
+		const std::vector<uint8>& edges_dir = (*ig.face_incident_edges_dir_)[c.index_];
+		for (uint32 i = 0, end = edges.size(); i < end - 1; ++i)
+		{
+			const std::pair<Vertex, Vertex>& evs = (*ig.edge_incident_vertices_)[edges[i].index_];
+			if (i == 0)
+			{
+				if (edges_dir[i] == 0)
+				{
+					if (!func(evs.first))
+						break;
+					if (!func(evs.second))
+						break;
+				}
+				else
+				{
+					if (!func(evs.second))
+						break;
+					if (!func(evs.first))
+						break;
+				}
+			}
+			else
+			{
+				if (edges_dir[i] == 0)
+				{
+					if (!func(evs.second))
+						break;
+				}
+				else
+				{
+					if (!func(evs.first))
+						break;
+				}
+			}
+		}
+	}
+}
+
 /*****************************************************************************/
 
 // template <typename MESH, typename FUNC>
@@ -135,6 +206,14 @@ auto foreach_incident_vertex(const MESH& m, CELL c, const FUNC& func)
 
 template <typename MESH, typename FUNC>
 auto foreach_adjacent_vertex_through_edge(const MESH& m, typename mesh_traits<MESH>::Vertex v, const FUNC& func)
+	-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&>>
+{
+	foreach_adjacent_vertex_through_edge(m, v, func, CMapBase::TraversalPolicy::AUTO);
+}
+
+template <typename MESH, typename FUNC>
+auto foreach_adjacent_vertex_through_edge(const MESH& m, typename mesh_traits<MESH>::Vertex v, const FUNC& func,
+										  CMapBase::TraversalPolicy traversal_policy)
 	-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&>>
 {
 	using Vertex = typename mesh_traits<MESH>::Vertex;
@@ -152,7 +231,7 @@ auto foreach_adjacent_vertex_through_edge(const MESH& m, typename mesh_traits<ME
 	}
 	else if constexpr (std::is_convertible_v<MESH&, CMap3&> && mesh_traits<MESH>::dimension == 3)
 	{
-		if (is_indexed<Vertex>(m))
+		if (traversal_policy == CMapBase::TraversalPolicy::AUTO && is_indexed<Vertex>(m))
 		{
 			CellMarkerStore<MESH, Vertex> marker(m);
 			foreach_dart_of_orbit(m, v, [&](Dart d) -> bool {
@@ -184,6 +263,32 @@ auto foreach_adjacent_vertex_through_edge(const MESH& m, typename mesh_traits<ME
 	}
 }
 
+////////////////////
+// IncidenceGraph //
+////////////////////
+
+template <typename FUNC>
+auto foreach_adjacent_vertex_through_edge(const IncidenceGraph& ig, IncidenceGraph::Vertex v, const FUNC& func)
+{
+	static_assert(is_func_parameter_same<FUNC, IncidenceGraph::Vertex>::value, "Wrong function cell parameter type");
+	static_assert(is_func_return_same<FUNC, bool>::value, "Given function should return a bool");
+
+	for (IncidenceGraph::Edge e : (*ig.vertex_incident_edges_)[v.index_])
+	{
+		const std::pair<IncidenceGraph::Vertex, IncidenceGraph::Vertex>& ev = (*ig.edge_incident_vertices_)[e.index_];
+		if (ev.first.index_ != v.index_)
+		{
+			if (!func(ev.first))
+				break;
+		}
+		else
+		{
+			if (!func(ev.second))
+				break;
+		}
+	}
+}
+
 /*****************************************************************************/
 
 // template <typename CELL, typename MESH>
@@ -208,11 +313,22 @@ std::vector<typename mesh_traits<MESH>::Vertex> incident_vertices(const MESH& m,
 	return vertices;
 }
 
+/*****************************************************************************/
+
+// template <typename CELL, typename MESH>
+// std::vector<typename mesh_traits<MESH>::Vertex> append_incident_vertices(const MESH& m, CELL c, std::vector<typename
+// mesh_traits<MESH>::Vertex>& vertices);
+
+/*****************************************************************************/
+
+/////////////
+// GENERIC //
+/////////////
+
 template <typename MESH, typename CELL>
-void incident_vertices(const MESH& m, CELL c, std::vector<typename mesh_traits<MESH>::Vertex>& vertices)
+void append_incident_vertices(const MESH& m, CELL c, std::vector<typename mesh_traits<MESH>::Vertex>& vertices)
 {
 	using Vertex = typename mesh_traits<MESH>::Vertex;
-
 	foreach_incident_vertex(m, c, [&vertices](Vertex v) -> bool {
 		vertices.push_back(v);
 		return true;
@@ -243,28 +359,6 @@ std::vector<typename mesh_traits<MESH>::Vertex> adjacent_vertices_through_edge(c
 		return true;
 	});
 	return vertices;
-}
-
-/*****************************************************************************/
-
-// template <typename CELL, typename MESH>
-// std::vector<typename mesh_traits<MESH>::Vertex> append_incident_vertices(const MESH& m, CELL c, std::vector<typename
-// mesh_traits<MESH>::Vertex>& vertices);
-
-/*****************************************************************************/
-
-/////////////
-// GENERIC //
-/////////////
-
-template <typename MESH, typename CELL>
-void append_incident_vertices(const MESH& m, CELL c, std::vector<typename mesh_traits<MESH>::Vertex>& vertices)
-{
-	using Vertex = typename mesh_traits<MESH>::Vertex;
-	foreach_incident_vertex(m, c, [&vertices](Vertex v) -> bool {
-		vertices.push_back(v);
-		return true;
-	});
 }
 
 } // namespace cgogn

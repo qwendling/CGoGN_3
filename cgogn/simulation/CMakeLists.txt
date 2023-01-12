@@ -35,14 +35,20 @@ target_sources(${PROJECT_NAME}
 	"${CMAKE_CURRENT_LIST_DIR}/algos/SPH_Volume/SPH_Volume.h"
 	"${CMAKE_CURRENT_LIST_DIR}/algos/SPH_Peer2018/SPH_Peer2018.cpp"
 	"${CMAKE_CURRENT_LIST_DIR}/algos/SPH_Peer2018/SPH_Peer2018.h"
-	"${CMAKE_CURRENT_LIST_DIR}/algos/SPH_Particule/SPH_Particule.cpp"			                      
+	"${CMAKE_CURRENT_LIST_DIR}/algos/SPH_Particule/SPH_Particule.cpp"
 	"${CMAKE_CURRENT_LIST_DIR}/algos/SPH_Particule/SPH_Particule.h"
-	"${CMAKE_CURRENT_LIST_DIR}/algos/SPH_multiresolution/SPH_multiresolution.cpp"			                      
-	"${CMAKE_CURRENT_LIST_DIR}/algos/SPH_multiresolution/SPH_multiresolution.h"	
-)											                      
-											                      
-set_target_properties(${PROJECT_NAME} PROPERTIES					                      
-	DEBUG_POSTFIX "_d"								                      
+	"${CMAKE_CURRENT_LIST_DIR}/algos/SPH_multiresolution/SPH_multiresolution.cpp"
+	"${CMAKE_CURRENT_LIST_DIR}/algos/SPH_multiresolution/SPH_multiresolution.h"
+	"${CMAKE_CURRENT_LIST_DIR}/ui_modules/shallow_water.h"
+	"${CMAKE_CURRENT_LIST_DIR}/ui_modules/animation_multiresolution.h"
+	"${CMAKE_CURRENT_LIST_DIR}/ui_modules/shape_matching.h"
+	"${CMAKE_CURRENT_LIST_DIR}/ui_modules/shape_matching_MR.h"
+	"${CMAKE_CURRENT_LIST_DIR}/ui_modules/SPH_MR.h"
+	"${CMAKE_CURRENT_LIST_DIR}/ui_modules/SPH_simulation.h"
+)
+
+set_target_properties(${PROJECT_NAME} PROPERTIES
+	DEBUG_POSTFIX "_d"
 	EXPORT_NAME simulation
 	LINKER_LANGUAGE CXX
 )

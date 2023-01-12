@@ -81,7 +81,7 @@ ShaderExplodeVolumesScalar::ShaderExplodeVolumesScalar()
 	const char* fragment_shader_source = R"(
 		#version 330
 		uniform vec3 light_position;
-		
+
 		in vec3 position;
 		flat in vec3 color;
 
@@ -99,8 +99,8 @@ ShaderExplodeVolumesScalar::ShaderExplodeVolumesScalar()
 	std::string v_src(vertex_shader_source);
 	v_src.insert(v_src.find("//_insert_colormap_function_here"), shader_function::ColorMap::source);
 	load(v_src, fragment_shader_source);
-	get_uniforms("vertex_ind", "vertex_position", "volume_center", "volume_scalar", "volume_clipping", "light_position",
-				 "explode", "plane_clip", "plane_clip2", shader_function::ColorMap::uniform_names[0],
+	get_uniforms("vertex_ind", "vertex_position", "volume_center", "volume_scalar", "volume_clipping","light_position", "explode",
+				 "plane_clip", "plane_clip2", shader_function::ColorMap::uniform_names[0],
 				 shader_function::ColorMap::uniform_names[1], shader_function::ColorMap::uniform_names[2],
 				 shader_function::ColorMap::uniform_names[3]);
 

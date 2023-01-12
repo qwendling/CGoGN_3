@@ -27,6 +27,12 @@ struct CGOGN_CORE_EXPORT EMR_Map3_T : public EMR_Map2_T<CMAP>
 	}
 };
 
+template <>
+struct mesh_traits<EMR_Map3_T<CMap3>> : public mesh_traits<CMap3>
+{
+	static constexpr const char* name = "EMR_Map3_T";
+};
+
 struct EMR_Map3 : EMR_MapBase<EMR_Map3_T<CMap3>>
 {
 
@@ -80,6 +86,12 @@ struct EMR_Map3 : EMR_MapBase<EMR_Map3_T<CMap3>>
 	Dart volume_oldest_dart(Dart d) const;
 	bool volume_is_subdivided(Dart d) const;
 	uint32 volume_level(Dart d) const;
+};
+
+template <>
+struct mesh_traits<EMR_Map3> : public mesh_traits<CMap3>
+{
+	static constexpr const char* name = "EMR_Map3";
 };
 
 } // namespace cgogn

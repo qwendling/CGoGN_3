@@ -29,6 +29,7 @@
 #include <cgogn/core/types/container/attribute_container.h>
 #include <cgogn/core/types/container/chunk_array.h>
 #include <cgogn/core/types/container/vector.h>
+#include <cgogn/core/types/mesh_traits.h>
 
 #include <cgogn/core/types/cmap/cell.h>
 
@@ -51,7 +52,7 @@ struct CGOGN_CORE_EXPORT CMapBase
 	using MarkAttribute = AttributeContainer::MarkAttribute;
 
 	/*************************************************************************/
-	// Map attributes container
+	// Map-wise attributes container
 	/*************************************************************************/
 	std::shared_ptr<std::unordered_map<std::string, std::any>> attributes_;
 
@@ -83,6 +84,12 @@ struct CGOGN_CORE_EXPORT CMapBase
 	int nb_writer;
 	bool is_modify;
 
+	enum TraversalPolicy
+	{
+		AUTO,
+		DART_MARKING
+	};
+
 	CMapBase();
 	CMapBase(std::shared_ptr<std::unordered_map<std::string, std::any>>& attributes,
 			 std::shared_ptr<AttributeContainer>& darts,
@@ -92,6 +99,7 @@ struct CGOGN_CORE_EXPORT CMapBase
 			 std::shared_ptr<std::array<AttributeContainer, NB_ORBITS>>& attribute_containers);
 	~CMapBase();
 
+	// Map-wise attributes
 	template <typename T>
 	T& get_attribute(const std::string& name)
 	{

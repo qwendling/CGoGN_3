@@ -26,6 +26,8 @@
 #include <iostream>
 #include <thread>
 
+#include <cgogn/rendering/gl_image.h>
+
 namespace cgogn
 {
 
@@ -34,14 +36,12 @@ namespace ui
 
 View::View(Inputs* inputs, const std::string& name)
 	: GLViewer(inputs), name_(name), ratio_x_offset_(0), ratio_y_offset_(0), ratio_width_(1), ratio_height_(1),
-	  param_full_screen_texture_(nullptr), fbo_(nullptr), tex_(nullptr), scene_bb_locked_(false), event_stopped_(false),
-	  closing_(false)
+	  param_full_screen_texture_(nullptr), fbo_(nullptr), tex_(nullptr), event_stopped_(false), closing_(false)
 {
 	tex_ = std::make_unique<rendering::Texture2D>();
 	tex_->allocate(1, 1, GL_RGBA8, GL_RGBA);
-	std::vector<rendering::Texture2D*> vt{tex_.get()};
 
-	fbo_ = std::make_unique<rendering::FBO>(vt, true, nullptr);
+	fbo_ = std::make_unique<rendering::FBO>(std::vector<rendering::Texture2D*>{tex_.get()}, true, nullptr);
 
 	param_full_screen_texture_ = rendering::ShaderFullScreenTexture::generate_param();
 	param_full_screen_texture_->unit_ = 0;
@@ -173,8 +173,8 @@ void View::draw()
 			glDrawBuffers(1, &idbuf);
 			for (ViewModule* m : linked_view_modules_)
 				m->draw(this);
-			fbo_->release();
 			glDisable(GL_DEPTH_TEST);
+			fbo_->release();
 			need_redraw_ = false;
 		}
 	}
@@ -203,48 +203,28 @@ void View::link_module(ProviderModule* m)
 
 void View::update_scene_bb()
 {
-	if (!scene_bb_locked_)
+	geometry::Vec3 min, max;
+	for (uint32 i = 0; i < 3; ++i)
 	{
-		geometry::Vec3 min, max;
+		min[i] = std::numeric_limits<float64>::max();
+		max[i] = std::numeric_limits<float64>::lowest();
+	}
+	for (ProviderModule* m : linked_provider_modules_)
+	{
+		auto [pmin, pmax] = m->meshes_bb();
 		for (uint32 i = 0; i < 3; ++i)
 		{
-			min[i] = std::numeric_limits<float64>::max();
-			max[i] = std::numeric_limits<float64>::lowest();
+			if (pmin[i] < min[i])
+				min[i] = pmin[i];
+			if (pmax[i] > max[i])
+				max[i] = pmax[i];
 		}
-		for (ProviderModule* m : linked_provider_modules_)
-		{
-			auto [pmin, pmax] = m->meshes_bb();
-			for (uint32 i = 0; i < 3; ++i)
-			{
-				if (pmin[i] < min[i])
-					min[i] = pmin[i];
-				if (pmax[i] > max[i])
-					max[i] = pmax[i];
-			}
-		}
-		geometry::Scalar radius = (max - min).norm() / 2.0;
-		geometry::Vec3 center = (max + min) / 2.0;
-		set_scene_radius(radius);
-		set_scene_center(center);
-		show_entire_scene();
-		request_update();
 	}
-}
-
-void View::lock_scene_bb()
-{
-	scene_bb_locked_ = true;
-}
-
-void View::unlock_scene_bb()
-{
-	scene_bb_locked_ = false;
-	update_scene_bb();
-}
-
-bool View::scene_bb_locked() const
-{
-	return scene_bb_locked_;
+	geometry::Scalar radius = (max - min).norm() / 2.0;
+	geometry::Vec3 center = (max + min) / 2.0;
+	set_scene_radius(radius);
+	set_scene_center(center);
+	request_update();
 }
 
 bool View::pixel_scene_position(int32 x, int32 y, rendering::GLVec3d& P) const
@@ -328,6 +308,27 @@ rendering::GLVec3d View::unproject(int32 x, int32 y, float64 z) const
 	return res.head(3);
 }
 
+void View::save_screenshot()
+{
+	std::string filename = "screenshot.jpg";
+	std::cout << "saving screenshot : " << filename << std::endl;
+
+	if (fbo_->width() * fbo_->height() > 0)
+	{
+		rendering::GLImage image(viewport_width_, viewport_height_, 3);
+		const int nb_pixels = viewport_width_ * viewport_height_;
+
+		fbo_->bind();
+		glPixelStorei(GL_PACK_ALIGNMENT, 1);
+		glReadBuffer(GL_DRAW_FRAMEBUFFER);
+		glReadPixels(0, 0, viewport_width_, viewport_height_, GL_RGB, GL_UNSIGNED_BYTE,
+					 const_cast<uint8*>(image.data()));
+		fbo_->release();
+
+		image.save(filename, true);
+	}
+}
+
 rendering::GLVec3d View::pixel_scene_(int32 x, int32 y, const rendering::GLVec3d& P) const
 {
 	float64 xs, ys;
@@ -364,6 +365,7 @@ rendering::GLVec3d View::pixel_scene_(int32 x, int32 y, const rendering::GLVec3d
 
 	return result;
 }
+
 } // namespace ui
 
 } // namespace cgogn

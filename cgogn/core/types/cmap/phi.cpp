@@ -226,7 +226,7 @@ Dart phi2(const CPH3_adaptative& m, Dart d)
 	it = phi2(m2, d);
 	while (!m.dart_is_visible(it))
 	{
-		it = phi<32>(m2, it);
+		it = phi<3, 2>(m2, it);
 	}
 	m.set_phi2_buffer(d, it);
 	return it;

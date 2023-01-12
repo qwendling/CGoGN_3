@@ -1,0 +1,172 @@
+cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
+
+project(cgogn_rendering_examples
+    LANGUAGES CXX
+)
+
+find_package(cgogn_core REQUIRED)
+find_package(cgogn_ui REQUIRED)
+find_package(cgogn_io REQUIRED)
+find_package(cgogn_rendering REQUIRED)
+find_package(cgogn_modeling REQUIRED)
+
+add_executable(modeling modeling.cpp)
+target_link_libraries(modeling
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::modeling
+	Blossom5
+	${CMAKE_DL_LIBS}
+)
+
+add_executable(tubular_mesh tubular_mesh.cpp)
+target_link_libraries(tubular_mesh
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::modeling
+	simpleICP
+	Blossom5
+	${CMAKE_DL_LIBS}
+)
+
+add_executable(deformation deformation.cpp)
+target_link_libraries(deformation
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::modeling
+	Blossom5
+	${CMAKE_DL_LIBS}
+)
+
+add_executable(skeleton_extractor skeleton_extractor.cpp)
+target_link_libraries(skeleton_extractor
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::modeling
+	Blossom5
+	${CMAKE_DL_LIBS}
+)
+
+add_executable(convex_hull convex_hull.cpp)
+target_link_libraries(convex_hull
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::modeling
+	Blossom5
+	${CMAKE_DL_LIBS}
+)
+
+add_executable(mr_volume mr_volume.cpp)
+target_link_libraries(mr_volume
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::modeling
+	${CMAKE_DL_LIBS}
+)
+
+add_executable(mr_import mr_import.cpp)
+target_link_libraries(mr_import
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::modeling
+	${CMAKE_DL_LIBS}
+)
+
+add_executable(emr_volume emr_volume.cpp)
+target_link_libraries(emr_volume
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::modeling
+	${CMAKE_DL_LIBS}
+)
+
+add_executable(benchmark benchmark.cpp)
+target_link_libraries(benchmark
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::modeling
+	${CMAKE_DL_LIBS}
+)
+
+add_executable(benchmark2 benchmark2.cpp)
+target_link_libraries(benchmark2
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::modeling
+	${CMAKE_DL_LIBS}
+)
+
+add_executable(benchmark_topo_Mono benchmark_topo_Mono.cpp)
+target_link_libraries(benchmark_topo_Mono
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::modeling
+	${CMAKE_DL_LIBS}
+)
+
+add_executable(benchmark_topo_MR benchmark_topo_MR.cpp)
+target_link_libraries(benchmark_topo_MR
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::modeling
+	${CMAKE_DL_LIBS}
+)
+
+add_executable(benchmark_geom benchmark_geom.cpp)
+target_link_libraries(benchmark_geom
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::modeling
+	${CMAKE_DL_LIBS}
+)
+
+if(APPLE)
+	find_library(CORE_FOUNDATION CoreFoundation)
+	find_library(CARBON Carbon)
+	target_link_libraries(modeling
+		${CORE_FOUNDATION}
+		${CARBON}
+	)
+	target_link_libraries(tubular_mesh
+		${CORE_FOUNDATION}
+		${CARBON}
+	)
+	target_link_libraries(deformation
+		${CORE_FOUNDATION}
+		${CARBON}
+	)
+	target_link_libraries(skeleton_extractor
+		${CORE_FOUNDATION}
+		${CARBON}
+	)
+	target_link_libraries(convex_hull
+		${CORE_FOUNDATION}
+		${CARBON}
+	)
+endif()

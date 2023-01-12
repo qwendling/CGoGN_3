@@ -27,30 +27,6 @@ target_sources(${PROJECT_NAME}
 		"${CMAKE_CURRENT_LIST_DIR}/view.h"
 		"${CMAKE_CURRENT_LIST_DIR}/view.cpp"
 
-		"${CMAKE_CURRENT_LIST_DIR}/modules/graph_render/graph_render.h"
-		"${CMAKE_CURRENT_LIST_DIR}/modules/mesh_provider/mesh_provider.h"
-		"${CMAKE_CURRENT_LIST_DIR}/modules/mesh_provider/mesh_data.h"
-		"${CMAKE_CURRENT_LIST_DIR}/modules/shallow_water/shallow_water.h"
-		"${CMAKE_CURRENT_LIST_DIR}/modules/shape_matching/shape_matching.h"
-		"${CMAKE_CURRENT_LIST_DIR}/modules/shape_matching_MR/shape_matching_MR.h"
-		"${CMAKE_CURRENT_LIST_DIR}/modules/surface_deformation/surface_deformation.h"
-		"${CMAKE_CURRENT_LIST_DIR}/modules/surface_differential_properties/surface_differential_properties.h"
-		"${CMAKE_CURRENT_LIST_DIR}/modules/surface_filtering/surface_filtering.h"
-		"${CMAKE_CURRENT_LIST_DIR}/modules/surface_modeling/surface_modeling.h"
-		"${CMAKE_CURRENT_LIST_DIR}/modules/surface_render/surface_render.h"
-		"${CMAKE_CURRENT_LIST_DIR}/modules/surface_render_vector/surface_render_vector.h"
-		"${CMAKE_CURRENT_LIST_DIR}/modules/surface_selection/surface_selection.h"
-		"${CMAKE_CURRENT_LIST_DIR}/modules/volume_render/volume_render.h"
-		"${CMAKE_CURRENT_LIST_DIR}/modules/topo_render/topo_render.h"
-		"${CMAKE_CURRENT_LIST_DIR}/modules/surface_modeling/surface_modeling.h"
-		"${CMAKE_CURRENT_LIST_DIR}/modules/volume_selection/volume_selection.h"
-		"${CMAKE_CURRENT_LIST_DIR}/modules/volume_mr_modeling/volume_mr_modeling.h"
-		"${CMAKE_CURRENT_LIST_DIR}/modules/volume_emr_modeling/volume_emr_modeling.h"
-		"${CMAKE_CURRENT_LIST_DIR}/modules/animation_multiresolution/animation_multiresolution.h"
-		"${CMAKE_CURRENT_LIST_DIR}/modules/linked_volumes/linked_volumes.h"
-		"${CMAKE_CURRENT_LIST_DIR}/modules/SPH_simulation/SPH_simulation.h"
-		"${CMAKE_CURRENT_LIST_DIR}/modules/SPH_MR/SPH_MR.h"
-
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

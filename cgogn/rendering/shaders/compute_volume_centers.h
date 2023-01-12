@@ -27,7 +27,7 @@
 #include <cgogn/rendering/cgogn_rendering_export.h>
 #include <cgogn/rendering/fbo.h>
 #include <cgogn/rendering/mesh_render.h>
-#include <cgogn/rendering/shaders/shader_program.h>
+#include <cgogn/rendering/shader_program.h>
 #include <cgogn/rendering/shaders/transform_feedback.h>
 #include <cgogn/rendering/texture.h>
 #include <cgogn/rendering/vbo.h>

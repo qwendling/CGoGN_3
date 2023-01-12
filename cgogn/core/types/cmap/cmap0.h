@@ -26,7 +26,6 @@
 
 #include <cgogn/core/cgogn_core_export.h>
 
-#include <cgogn/core/types/cmap/cell.h>
 #include <cgogn/core/types/cmap/cmap_base.h>
 
 namespace cgogn
@@ -50,6 +49,23 @@ struct CGOGN_CORE_EXPORT CMap0 : public CMapBase
 		  MarkAttribute* boundary_marker,
 		  std::shared_ptr<std::array<AttributeContainer, NB_ORBITS>>& attribute_containers)
 		: CMapBase(attributes, darts, relations, cells_indices, boundary_marker, attribute_containers){};
+};
+
+template <>
+struct mesh_traits<CMap0>
+{
+	static constexpr const char* name = "CMap0";
+	static constexpr const uint8 dimension = 0;
+
+	using Vertex = typename CMap0::Vertex;
+
+	using Cells = std::tuple<Vertex>;
+	static constexpr const char* cell_names[] = {"Vertex"};
+
+	template <typename T>
+	using Attribute = CMapBase::Attribute<T>;
+	using AttributeGen = CMapBase::AttributeGen;
+	using MarkAttribute = CMapBase::MarkAttribute;
 };
 
 } // namespace cgogn

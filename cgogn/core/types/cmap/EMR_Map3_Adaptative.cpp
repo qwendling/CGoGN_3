@@ -765,7 +765,7 @@ void EMR_Map3_Adaptative::activate_edge_subdivision(Edge e)
 	do
 	{
 		set_dart_visibility(it, current_level_);
-		it = phi<23>(m2, it);
+		it = phi<2, 3>(m2, it);
 	} while (it != d2);
 
 	d2 = phi2(m2, e2.dart);
@@ -773,7 +773,7 @@ void EMR_Map3_Adaptative::activate_edge_subdivision(Edge e)
 	do
 	{
 		set_dart_visibility(it, current_level_);
-		it = phi<23>(m2, it);
+		it = phi<2, 3>(m2, it);
 	} while (it != d2);
 	clock_views_++;
 }
@@ -867,7 +867,7 @@ bool EMR_Map3_Adaptative::activate_volume_subdivision(Volume v)
 		do
 		{
 			set_dart_visibility(it, current_level_);
-			it = phi<23>(m2, it);
+			it = phi<2, 3>(m2, it);
 		} while (it != d2);
 	}
 	clock_views_++;
@@ -914,7 +914,7 @@ bool EMR_Map3_Adaptative::activate_volume_subdivision_fast(Volume v)
 		do
 		{
 			set_dart_visibility(it, current_level_);
-			it = phi<23>(m2, it);
+			it = phi<2, 3>(m2, it);
 		} while (it != d2);
 	}
 	clock_views_++;
@@ -982,7 +982,7 @@ bool EMR_Map3_Adaptative::disable_face_subdivision(Face f, bool disable_edge, bo
 	Dart old = face_oldest_dart(f.dart);
 	Dart test = phi1(m2, old);
 	// Check that the two adjacents volumes are not subdivide
-	if (phi<2323>(*this, test) != test)
+	if (phi<2, 3, 2, 3>(*this, test) != test)
 		return false;
 
 	std::vector<Dart> vec_vertices;
@@ -1010,7 +1010,7 @@ bool EMR_Map3_Adaptative::disable_face_subdivision(Face f, bool disable_edge, bo
 	for (Dart d : vec_vertices)
 	{
 		Dart it = phi1(m2, d);
-		Dart d11 = phi<11>(m2, d);
+		Dart d11 = phi<1, 1>(m2, d);
 		while (it != d11)
 		{
 			Dart d3 = phi3(*this, it);
@@ -1088,7 +1088,7 @@ bool EMR_Map3_Adaptative::disable_volume_subdivision(Volume v, bool disable_face
 	std::vector<Dart> vect_dart;
 	for (Dart d : vect_volume)
 	{
-		Dart tmp = phi<12>(m2, d);
+		Dart tmp = phi<1, 2>(m2, d);
 		if (dm.is_marked(tmp))
 			continue;
 		while (face_level(tmp) != v_level)
@@ -1170,7 +1170,7 @@ bool EMR_Map3_Adaptative::disable_volume_subdivision_fast(Volume v, bool disable
 	std::vector<Dart> vect_dart;
 	for (Dart d : vect_volume)
 	{
-		Dart tmp = phi<12>(m2, d);
+		Dart tmp = phi<1, 2>(m2, d);
 		if (dm.is_marked(tmp))
 			continue;
 		while (face_level(tmp) != v_level)

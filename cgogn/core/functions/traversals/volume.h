@@ -30,7 +30,6 @@
 #include <cgogn/core/utils/type_traits.h>
 
 #include <cgogn/core/types/cell_marker.h>
-#include <cgogn/core/types/mesh_traits.h>
 
 #include <cgogn/core/types/cmap/cmap_info.h>
 #include <cgogn/core/types/cmap/dart_marker.h>
@@ -52,6 +51,13 @@ namespace cgogn
 
 template <typename MESH, typename CELL, typename FUNC>
 auto foreach_incident_volume(const MESH& m, CELL c, const FUNC& func)
+	-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&>>
+{
+	foreach_incident_volume(m, c, func, CMapBase::TraversalPolicy::AUTO);
+}
+
+template <typename MESH, typename CELL, typename FUNC>
+auto foreach_incident_volume(const MESH& m, CELL c, const FUNC& func, CMapBase::TraversalPolicy traversal_policy)
 	-> std::enable_if_t<std::is_convertible_v<MESH&, CMapBase&>>
 {
 	using Volume = typename mesh_traits<MESH>::Volume;
@@ -91,7 +97,7 @@ auto foreach_incident_volume(const MESH& m, CELL c, const FUNC& func)
 	}
 	else
 	{
-		if (is_indexed<Volume>(m))
+		if (traversal_policy == CMapBase::TraversalPolicy::AUTO && is_indexed<Volume>(m))
 		{
 			CellMarkerStore<MESH, Volume> marker(m);
 			foreach_dart_of_orbit(m, c, [&](Dart d) -> bool {
@@ -121,7 +127,7 @@ auto foreach_incident_volume(const MESH& m, CELL c, const FUNC& func)
 			foreach_dart_of_orbit(m, c, [&](Dart d) -> bool {
 				if constexpr (mesh_traits<MESH>::dimension == 3) // volumes can be boundary cells
 				{
-					if (!marker.is_marked(d) && !is_boundary(m, d))
+					if (!is_boundary(m, d) && !marker.is_marked(d))
 					{
 						Volume v(d);
 						foreach_dart_of_orbit(m, v, [&](Dart d) -> bool {

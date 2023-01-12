@@ -430,7 +430,7 @@ uint32 CPH3::volume_level(Dart d) const
 	do
 	{
 		++nbSubd;
-		it = phi<121>(m2, it);
+		it = phi<1, 2, 1>(m2, it);
 	} while (edge_id(it) == eId && lold != dart_level(it));
 
 	while (nbSubd > 1)
@@ -498,9 +498,10 @@ bool CPH3::volume_is_subdivided(Dart d) const
 	});
 
 	bool subd = false;
-	CPH3 m2(*this);
-	m2.current_level_++;
-	if (faceAreSubdivided && dart_level(phi<112>(m2, d)) == m2.current_level_ && face_id(phi<112>(m2, d)) != face_id(d))
+	CPH3 m(*this);
+	m.current_level_++;
+	if (faceAreSubdivided && dart_level(phi<1, 1, 2>(m, d)) == current_level_ &&
+		face_id(phi<1, 1, 2>(m, d)) != face_id(d))
 		subd = true;
 
 	return subd;
@@ -607,7 +608,7 @@ bool CPH3::disable_face_subdivision(Face f, bool disable_edge, bool)
 	uint32 id_f = index_of(static_cast<const CPH3::CMAP&>(*this), Face(old));
 	Dart test = phi1(m2, old);
 	// Check that the two adjacents volumes are not subdivide
-	if (phi<2323>(*this, test) != test)
+	if (phi<2, 3, 2, 3>(*this, test) != test)
 		return false;
 
 	std::vector<Dart> vec_vertices;
@@ -625,7 +626,7 @@ bool CPH3::disable_face_subdivision(Face f, bool disable_edge, bool)
 	std::vector<std::pair<Dart, Dart>> list_phi_1;
 	std::vector<Dart> dart_to_remove;
 	auto fn = [&](Dart dd) {
-		Dart d1 = phi<21>(m2, dd);
+		Dart d1 = phi<2, 1>(m2, dd);
 		Dart d_1 = phi_1(m2, dd);
 		list_phi1.push_back(std::make_pair(d_1, d1));
 		list_phi_1.push_back(std::make_pair(d1, d_1));
@@ -634,7 +635,7 @@ bool CPH3::disable_face_subdivision(Face f, bool disable_edge, bool)
 	for (Dart d : vec_vertices)
 	{
 		Dart it = phi1(m2, d);
-		Dart d11 = phi<11>(m2, d);
+		Dart d11 = phi<1, 1>(m2, d);
 		while (it != d11)
 		{
 			Dart d3 = phi3(*this, it);
@@ -736,14 +737,14 @@ bool CPH3::disable_volume_subdivision(Volume v, bool disable_face)
 	auto fn = [&](Dart dd) {
 		Dart d2 = phi2(m2, dd);
 		// Ici attention on veut le phi2 du maximum level
-		list_phi2.push_back(std::make_pair(d2, phi<32>(m2, dd)));
-		list_phi2.push_back(std::make_pair(phi<32>(m2, dd), d2));
+		list_phi2.push_back(std::make_pair(d2, phi<3, 2>(m2, dd)));
+		list_phi2.push_back(std::make_pair(phi<3, 2>(m2, dd), d2));
 		dart_to_remove.push_back(dd);
 	};
 
 	for (Dart d : vect_volume)
 	{
-		Dart tmp = phi<12>(m2, d);
+		Dart tmp = phi<1, 2>(m2, d);
 		if (dm.is_marked(tmp))
 			continue;
 		/*while (face_level(tmp) != v_level)

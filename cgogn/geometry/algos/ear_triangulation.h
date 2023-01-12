@@ -24,12 +24,15 @@
 #ifndef CGOGN_GEOMETRY_ALGOS_EAR_TRIANGULATION_H_
 #define CGOGN_GEOMETRY_ALGOS_EAR_TRIANGULATION_H_
 
-#include <set>
+#include <cgogn/core/functions/mesh_ops/face.h>
 
 //#include <cgogn/geometry/types/geometry_traits.h>
 #include <cgogn/geometry/algos/normal.h>
 #include <cgogn/geometry/functions/inclusion.h>
 #include <cgogn/geometry/types/vector_traits.h>
+
+#include <set>
+#include <cmath>
 
 namespace cgogn
 {
@@ -85,9 +88,9 @@ class EarTriangulation
 	Vec3 normalPoly_;
 
 	// ref on map
-	const MESH& m_;
+	MESH& m_;
 
-	// ref on position attribute
+	// pointer to position attribute
 	const typename mesh_traits<MESH>::template Attribute<Vec3>* position_;
 
 	inline const Vec3& POSITION(Vertex v)
@@ -212,6 +215,85 @@ class EarTriangulation
 		return true;
 	}
 
+	////////////////////////////////
+	// CMapBase (and convertible) //
+	////////////////////////////////
+
+	template <typename MESHTYPE, typename std::enable_if_t<std::is_convertible_v<MESHTYPE&, CMapBase&>>* = nullptr>
+	std::tuple<VertexPoly*, VertexPoly*, uint32, bool> init_chained_vertexpoly_list(
+		MESHTYPE& /*m*/, const typename mesh_traits<MESHTYPE>::Face f)
+	{
+		VertexPoly* vpp = nullptr;
+		VertexPoly* prem = nullptr;
+		uint32 nb_verts = 0;
+		bool convex = true;
+
+		Dart a = f.dart;
+		Dart b = phi1(m_, a);
+		Dart c = phi1(m_, b);
+		do
+		{
+			const Vec3& P1 = POSITION(Vertex(a));
+			const Vec3& P2 = POSITION(Vertex(b));
+			const Vec3& P3 = POSITION(Vertex(c));
+
+			Scalar val = ear_angle(P1, P2, P3);
+			VertexPoly* vp = new VertexPoly(Vertex(b), val, Scalar((P3 - P1).squaredNorm()), vpp);
+
+			if (vp->value_ > Scalar(5)) // concav angle
+				convex = false;
+
+			if (vpp == nullptr)
+				prem = vp;
+			vpp = vp;
+			a = b;
+			b = c;
+			c = phi1(m_, c);
+			nb_verts++;
+		} while (a != f.dart);
+
+		return {vpp, prem, nb_verts, convex};
+	}
+
+	////////////////////
+	// IncidenceGraph //
+	////////////////////
+
+	// std::tuple<VertexPoly*, VertexPoly*, uint32, bool> init_chained_vertexpoly_list(
+	// 	IncidenceGraph& m, const IncidenceGraph::Face f)
+	// {
+	// 	VertexPoly* vpp = nullptr;
+	// 	VertexPoly* prem = nullptr;
+	// 	uint32 nb_verts = 0;
+	// 	bool convex = true;
+
+	// 	Dart a = f.dart;
+	// 	Dart b = phi1(m_, a);
+	// 	Dart c = phi1(m_, b);
+	// 	do
+	// 	{
+	// 		const Vec3& P1 = POSITION(Vertex(a));
+	// 		const Vec3& P2 = POSITION(Vertex(b));
+	// 		const Vec3& P3 = POSITION(Vertex(c));
+
+	// 		Scalar val = ear_angle(P1, P2, P3);
+	// 		VertexPoly* vp = new VertexPoly(Vertex(b), val, Scalar((P3 - P1).squaredNorm()), vpp);
+
+	// 		if (vp->value_ > Scalar(5)) // concav angle
+	// 			convex = false;
+
+	// 		if (vpp == nullptr)
+	// 			prem = vp;
+	// 		vpp = vp;
+	// 		a = b;
+	// 		b = c;
+	// 		c = phi1(m_, c);
+	// 		nb_verts++;
+	// 	} while (a != f.dart);
+
+	// 	return {vpp, prem, nb_verts, convex};
+	// }
+
 public:
 	CGOGN_NOT_COPYABLE_NOR_MOVABLE(EarTriangulation);
 
@@ -221,7 +303,7 @@ public:
 	 * @param f the face to tringulate
 	 * @param position attribute of position to use
 	 */
-	EarTriangulation(const MESH& mesh, const typename mesh_traits<MESH>::Face f,
+	EarTriangulation(MESH& mesh, const typename mesh_traits<MESH>::Face f,
 					 const typename mesh_traits<MESH>::template Attribute<Vec3>* position)
 		: m_(mesh), position_(position), ears_(cmp_VP)
 	{
@@ -238,34 +320,9 @@ public:
 		normalPoly_ = normal(m_, f, position_);
 
 		// first pass create polygon in chained list with angle computation
-		VertexPoly* vpp = nullptr;
-		VertexPoly* prem = nullptr;
-		nb_verts_ = 0;
-		convex_ = true;
-
-		Dart a = f.dart;
-		Dart b = phi1(m_, a);
-		Dart c = phi1(m_, b);
-		do
-		{
-			const Vec3& P1 = POSITION(Vertex(a));
-			const Vec3& P2 = POSITION(Vertex(b));
-			const Vec3& P3 = POSITION(Vertex(c));
-
-			Scalar val = ear_angle(P1, P2, P3);
-			VertexPoly* vp = new VertexPoly(Vertex(b), val, Scalar((P3 - P1).squaredNorm()), vpp);
-
-			if (vp->value_ > Scalar(5)) // concav angle
-				convex_ = false;
-
-			if (vpp == nullptr)
-				prem = vp;
-			vpp = vp;
-			a = b;
-			b = c;
-			c = phi1(m_, c);
-			nb_verts_++;
-		} while (a != f.dart);
+		auto [vpp, prem, nb_verts, convex] = init_chained_vertexpoly_list(mesh, f);
+		nb_verts_ = nb_verts;
+		convex_ = convex;
 
 		VertexPoly::close(prem, vpp);
 
@@ -375,7 +432,7 @@ public:
 				ears_.erase(be->next_->ear_);
 				ears_.erase(be->prev_->ear_);
 				// replace dart to be in remaining poly
-				be->prev_->vert_ = Vertex(phi2(m_, phi_1(m_, be->prev_->vert_.dart)));
+				be->prev_->vert_ = Vertex(phi<-1, 2>(m_, be->prev_->vert_.dart));
 				be = VertexPoly::erase(be); // and remove ear vertex from polygon
 				recompute_2_ears(be);
 			}
@@ -402,7 +459,7 @@ void append_ear_triangulation(const MESH& mesh, const typename mesh_traits<MESH>
 							  const typename mesh_traits<MESH>::template Attribute<Vec3>* position,
 							  std::vector<uint32>& table_indices, const FUNC& post_func)
 {
-	EarTriangulation tri(mesh, f, position);
+	EarTriangulation tri(const_cast<MESH&>(mesh), f, position);
 	tri.append_indices(table_indices, post_func);
 }
 
