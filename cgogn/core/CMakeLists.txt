@@ -47,6 +47,7 @@ target_sources(${PROJECT_NAME}
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/EMR_Map1.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/EMR_MapBase.cpp"
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/EMR_MapBase.h"
+		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/EMR3_compact.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/dart_marker.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/dart.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/cmap/graph.h"

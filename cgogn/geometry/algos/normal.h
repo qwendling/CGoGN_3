@@ -88,7 +88,7 @@ Vec3 normal(const MESH& m, typename mesh_traits<MESH>::Face2 f,
 	else
 	{
 		Vec3 n{0.0, 0.0, 0.0};
-		for (uint32 i = 0, nb = uint32(vertices.size()); i < nb; ++i)
+		for (uint32 i = 1, nb = uint32(vertices.size()); i < nb - 1; ++i)
 		{
 			const Vec3& r = value<Vec3>(m, vertex_position, vertices[i - 1]);
 			const Vec3& p = value<Vec3>(m, vertex_position, vertices[i]);
