@@ -90,9 +90,9 @@ void compute_volume(const MESH& m, const typename mesh_traits<MESH>::template At
 	});
 }
 
-void compute_volume(const EMR_Map3_Adaptative& m,
-					const typename mesh_traits<EMR_Map3_Adaptative>::template Attribute<Vec3>* vertex_position,
-					typename mesh_traits<EMR_Map3_Adaptative>::template Attribute<double>* computed_volume)
+inline void compute_volume(const EMR_Map3_Adaptative& m,
+						   const typename mesh_traits<EMR_Map3_Adaptative>::template Attribute<Vec3>* vertex_position,
+						   typename mesh_traits<EMR_Map3_Adaptative>::template Attribute<double>* computed_volume)
 {
 	using Volume = typename mesh_traits<EMR_Map3_Adaptative>::Volume;
 

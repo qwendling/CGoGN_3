@@ -95,6 +95,7 @@ public:
 	}
 
 	void save_screenshot();
+	void save_screenshot(std::string filename);
 
 protected:
 	std::string name_;

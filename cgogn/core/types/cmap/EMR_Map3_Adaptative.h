@@ -126,6 +126,8 @@ struct EMR_Map3_Adaptative : EMR_Map3
 	EMR_Map3_Adaptative* get_copy();
 	void copy_visibility(const EMR_Map3_Adaptative& other);
 
+	bool vertex_is_visible(Dart d) const;
+
 	/***************************************************
 	 *                  EDGE INFO                      *
 	 ***************************************************/

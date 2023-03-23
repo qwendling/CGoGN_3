@@ -21,8 +21,8 @@
  *                                                                              *
  *******************************************************************************/
 
-#ifndef CGOGN_MODULE_XPBD_H_
-#define CGOGN_MODULE_XPBD_H_
+#ifndef CGOGN_MODULE_XPBD_MULTIRESOLUTION_H_
+#define CGOGN_MODULE_XPBD_MULTIRESOLUTION_H_
 
 #include <GLFW/glfw3.h>
 #include <cgogn/ui/app.h>
@@ -42,7 +42,7 @@
 #include <cgogn/rendering/shaders/shader_flat.h>
 #include <cgogn/rendering/shaders/shader_point_sprite.h>
 #include <cgogn/rendering/vbo_update.h>
-#include <cgogn/simulation/algos/XPBD/XPBD.h>
+#include <cgogn/simulation/algos/XPBD/XPBD_multiresolution.h>
 
 #include <boost/synapse/connect.hpp>
 #include <imgui/imgui.h>
@@ -56,7 +56,7 @@ namespace ui
 {
 
 template <typename MESH>
-class XPBD_View : public ViewModule
+class XPBD_Multiresolution_View : public ViewModule
 {
 
 	template <typename T>
@@ -128,14 +128,15 @@ class XPBD_View : public ViewModule
 	};
 
 public:
-	XPBD_View(const App& app)
+	XPBD_Multiresolution_View(const App& app)
 		: ViewModule(app, "XPBD (" + std::string{mesh_traits<MESH>::name} + ")"), selected_mesh_(nullptr),
-		  selected_view_(app.current_view()), running_(false), apply_gravity(false)
+		  geom_mesh_(nullptr), selected_view_(app.current_view()), running_(false), apply_gravity(false),
+		  take_screenshot_(false)
 	{
 		f_keypress = [](View*, MESH*, int32, CellsSet<MESH, Vertex>*, CellsSet<MESH, Edge>*) {};
 	}
 
-	~XPBD_View()
+	~XPBD_Multiresolution_View()
 	{
 	}
 
@@ -191,7 +192,7 @@ public:
 		Parameters& p = parameters_[&m];
 
 		p.vertex_forces_ = vertex_forces;
-		simu_solver.forces_ext_ = vertex_forces;
+		simu_solver.f_ext_ = vertex_forces;
 	}
 	void set_vertex_masse(const MESH& m, const std::shared_ptr<Attribute<double>>& vertex_masse)
 	{
@@ -207,7 +208,7 @@ protected:
 			app_.module("MeshProvider (" + std::string{mesh_traits<MESH>::name} + ")"));
 		mesh_provider_->foreach_mesh([this](MESH& m, const std::string&) { init_mesh(&m); });
 		connections_.push_back(boost::synapse::connect<typename MeshProvider<MESH>::mesh_added>(
-			mesh_provider_, this, &XPBD_View<MESH>::init_mesh));
+			mesh_provider_, this, &XPBD_Multiresolution_View<MESH>::init_mesh));
 	}
 
 	void mouse_press_event(View* view, int32 button, int32 x, int32 y) override
@@ -268,6 +269,15 @@ protected:
 		{
 			apply_gravity = !apply_gravity;
 		}
+		if (key_code == GLFW_KEY_P)
+		{
+			ground_ = !ground_;
+		}
+		if (key_code == GLFW_KEY_S)
+		{
+			take_screenshot_ = !take_screenshot_;
+			frame_number_ = 0;
+		}
 		if (key_code == GLFW_KEY_F)
 		{
 			if (selected_mesh_)
@@ -303,8 +313,9 @@ protected:
 					if (value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v).dot(a) < d)
 					{
 
-						value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v) =
-							m_rota * value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v);
+						/*value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v) =
+							m_rota * value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v);*/
+						value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v) += Vec3(0, 0, 1);
 					}
 					return true;
 				});
@@ -318,9 +329,23 @@ protected:
 				std::clock_t start = std::clock();
 				double duration = 0;
 				for (int i = 0; i < 100; i++)
-					simu_solver.solver(*selected_mesh_, 0.01f);
+					simu_solver.solver(*selected_mesh_, geom_mesh_, 0.01f);
 				duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 				std::cout << "temps solve xpbd : " << duration / 100.0f << std::endl;
+				need_update_ = true;
+			}
+		}
+		if (key_code == GLFW_KEY_V)
+		{
+			if (selected_mesh_)
+			{
+				std::clock_t start = std::clock();
+				double duration = 0;
+				for (int i = 0; i < 100; i++)
+					simu_solver.solver(*selected_mesh_, geom_mesh_, 0.01f, false);
+				duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+				std::cout << "temps solve xpbd : " << duration / 100.0f << std::endl;
+				need_update_ = true;
 			}
 		}
 	}
@@ -394,7 +419,7 @@ protected:
 							  << std::endl;
 				}
 
-				selected_mesh_->start_reader();
+				selected_mesh_->start_writer();
 				std::cout << "Debut simu" << std::endl;
 				for (int i = 0; i < 1; i++)
 				{
@@ -407,15 +432,33 @@ protected:
 							return true;
 						});
 					}
-					simu_solver.solver(*selected_mesh_, TIME_STEP);
+					simu_solver.solver(*selected_mesh_, geom_mesh_, TIME_STEP);
 					parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
 						value<Vec3>(*selected_mesh_, p.vertex_forces_, v) = Vec3(0, 0, 0);
 						return true;
 					});
 				}
+				if (ground_)
+				{
+					Vec3 position;
+					Vec3 axis_z;
+					p.frame_manipulator_.get_position(position);
+					p.frame_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, axis_z);
+					double d = position.dot(axis_z);
+					parallel_foreach_cell(*geom_mesh_, [&](Vertex v) -> bool {
+						double tmp = value<Vec3>(*geom_mesh_, p.vertex_position_.get(), v).dot(axis_z);
+						if (value<Vec3>(*geom_mesh_, p.vertex_position_.get(), v).dot(axis_z) < d)
+						{
+							value<Vec3>(*geom_mesh_, p.vertex_position_.get(), v) += (d - tmp) * axis_z;
+							value<Vec3>(*geom_mesh_, simu_solver.speed_.get(), v) -=
+								axis_z.dot(value<Vec3>(*geom_mesh_, simu_solver.speed_.get(), v)) * axis_z;
+						}
+						return true;
+					});
+				}
 				need_update_ = true;
 				std::cout << "fin simu" << std::endl;
-				selected_mesh_->end_reader();
+				selected_mesh_->end_writer();
 			}
 		});
 
@@ -448,7 +491,7 @@ protected:
 					return true;
 				});
 			}
-			simu_solver.solver(*selected_mesh_, 0.005);
+			simu_solver.solver(*selected_mesh_, geom_mesh_, 0.005);
 			parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
 				value<Vec3>(*selected_mesh_, p.vertex_forces_, v) = Vec3(0, 0, 0);
 				return true;
@@ -529,6 +572,16 @@ protected:
 			});
 			ImGui::ListBoxFooter();
 		}
+		if (ImGui::ListBoxHeader("Geometry Mesh"))
+		{
+			mesh_provider_->foreach_mesh([this](MESH& m, const std::string& name) {
+				if (ImGui::Selectable(name.c_str(), &m == geom_mesh_))
+				{
+					geom_mesh_ = &m;
+				}
+			});
+			ImGui::ListBoxFooter();
+		}
 
 		if (selected_mesh_)
 		{
@@ -584,7 +637,18 @@ protected:
 				if (need_update_)
 				{
 					p.update_move_vertex_vbo();
+
+					selected_mesh_->start_reader();
 					mesh_provider_->emit_attribute_changed(*selected_mesh_, p.vertex_position_.get());
+					// mesh_provider_->emit_connectivity_changed(*selected_mesh_);
+					if (geom_mesh_)
+						mesh_provider_->emit_attribute_changed(*geom_mesh_, p.vertex_position_.get());
+					selected_mesh_->end_reader();
+					if (take_screenshot_)
+					{
+						selected_view_->save_screenshot("../../../screen_video/screen" +
+														std::to_string(frame_number_++) + ".jpg");
+					}
 					need_update_ = false;
 				}
 			}
@@ -593,15 +657,19 @@ protected:
 
 public:
 	MESH* selected_mesh_;
+	MESH* geom_mesh_;
 	std::unordered_map<const MESH*, Parameters> parameters_;
 	std::vector<std::shared_ptr<boost::synapse::connection>> connections_;
 	std::unordered_map<const MESH*, std::vector<std::shared_ptr<boost::synapse::connection>>> mesh_connections_;
 	MeshProvider<MESH>* mesh_provider_;
-	simulation::XPBD<MESH> simu_solver;
+	cgogn::simulation::XPBD_Multiresolution simu_solver;
 	bool running_;
 	bool need_update_;
 	bool can_move_vertex_;
 	bool apply_gravity;
+	bool take_screenshot_;
+	int frame_number_;
+	bool ground_;
 	View* selected_view_;
 };
 
@@ -609,4 +677,4 @@ public:
 
 } // namespace cgogn
 
-#endif // CGOGN_MODULE_XPBD_H_
+#endif // CGOGN_MODULE_XPBD_MULTIRESOLUTION_H_

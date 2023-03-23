@@ -81,6 +81,7 @@ struct CGOGN_CORE_EXPORT CMapBase
 	mutable std::condition_variable cv;
 	mutable std::mutex m_;
 	mutable int nb_reader;
+	int nb_writer_wait;
 	int nb_writer;
 	bool is_modify;
 
@@ -135,8 +136,9 @@ struct CGOGN_CORE_EXPORT CMapBase
 	void start_reader() const
 	{
 		std::unique_lock<std::mutex> lk(m_);
-		cv.wait(lk, [&] { return nb_writer <= 0; });
+		cv.wait(lk, [&] { return nb_writer_wait <= 0; });
 		nb_reader++;
+		cv.wait(lk, [&] { return nb_writer <= 0; });
 	}
 
 	void end_reader() const
@@ -149,9 +151,13 @@ struct CGOGN_CORE_EXPORT CMapBase
 	void start_writer()
 	{
 		std::unique_lock<std::mutex> lk(m_);
-		nb_writer++;
+		nb_writer_wait++;
 		cv.wait(lk, [&] { return nb_reader <= 0 && !is_modify; });
+		nb_writer_wait--;
+		nb_writer++;
 		is_modify = true;
+		lk.unlock();
+		cv.notify_all();
 	}
 
 	void end_writer()

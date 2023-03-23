@@ -417,6 +417,11 @@ Dart EMR_Map3_Adaptative::next(Dart d) const
 	return d;
 }
 
+bool EMR_Map3_Adaptative::vertex_is_visible(Dart d) const
+{
+	return dart_is_visible(d);
+}
+
 /***************************************************
  *                  EDGE INFO                      *
  ***************************************************/
@@ -633,7 +638,6 @@ Dart EMR_Map3_Adaptative::volume_youngest_dart(Dart d) const
 		{
 			return d;
 		}
-
 		Dart old = d;
 		DartMarkerStore<EMR_Map3> marker(*this);
 		foreach_dart_of_orbit(*this, Volume(d), [&](Dart it) -> bool {

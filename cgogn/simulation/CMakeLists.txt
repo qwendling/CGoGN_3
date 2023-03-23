@@ -41,6 +41,8 @@ target_sources(${PROJECT_NAME}
 	"${CMAKE_CURRENT_LIST_DIR}/algos/SPH_multiresolution/SPH_multiresolution.h"
 	"${CMAKE_CURRENT_LIST_DIR}/algos/XPBD/XPBD.cpp"
 	"${CMAKE_CURRENT_LIST_DIR}/algos/XPBD/XPBD.h"
+	"${CMAKE_CURRENT_LIST_DIR}/algos/XPBD/XPBD_multiresolution.cpp"
+	"${CMAKE_CURRENT_LIST_DIR}/algos/XPBD/XPBD_multiresolution.h"
 	"${CMAKE_CURRENT_LIST_DIR}/ui_modules/shallow_water.h"
 	"${CMAKE_CURRENT_LIST_DIR}/ui_modules/animation_multiresolution.h"
 	"${CMAKE_CURRENT_LIST_DIR}/ui_modules/shape_matching.h"
@@ -48,6 +50,7 @@ target_sources(${PROJECT_NAME}
 	"${CMAKE_CURRENT_LIST_DIR}/ui_modules/SPH_MR.h"
 	"${CMAKE_CURRENT_LIST_DIR}/ui_modules/SPH_simulation.h"
 	"${CMAKE_CURRENT_LIST_DIR}/ui_modules/XPBD.h"
+	"${CMAKE_CURRENT_LIST_DIR}/ui_modules/XPBD_multiresolution.h"
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

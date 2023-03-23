@@ -26,7 +26,7 @@
 namespace cgogn
 {
 
-CMapBase::CMapBase() : nb_reader(0), nb_writer(0), is_modify(false)
+CMapBase::CMapBase() : nb_reader(0), nb_writer_wait(0), nb_writer(0), is_modify(false)
 {
 	darts_ = std::shared_ptr<AttributeContainer>(new AttributeContainer());
 	attributes_ =

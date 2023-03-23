@@ -184,6 +184,95 @@ std::vector<typename mesh_traits<MESH>::Volume> incident_volumes(const MESH& m, 
 	}
 }
 
+template <typename MESH, typename CELL, typename FUNC>
+void foreach_adjacent_volume_through_vertex(const MESH& m, CELL v, const FUNC& func)
+{
+	using Volume = typename mesh_traits<MESH>::Volume;
+	using Vertex = typename mesh_traits<MESH>::Vertex;
+	static_assert(is_func_parameter_same<FUNC, Volume>::value, "Wrong function cell parameter type");
+	if (is_indexed<Volume>(m))
+	{
+		CellMarkerStore<MESH, Volume> marker_volume(m);
+		marker_volume.mark(v);
+		foreach_incident_vertex(m, v, [&](Vertex inc_vert) -> bool {
+			bool res_nested_lambda = true;
+			foreach_incident_volume(m, inc_vert, [&](Volume inc_vol) -> bool {
+				if (!marker_volume.is_marked(inc_vol) && !is_boundary(m, inc_vol.dart))
+				{
+					marker_volume.mark(inc_vol);
+					res_nested_lambda = func(inc_vol);
+				}
+				return res_nested_lambda;
+			});
+			return res_nested_lambda;
+		});
+	}
+	else
+	{
+		/*DartMarkerStore<MESH> marker_volume(m);
+		marker_volume.
+		marker_volume.mark_orbit(v);
+		foreach_incident_vertex(v, [&] (Vertex inc_vert)->bool
+		{
+			bool res_nested_lambda = true;
+			foreach_incident_volume(inc_vert, [&](Volume inc_vol)->bool
+			{
+				if (!marker_volume.is_marked(inc_vol.dart) && !is_boundary(inc_vol.dart))
+				{
+					marker_volume.mark_orbit(inc_vol);
+					res_nested_lambda = func(inc_vol);
+				}
+				return res_nested_lambda;
+			});
+			return res_nested_lambda;
+		});*/
+	}
+}
+
+template <typename MESH, typename CELL, typename FUNC>
+inline void foreach_adjacent_volume_through_edge(const MESH& m, CELL v, const FUNC& func)
+{
+	using Volume = typename mesh_traits<MESH>::Volume;
+	using Edge = typename mesh_traits<MESH>::Edge;
+	static_assert(is_func_parameter_same<FUNC, Volume>::value, "Wrong function cell parameter type");
+	if (is_indexed<Volume>(m))
+	{
+		CellMarkerStore<MESH, Volume> marker_volume(m);
+		marker_volume.mark(v);
+		foreach_incident_edge(m, v, [&](Edge inc_edge) -> bool {
+			bool res_nested_lambda = true;
+			foreach_incident_volume(m, inc_edge, [&](Volume inc_vol) -> bool {
+				if (!marker_volume.is_marked(inc_vol) && !is_boundary(m, inc_vol.dart))
+				{
+					marker_volume.mark(inc_vol);
+					res_nested_lambda = func(inc_vol);
+				}
+				return res_nested_lambda;
+			});
+			return res_nested_lambda;
+		});
+	}
+	else
+	{
+		/*DartMarkerStore marker_volume(m);
+		marker_volume.mark_orbit(v);
+		foreach_incident_edge(v, [&] (Edge inc_edge)->bool
+		{
+			bool res_nested_lambda = true;
+			foreach_incident_volume(inc_edge, [&](Volume inc_vol)->bool
+			{
+				if (!marker_volume.is_marked(inc_vol.dart) && !is_boundary(inc_vol.dart))
+				{
+					marker_volume.mark_orbit(inc_vol);
+					res_nested_lambda = func(inc_vol);
+				}
+				return res_nested_lambda;
+			});
+			return res_nested_lambda;
+		});*/
+	}
+}
+
 } // namespace cgogn
 
 #endif // CGOGN_CORE_FUNCTIONS_TRAVERSALS_VOLUME_H_

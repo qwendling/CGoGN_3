@@ -48,7 +48,7 @@ struct CGOGN_CORE_EXPORT EMR_Map3_Compact : public CMap3
 	std::shared_ptr<std::vector<std::shared_ptr<Attribute<Dart>>>> MR_phi3_;
 
 	EMR_Map3_Compact()
-		: MAP(), maximum_level_(MAP::template get_attribute<uint32>("emr_maximum_level")),
+		: MAP(), maximum_level_(MAP::template get_attribute<uint32>("emr_maximum_level")), current_level_(0),
 		  clock_(MAP::template get_attribute<uint32>("emr_clock"))
 	{
 		MR_relation_ = std::shared_ptr<std::vector<std::shared_ptr<std::vector<std::shared_ptr<Attribute<Dart>>>>>>(
@@ -64,12 +64,13 @@ struct CGOGN_CORE_EXPORT EMR_Map3_Compact : public CMap3
 		MR_phi_1_->push_back(this->phi_1_);
 		MR_phi2_ = this->MR_relation_->emplace_back(new std::vector<std::shared_ptr<Attribute<Dart>>>());
 		MR_phi2_->push_back(this->phi2_);
-	}
-	virtual ~EMR_Map3_Compact()
-	{
+		MR_phi3_ = this->MR_relation_->emplace_back(new std::vector<std::shared_ptr<Attribute<Dart>>>());
+		MR_phi3_->push_back(this->phi3_);
 	}
 
-	virtual void add_resolution()
+	bool check_integrity() const;
+
+	void add_resolution()
 	{
 		uint32 max = maximum_level_;
 		for (auto& r : *MR_relation_)
@@ -152,6 +153,12 @@ struct CGOGN_CORE_EXPORT EMR_Map3_Compact : public CMap3
 	Dart volume_oldest_dart(Dart d) const;
 	bool volume_is_subdivided(Dart d) const;
 	uint32 volume_level(Dart d) const;
+};
+
+template <>
+struct mesh_traits<EMR_Map3_Compact> : public mesh_traits<CMap3>
+{
+	static constexpr const char* name = "EMR_Map3_Compact";
 };
 
 } // namespace cgogn
