@@ -640,7 +640,7 @@ protected:
 
 					selected_mesh_->start_reader();
 					mesh_provider_->emit_attribute_changed(*selected_mesh_, p.vertex_position_.get());
-					// mesh_provider_->emit_connectivity_changed(*selected_mesh_);
+					mesh_provider_->emit_connectivity_changed(*selected_mesh_);
 					if (geom_mesh_)
 						mesh_provider_->emit_attribute_changed(*geom_mesh_, p.vertex_position_.get());
 					selected_mesh_->end_reader();

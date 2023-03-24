@@ -38,6 +38,8 @@ void XPBD_Multiresolution::init_solver(MAP& m, std::shared_ptr<Attribute<Vec3>> 
 			return;
 		foreach_incident_vertex(cph, Volume(p->volume_dart), [&](Vertex v) -> bool {
 			cph.current_level_++;
+			if (cph.current_level_ != cph.volume_level(v.dart))
+				return false;
 
 			tree_volume* t = new tree_volume();
 			t->id = nb_node++;
@@ -97,7 +99,7 @@ void XPBD_Multiresolution::init_solver(MAP& m, std::shared_ptr<Attribute<Vec3>> 
 	{
 		tmp.current_level_ = i;
 		foreach_cell(tmp, [&](Volume v) -> bool {
-			tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
+			tree_volume* t = value<tree_volume*>(tmp, hierarchy_node_, v);
 			if (t->fils != nullptr)
 			{
 				double vol = 0;
@@ -107,7 +109,7 @@ void XPBD_Multiresolution::init_solver(MAP& m, std::shared_ptr<Attribute<Vec3>> 
 					return true;
 				});
 				tmp.current_level_--;
-				value<double>(m, init_volume_, v) = vol;
+				value<double>(tmp, init_volume_, v) = vol;
 			}
 			return true;
 		});
@@ -157,12 +159,192 @@ void XPBD_Multiresolution::init_solver(MAP& m, std::shared_ptr<Attribute<Vec3>> 
 	});
 	foreach_cell(m, [&](Volume v) -> bool {
 		tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
-		if (t->pere != nullptr && t->pere->type != COARSE)
+		if (t->pere != nullptr && t->pere->type != COARSE && t->pere->type != ROOT)
 		{
 			t->pere->type = COARSE;
 		}
 		return true;
 	});
+}
+
+void XPBD_Multiresolution::activate_remove_volume(MAP& m, std::vector<Volume>& list_activate,
+												  std::vector<Volume>& list_remove)
+{
+
+	std::vector<Volume> new_volumes;
+	for (Volume v : list_activate)
+	{
+		tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
+		t->F_ = value<Mat3d>(m, F_, v);
+		t->init_cm_ = value<Vec3>(m, init_cm_, v);
+		double masse_vol = 0;
+		t->cm_ = Vec3(0, 0, 0);
+		t->v_cm_ = Vec3(0, 0, 0);
+		std::vector<Vertex>& inc_vertices = value<std::vector<Vertex>>(m, inc_vertices_.get(), v);
+		for (Vertex w : inc_vertices)
+		{
+			masse_vol += value<double>(m, masse_, w);
+			t->cm_ += value<double>(m, masse_, w) * value<Vec3>(m, pos_.get(), w);
+			t->v_cm_ += value<double>(m, masse_, w) * value<Vec3>(m, speed_.get(), w);
+		}
+		t->cm_ /= masse_vol;
+		t->v_cm_ /= masse_vol;
+		t->for_each_child([&](tree_volume* c) -> bool {
+			new_volumes.push_back(Volume(c->volume_dart));
+			return true;
+		});
+	}
+	for (Volume v : list_remove)
+	{
+		m.disable_volume_subdivision(v, true);
+	}
+	CellMarkerStore<MAP, Volume> marked_Volumes(m);
+	CellMarkerStore<MAP, Vertex> marked_Vertices(m);
+	for (Volume v : list_remove)
+	{
+		marked_Volumes.mark(v);
+	}
+	for (Volume v : list_activate)
+	{
+		marked_Volumes.mark(v);
+	}
+	std::vector<Volume> impacted_volumes;
+	for (Volume v : list_activate)
+	{
+		foreach_adjacent_volume_through_edge(m, v, [&](Volume w) -> bool {
+			if (!marked_Volumes.is_marked(w))
+			{
+				impacted_volumes.push_back(w);
+				marked_Volumes.mark(w);
+			}
+			return true;
+		});
+	}
+	for (Volume v : list_remove)
+	{
+		foreach_adjacent_volume_through_edge(m, v, [&](Volume w) -> bool {
+			if (!marked_Volumes.is_marked(w))
+			{
+				impacted_volumes.push_back(w);
+				marked_Volumes.mark(w);
+			}
+			return true;
+		});
+	}
+
+	for (Volume v : impacted_volumes)
+	{
+		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
+			marked_Vertices.mark(w);
+			value<double>(m, masse_, w) = 0;
+			return true;
+		});
+	}
+
+	for (Volume v : list_remove)
+	{
+		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
+			value<double>(m, masse_, w) = 0;
+			return true;
+		});
+	}
+	std::vector<Volume> volume_need_update;
+	for (Volume v : impacted_volumes)
+	{
+		foreach_adjacent_volume_through_vertex(m, v, [&](Volume w) -> bool {
+			if (!marked_Volumes.is_marked(w))
+			{
+				volume_need_update.push_back(w);
+				marked_Volumes.mark(w);
+			}
+			return true;
+		});
+	}
+
+	for (Volume v : list_activate)
+	{
+		m.activate_volume_subdivision(v);
+	}
+	for (Volume v : new_volumes)
+	{
+		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
+			value<double>(m, masse_, w) = 0;
+			return true;
+		});
+	}
+
+	auto compute_masse = [&](std::vector<Volume> list_volumes) {
+		for (Volume v : list_volumes)
+		{
+			std::vector<Vertex> vertices;
+			foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
+				vertices.push_back(w);
+				return true;
+			});
+			double masse = value<double>(m, init_volume_, v) * DENSITY / vertices.size();
+			for (auto w : vertices)
+			{
+				value<double>(m, masse_, w) += masse;
+			}
+		}
+	};
+
+	compute_masse(new_volumes);
+	compute_masse(list_remove);
+	compute_masse(impacted_volumes);
+	for (Volume v : volume_need_update)
+	{
+		std::vector<Vertex> vertices;
+		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
+			vertices.push_back(w);
+			return true;
+		});
+		double masse = value<double>(m, init_volume_, v) * DENSITY / vertices.size();
+		for (auto w : vertices)
+		{
+			if (marked_Vertices.is_marked(w))
+				value<double>(m, masse_, w) += masse;
+		}
+	}
+	auto fn = [&](const std::vector<Volume>& l_vol) {
+		for (Volume v : l_vol)
+		{
+			double masse = 0;
+			Vec3 cm = Vec3(0, 0, 0);
+			std::vector<Vertex> inc_vertices;
+			foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
+				masse += value<double>(m, masse_, w);
+				cm += value<double>(m, masse_, w) * value<Vec3>(m, init_pos_, w);
+				inc_vertices.push_back(w);
+				return true;
+			});
+			value<Vec3>(m, init_cm_, v) = cm / masse;
+			Mat3d Q = Mat3d::Zero();
+			for (Vertex w : inc_vertices)
+			{
+				Vec3 init_r_i = value<Vec3>(m, init_pos_, w) - value<Vec3>(m, init_cm_, v);
+				double masse = value<double>(m, masse_, w);
+				Q += masse * init_r_i * init_r_i.transpose();
+			}
+			value<Mat3d>(m, inv_Q_, v) = Q.inverse();
+		};
+	};
+
+	fn(list_remove);
+	fn(new_volumes);
+	fn(impacted_volumes);
+	fn(volume_need_update);
+	for (Volume v : new_volumes)
+	{
+		tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
+		t = t->pere;
+		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
+			value<Vec3>(m, speed_, w) = t->v_cm_;
+			Vec3 init_r_i = value<Vec3>(m, init_pos_, w) - t->init_cm_;
+			value<Vec3>(m, pos_, w) = t->cm_ + t->F_ * init_r_i;
+			return true;
+		});
+	}
 }
 
 void XPBD_Multiresolution::activate_volume(MAP& m, std::vector<Volume>& list_Volumes)
@@ -244,6 +426,13 @@ void XPBD_Multiresolution::activate_volume(MAP& m, std::vector<Volume>& list_Vol
 	for (Volume v : list_Volumes)
 	{
 		m.activate_volume_subdivision(v);
+	}
+	for (Volume v : new_volumes)
+	{
+		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
+			value<double>(m, masse_, w) = 0;
+			return true;
+		});
 	}
 
 	for (Volume v : new_volumes)
@@ -506,7 +695,7 @@ void XPBD_Multiresolution::constraint_Neo_Hookean_H(MAP& m, Volume v, double h)
 		double m_i = value<double>(m, masse_, w);
 		Vec3 r_i = value<Vec3>(m, pos_, w) - cm;
 		Vec3 init_r_i = value<Vec3>(m, init_pos_, w) - value<Vec3>(m, init_cm_, v);
-		P += m_i * r_i * init_r_i.transpose();
+		P.noalias() += m_i * r_i * init_r_i.transpose();
 	}
 
 	Mat3d inv_Q = value<Mat3d>(m, inv_Q_, v);
@@ -543,17 +732,18 @@ void XPBD_Multiresolution::constraint_Neo_Hookean_H(MAP& m, Volume v, double h)
 
 	// Compute denum
 	double denum = 0;
-	Mat3d T_inv_Q = inv_Q.transpose();
+	const Mat3d T_inv_Q = inv_Q.transpose();
 	Mat3d tmp;
 	tmp.col(0) = F.col(1).cross(F.col(2));
 	tmp.col(1) = F.col(2).cross(F.col(0));
 	tmp.col(2) = F.col(0).cross(F.col(1));
+	tmp = tmp * T_inv_Q;
 	for (Vertex w : inc_vertices)
 	{
 		// Compute Grad_C_i
 		double m_i = value<double>(m, masse_, w);
 		Vec3 init_r_i = value<Vec3>(m, init_pos_.get(), w) - value<Vec3>(m, init_cm_, v);
-		Vec3 GC = m_i * tmp * T_inv_Q * init_r_i;
+		Vec3 GC = m_i * tmp * init_r_i;
 		value<Vec3>(m, Grad_C_i_, w) = GC;
 		denum += 1.0f / m_i * GC.squaredNorm();
 	}
@@ -591,7 +781,7 @@ void XPBD_Multiresolution::constraint_Neo_Hookean_D(MAP& m, Volume v, double h)
 		double m_i = value<double>(m, masse_, w);
 		Vec3 r_i = value<Vec3>(m, pos_.get(), w) - cm;
 		Vec3 init_r_i = value<Vec3>(m, init_pos_.get(), w) - value<Vec3>(m, init_cm_, v);
-		P += m_i * r_i * init_r_i.transpose();
+		P.noalias() += m_i * r_i * init_r_i.transpose();
 	}
 
 	Mat3d inv_Q = value<Mat3d>(m, inv_Q_, v);
@@ -627,14 +817,15 @@ void XPBD_Multiresolution::constraint_Neo_Hookean_D(MAP& m, Volume v, double h)
 
 	// Compute denum
 	double denum = 0;
-	Mat3d T_inv_Q = inv_Q.transpose();
+	const Mat3d T_inv_Q = inv_Q.transpose();
 	double r = sqrt(F.col(0).squaredNorm() + F.col(1).squaredNorm() + F.col(2).squaredNorm());
+	const Mat3d tmp = F * T_inv_Q;
 	for (Vertex w : inc_vertices)
 	{
 		// Compute Grad_C_i
 		double m_i = value<double>(m, masse_, w);
 		Vec3 init_r_i = value<Vec3>(m, init_pos_.get(), w) - value<Vec3>(m, init_cm_, v);
-		Vec3 GC = m_i / r * F * T_inv_Q * init_r_i;
+		Vec3 GC = m_i / r * tmp * init_r_i;
 		value<Vec3>(m, Grad_C_i_, w) = GC;
 		denum += 1.0f / m_i * GC.squaredNorm();
 	}
@@ -673,7 +864,7 @@ void XPBD_Multiresolution::constraint_Zero_Energy(MAP& m, Volume v, double)
 		double m_i = value<double>(m, masse_, w);
 		Vec3 r_i = value<Vec3>(m, pos_.get(), w) - cm;
 		Vec3 init_r_i = value<Vec3>(m, init_pos_.get(), w) - value<Vec3>(m, init_cm_, v);
-		P += m_i * r_i * init_r_i.transpose();
+		P.noalias() += m_i * r_i * init_r_i.transpose();
 	}
 
 	Mat3d inv_Q = value<Mat3d>(m, inv_Q_, v);
@@ -815,12 +1006,12 @@ void XPBD_Multiresolution::compute_error(MAP& m, std::vector<Volume>& volume_act
 {
 	foreach_cell(m, [&](Volume v) -> bool {
 		tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
-		if (t->fils != nullptr)
+		if (t->type == CURRENT && t->fils != nullptr)
 		{
 			if (std::rand() / double(RAND_MAX + 1u) < 0.1)
 			{
 				volume_activate.push_back(Volume(t->volume_dart));
-				if (t->pere)
+				if (t->pere && t->pere->type != ROOT)
 				{
 					t->pere->type = NONE;
 				}
@@ -838,6 +1029,10 @@ void XPBD_Multiresolution::compute_error(MAP& m, std::vector<Volume>& volume_act
 			{
 				volume_disable.push_back(Volume(t->pere->volume_dart));
 				t->pere->type = CURRENT;
+				t->pere->for_each_child([&](tree_volume* c) -> bool {
+					c->type = NONE;
+					return true;
+				});
 			}
 		}
 
@@ -865,7 +1060,7 @@ void XPBD_Multiresolution::compute_error(MAP& m, std::vector<Volume>& volume_act
 	}
 }
 
-#define SHOW_PERFORMANCE_LOG 0
+#define SHOW_PERFORMANCE_LOG 1
 void XPBD_Multiresolution::solver(MAP& m, MAP* geom, double timestep, bool allow_modif_topo)
 {
 	std::clock_t start;
@@ -957,8 +1152,10 @@ void XPBD_Multiresolution::solver(MAP& m, MAP* geom, double timestep, bool allow
 	{
 		start = std::clock();
 		compute_error(m, vol_activate, vol_disable);
-		activate_volume(m, vol_activate);
-		remove_volume(m, vol_disable);
+		activate_remove_volume(m, vol_activate, vol_disable);
+
+		// activate_volume(m, vol_activate);
+		// remove_volume(m, vol_disable);
 
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 #if SHOW_PERFORMANCE_LOG

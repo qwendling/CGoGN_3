@@ -1512,7 +1512,7 @@ auto butterflyMultiresolution(
 
 	if (!parents || !position_relative)
 	{
-		butterflySubdivisionVolumeRegular(m, angle_threshold, attributes);
+		butterflySubdivisionVolumeAdaptative(m, angle_threshold, attributes);
 		return;
 	}
 
@@ -1539,7 +1539,7 @@ auto butterflyMultiresolution(
 		m2.current_level_++;
 	};
 
-	butterflySubdivisionVolumeRegular(m, angle_threshold, attributes, after_cut);
+	butterflySubdivisionVolumeAdaptative(m, angle_threshold, attributes, after_cut);
 	m2.current_level_--;
 	for (auto v : new_vertices)
 	{

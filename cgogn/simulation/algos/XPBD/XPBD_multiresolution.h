@@ -187,6 +187,7 @@ public:
 
 	void activate_volume(MAP& m, std::vector<Volume>& list_Volumes);
 	void remove_volume(MAP& m, std::vector<Volume>& list_Volumes);
+	void activate_remove_volume(MAP& m, std::vector<Volume>& list_activate, std::vector<Volume>& list_remove);
 	void update_topo(MAP& m);
 
 	void constraint_Neo_Hookean_H(MAP& m, Volume v, double h);
