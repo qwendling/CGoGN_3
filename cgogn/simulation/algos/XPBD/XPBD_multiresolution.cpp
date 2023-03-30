@@ -1,4 +1,7 @@
 #include "XPBD_multiresolution.h"
+#include <Eigen/SVD>
+#include <cgogn/geometry/algos/centroid.h>
+#include <forward_list>
 
 namespace cgogn
 {
@@ -9,8 +12,11 @@ void XPBD_Multiresolution::init_solver(MAP& m, std::shared_ptr<Attribute<Vec3>> 
 	pos_ = pos;
 	init_pos_ = add_attribute<Vec3, Vertex>(m, "XPBD_Init_pos");
 	init_cm_ = add_attribute<Vec3, Volume>(m, "XPBD_init_cm");
+	centroid_ = add_attribute<Vec3, Volume>(m, "XPBD_centroid");
+	distance_plan_ = add_attribute<double, Volume>(m, "XPBD_distance_plan");
 
 	masse_ = add_attribute<double, Vertex>(m, "XPBD_masse");
+	s_ = add_attribute<double, Volume>(m, "XPBD_s_normalize");
 
 	init_volume_ = add_attribute<double, Volume>(m, "XPBD_init_volume");
 	Det_F_Volume_ = add_attribute<double, Volume>(m, "XPBD_Det_F_volume");
@@ -25,6 +31,7 @@ void XPBD_Multiresolution::init_solver(MAP& m, std::shared_ptr<Attribute<Vec3>> 
 
 	Grad_C_i_ = add_attribute<Vec3, Vertex>(m, "XPBD_Grad_C_i");
 	Grad_C2_i_ = add_attribute<Vec3, Vertex>(m, "XPBD_Grad_C2_i");
+	error_volume_ = add_attribute<double, Volume>(m, "XPBD_error_volume");
 
 	using MR_Base = typename MAP::Inherit;
 	MR_Base tmp(m);
@@ -146,10 +153,13 @@ void XPBD_Multiresolution::init_solver(MAP& m, std::shared_ptr<Attribute<Vec3>> 
 		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
 			Vec3 init_r_i = value<Vec3>(m, init_pos_, w) - value<Vec3>(m, init_cm_, v);
 			double masse = value<double>(m, masse_, w);
-			Q += masse * init_r_i * init_r_i.transpose();
+			Q.noalias() += masse * init_r_i * init_r_i.transpose();
 			return true;
 		});
-		value<Mat3d>(m, inv_Q_, v) = Q.inverse();
+		double s = 1.0 / Q.sum();
+		value<double>(m, s_, v) = s;
+		Q = s * Q;
+		value<Mat3d>(m, inv_Q_, v) = Q.eval().inverse();
 		return true;
 	});
 	foreach_cell(m, [&](Volume v) -> bool {
@@ -232,23 +242,28 @@ void XPBD_Multiresolution::activate_remove_volume(MAP& m, std::vector<Volume>& l
 		});
 	}
 
+	std::vector<Volume> volume_need_update;
 	for (Volume v : impacted_volumes)
 	{
-		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-			marked_Vertices.mark(w);
-			value<double>(m, masse_, w) = 0;
-			return true;
+		foreach_incident_vertex(m, v, [&](Vertex inc_vert) -> bool {
+			marked_Vertices.mark(inc_vert);
+			value<double>(m, masse_, inc_vert) = 0;
+			bool res_nested_lambda = true;
+			foreach_incident_volume(m, inc_vert, [&](Volume inc_vol) -> bool {
+				if (!is_boundary(m, inc_vol.dart))
+				{
+					if (!marked_Volumes.is_marked(inc_vol))
+					{
+						volume_need_update.push_back(inc_vol);
+						marked_Volumes.mark(inc_vol);
+					}
+					res_nested_lambda = true;
+				}
+				return res_nested_lambda;
+			});
+			return res_nested_lambda;
 		});
 	}
-
-	for (Volume v : list_remove)
-	{
-		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-			value<double>(m, masse_, w) = 0;
-			return true;
-		});
-	}
-	std::vector<Volume> volume_need_update;
 	for (Volume v : impacted_volumes)
 	{
 		foreach_adjacent_volume_through_vertex(m, v, [&](Volume w) -> bool {
@@ -264,6 +279,14 @@ void XPBD_Multiresolution::activate_remove_volume(MAP& m, std::vector<Volume>& l
 	for (Volume v : list_activate)
 	{
 		m.activate_volume_subdivision(v);
+	}
+
+	for (Volume v : list_remove)
+	{
+		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
+			value<double>(m, masse_, w) = 0;
+			return true;
+		});
 	}
 	for (Volume v : new_volumes)
 	{
@@ -326,7 +349,9 @@ void XPBD_Multiresolution::activate_remove_volume(MAP& m, std::vector<Volume>& l
 				double masse = value<double>(m, masse_, w);
 				Q += masse * init_r_i * init_r_i.transpose();
 			}
-			value<Mat3d>(m, inv_Q_, v) = Q.inverse();
+			double s = 1.0 / Q.sum();
+			value<double>(m, s_, v) = s;
+			value<Mat3d>(m, inv_Q_, v) = (s * Q).eval().inverse();
 		};
 	};
 
@@ -482,7 +507,9 @@ void XPBD_Multiresolution::activate_volume(MAP& m, std::vector<Volume>& list_Vol
 				double masse = value<double>(m, masse_, w);
 				Q += masse * init_r_i * init_r_i.transpose();
 			}
-			value<Mat3d>(m, inv_Q_, v) = Q.inverse();
+			double s = 1.0 / Q.sum();
+			value<double>(m, s_, v) = s;
+			value<Mat3d>(m, inv_Q_, v) = (s * Q).eval().inverse();
 		};
 	};
 
@@ -619,7 +646,9 @@ void XPBD_Multiresolution::remove_volume(MAP& m, std::vector<Volume>& list_Volum
 				double masse = value<double>(m, masse_, w);
 				Q += masse * init_r_i * init_r_i.transpose();
 			}
-			value<Mat3d>(m, inv_Q_, v) = Q.inverse();
+			double s = 1.0 / Q.sum();
+			value<double>(m, s_, v) = s;
+			value<Mat3d>(m, inv_Q_, v) = (s * Q).eval().inverse();
 		};
 	};
 
@@ -670,7 +699,9 @@ void XPBD_Multiresolution::update_topo(MAP& m)
 			double masse = value<double>(m, masse_, w);
 			Q += masse * init_r_i * init_r_i.transpose();
 		}
-		value<Mat3d>(m, inv_Q_, v) = Q.inverse();
+		double s = 1.0 / Q.sum();
+		value<double>(m, s_, v) = s;
+		value<Mat3d>(m, inv_Q_, v) = (s * Q).eval().inverse();
 		return true;
 	});
 }
@@ -700,7 +731,9 @@ void XPBD_Multiresolution::constraint_Neo_Hookean_H(MAP& m, Volume v, double h)
 
 	Mat3d inv_Q = value<Mat3d>(m, inv_Q_, v);
 	// compute F = P*Q^-1
-	Mat3d F = P * inv_Q;
+	double s = value<double>(m, s_, v);
+	// P = (s * P).eval();
+	Mat3d F = (s * P * inv_Q).eval();
 
 	for (int i = 0; i < 3; i++)
 	{
@@ -744,6 +777,7 @@ void XPBD_Multiresolution::constraint_Neo_Hookean_H(MAP& m, Volume v, double h)
 		double m_i = value<double>(m, masse_, w);
 		Vec3 init_r_i = value<Vec3>(m, init_pos_.get(), w) - value<Vec3>(m, init_cm_, v);
 		Vec3 GC = m_i * tmp * init_r_i;
+		GC = value<double>(m, s_, v) * GC;
 		value<Vec3>(m, Grad_C_i_, w) = GC;
 		denum += 1.0f / m_i * GC.squaredNorm();
 	}
@@ -785,6 +819,7 @@ void XPBD_Multiresolution::constraint_Neo_Hookean_D(MAP& m, Volume v, double h)
 	}
 
 	Mat3d inv_Q = value<Mat3d>(m, inv_Q_, v);
+	P = (value<double>(m, s_, v) * P).eval();
 	// compute F = P*Q^-1
 	Mat3d F = P * inv_Q;
 
@@ -826,6 +861,7 @@ void XPBD_Multiresolution::constraint_Neo_Hookean_D(MAP& m, Volume v, double h)
 		double m_i = value<double>(m, masse_, w);
 		Vec3 init_r_i = value<Vec3>(m, init_pos_.get(), w) - value<Vec3>(m, init_cm_, v);
 		Vec3 GC = m_i / r * tmp * init_r_i;
+		GC = value<double>(m, s_, v) * GC;
 		value<Vec3>(m, Grad_C_i_, w) = GC;
 		denum += 1.0f / m_i * GC.squaredNorm();
 	}
@@ -868,6 +904,7 @@ void XPBD_Multiresolution::constraint_Zero_Energy(MAP& m, Volume v, double)
 	}
 
 	Mat3d inv_Q = value<Mat3d>(m, inv_Q_, v);
+	P = (value<double>(m, s_, v) * P).eval();
 	// compute F = P*Q^-1
 	Mat3d F = P * inv_Q;
 
@@ -889,7 +926,8 @@ void XPBD_Multiresolution::constraint_Zero_Energy(MAP& m, Volume v, double)
 	}
 	value<Mat3d>(m, F_, v) = F;
 	// Pour l'erreur et la Visu
-	value<double>(m, Det_F_Volume_, v) = F.determinant();
+	double det_F = F.determinant();
+	value<double>(m, Det_F_Volume_, v) = fabs(det_F);
 
 	for (Vertex w : inc_vertices)
 	{
@@ -970,6 +1008,7 @@ void XPBD_Multiresolution::solve_surface(MAP& m, MAP& geom, Volume v)
 	}
 
 	Mat3d inv_Q = value<Mat3d>(m, inv_Q_, v);
+	P = (value<double>(m, s_, v) * P).eval();
 	// compute F = P*Q^-1
 	Mat3d F = P * inv_Q;
 
@@ -1001,9 +1040,103 @@ void XPBD_Multiresolution::solve_surface(MAP& m, MAP& geom, Volume v)
 	});
 }
 
+#define TEST_ERROR 1
 void XPBD_Multiresolution::compute_error(MAP& m, std::vector<Volume>& volume_activate,
 										 std::vector<Volume>& volume_disable)
 {
+#if TEST_ERROR
+	std::forward_list<tree_volume*> list_volume_coarse;
+	std::forward_list<tree_volume*> list_volume_fine;
+	uint32 nb_fine = 0, nb_coarse = 0;
+	static uint32 clock_error = 0;
+	clock_error++;
+
+	foreach_cell(m, [&](Volume v) -> bool {
+		tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
+		if (t->type == CURRENT && t->fils != nullptr)
+		{
+			list_volume_fine.push_front(t);
+			double detF = value<double>(m, this->Det_F_Volume_, Volume(t->volume_dart));
+			double error = fabs((detF - 1) * value<double>(m, this->init_volume_, Volume(t->volume_dart)));
+			error = fabs(log2(detF));
+			value<double>(m, error_volume_, Volume(t->volume_dart)) = error;
+			t->error = error;
+			nb_fine++;
+		}
+		if (!t->is_topo && t->pere != nullptr && t->pere->type == COARSE)
+		{
+			if (t->pere->clock == clock_error)
+				return true;
+			t->pere->clock = clock_error;
+			list_volume_coarse.push_front(t);
+			t->pere->error = 0;
+			t->pere->for_each_child([&](tree_volume* c) -> bool {
+				double detF = value<double>(m, this->Det_F_Volume_, Volume(c->volume_dart));
+				double error = fabs((detF - 1) * value<double>(m, this->init_volume_, Volume(c->volume_dart)));
+				error = fabs(log2(detF));
+				t->pere->error += error;
+				return true;
+			});
+			t->pere->error /= 8;
+			nb_coarse++;
+		}
+		return true;
+	});
+	list_volume_fine.sort([&](tree_volume* t1, tree_volume* t2) { return t1->error > t2->error; });
+	list_volume_coarse.sort([&](tree_volume* t1, tree_volume* t2) { return t1->pere->error < t2->pere->error; });
+
+	for (uint32 i = 0; i < nb_fine / 10; i++)
+	{
+		tree_volume* t = list_volume_fine.front();
+		list_volume_fine.pop_front();
+		double error = t->error;
+		if (error < 0.25)
+			break;
+
+		volume_activate.push_back(Volume(t->volume_dart));
+		if (t->pere && t->pere->type != ROOT)
+		{
+			t->pere->type = NONE;
+		}
+		t->type = COARSE;
+		t->for_each_child([&](tree_volume* c) -> bool {
+			c->type = CURRENT;
+			return true;
+		});
+	}
+
+	for (uint32 i = 0; i < nb_coarse / 10; i++)
+	{
+		tree_volume* t = list_volume_coarse.front();
+		list_volume_coarse.pop_front();
+		if (t->pere->type != COARSE)
+			continue;
+		double error = t->error;
+		if (error > 1.5)
+			break;
+		volume_disable.push_back(Volume(t->pere->volume_dart));
+		t->pere->type = CURRENT;
+		t->pere->for_each_child([&](tree_volume* c) -> bool {
+			c->type = NONE;
+			return true;
+		});
+		if (t->pere->pere != nullptr)
+		{
+			bool result = true;
+			t->pere->pere->for_each_child([&](tree_volume* c) -> bool {
+				if (c->type != CURRENT)
+				{
+					result = false;
+				}
+				return result;
+			});
+			if (result)
+			{
+				t->pere->pere->type = COARSE;
+			}
+		}
+	}
+#else
 	foreach_cell(m, [&](Volume v) -> bool {
 		tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
 		if (t->type == CURRENT && t->fils != nullptr)
@@ -1023,7 +1156,7 @@ void XPBD_Multiresolution::compute_error(MAP& m, std::vector<Volume>& volume_act
 				return true;
 			}
 		}
-		if (t->pere != nullptr && t->pere->type == COARSE)
+		if (!t->is_topo && t->pere != nullptr && t->pere->type == COARSE)
 		{
 			if (std::rand() / double(RAND_MAX + 1u) < 0.1)
 			{
@@ -1058,6 +1191,7 @@ void XPBD_Multiresolution::compute_error(MAP& m, std::vector<Volume>& volume_act
 			}
 		}
 	}
+#endif
 }
 
 #define SHOW_PERFORMANCE_LOG 1
@@ -1161,6 +1295,107 @@ void XPBD_Multiresolution::solver(MAP& m, MAP* geom, double timestep, bool allow
 #if SHOW_PERFORMANCE_LOG
 		std::cout << "\033[1;36mtime update topo XPBD : \033[0m" << duration << std::endl;
 #endif
+	}
+}
+
+template <typename FUNC>
+void XPBD_Multiresolution::apply_cut(MAP& m, Vec3 dir_plan, double w, const FUNC& callback_vertices)
+{
+
+	geometry::compute_centroid<Vec3, Volume>(m, pos_.get(), centroid_.get());
+
+	parallel_foreach_cell(m, [&](Volume v) -> bool {
+		value<double>(m, this->distance_plan_.get(), v) = dir_plan.dot(value<Vec3>(m, this->centroid_.get(), v));
+		return true;
+	});
+	CellMarker<EMR_Map3_Adaptative, Face> face_marker(m);
+	std::vector<Face> face_vect;
+	foreach_cell(m, [&](Face f) -> bool {
+		if (is_incident_to_boundary(m, f))
+		{
+			return true;
+		}
+		double v1 = value<double>(m, this->distance_plan_.get(), Volume(f.dart)) - w;
+		double v2 = value<double>(m, this->distance_plan_.get(), Volume(phi3(m, f.dart))) - w;
+		if (v1 * v2 < 0)
+		{
+			face_vect.push_back(f);
+		}
+		face_marker.mark(f);
+		return true;
+	});
+	CellMarker<EMR_Map3_Adaptative, Volume> vol_marker(m);
+	std::vector<Volume> volume_vect;
+	std::vector<Volume> vect_new_volume;
+
+	while (!face_vect.empty())
+	{
+		for (auto f : face_vect)
+		{
+			if (!vol_marker.is_marked(Volume(f.dart)))
+			{
+				vol_marker.mark(Volume(f.dart));
+				volume_vect.push_back(Volume(f.dart));
+			}
+			if (!vol_marker.is_marked(Volume(phi3(m, f.dart))))
+			{
+				vol_marker.mark(Volume(phi3(m, f.dart)));
+				volume_vect.push_back(Volume(phi3(m, f.dart)));
+			}
+		}
+		for (auto v : volume_vect)
+		{
+			foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
+				vect_new_volume.push_back(Volume(w.dart));
+				return true;
+			});
+			m.activate_volume_subdivision(v);
+		}
+		geometry::compute_centroid<Vec3, Volume>(m, pos_.get(), centroid_.get());
+		parallel_foreach_cell(m, [&](Volume v) -> bool {
+			value<double>(m, this->distance_plan_.get(), v) = dir_plan.dot(value<Vec3>(m, this->centroid_.get(), v));
+			return true;
+		});
+		face_vect.clear();
+
+		foreach_cell(m, [&](Face f) -> bool {
+			if (is_incident_to_boundary(m, f) || face_marker.is_marked(f))
+			{
+				return true;
+			}
+			double v1 = value<double>(m, this->distance_plan_.get(), Volume(f.dart)) - w;
+			double v2 = value<double>(m, this->distance_plan_.get(), Volume(phi3(m, f.dart))) - w;
+			if (v1 * v2 < 0)
+			{
+				face_vect.push_back(f);
+			}
+			face_marker.mark(f);
+			return true;
+		});
+	}
+
+	face_vect.clear();
+	foreach_cell(m, [&](Face f) -> bool {
+		if (is_incident_to_boundary(m, f))
+		{
+			return true;
+		}
+
+		Dart y = m.face_youngest_dart(f.dart);
+		double v1 = value<double>(m, this->distance_plan_.get(), Volume(y)) - w;
+		double v2 = value<double>(m, this->distance_plan_.get(), Volume(phi3(m, y))) - w;
+		if (v1 * v2 < 0)
+		{
+
+			face_vect.push_back(f);
+		}
+		return true;
+	});
+
+	// unsew faces
+	for (auto f : face_vect)
+	{
+		unsew_volume(m, f, callback_vertices, true);
 	}
 }
 } // namespace simulation

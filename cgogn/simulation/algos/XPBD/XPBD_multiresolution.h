@@ -17,7 +17,7 @@
 #define SHEAR_MODULUS (YOUNG_MODULUS / (2 * (1 + POISSON_RATIO)))
 #define BULK_MODULUS (YOUNG_MODULUS / (3 * (1 - 2 * POISSON_RATIO)))
 
-#define NUM_SUBSTEP 50
+#define NUM_SUBSTEP 100
 #define DENSITY 10
 
 #define EPS 1e-12
@@ -37,6 +37,7 @@ class XPBD_Multiresolution
 	using Mat3d = geometry::Mat3d;
 	using Vertex = typename mesh_traits<MAP>::Vertex;
 	using Volume = typename mesh_traits<MAP>::Volume;
+	using Face = typename mesh_traits<MAP>::Face;
 
 	enum tree_volume_node
 	{
@@ -58,12 +59,14 @@ class XPBD_Multiresolution
 		Vec3 init_cm_;
 		Vec3 cm_;
 		Vec3 v_cm_;
+		double error;
 
 		bool is_topo;
+		bool have_contact;
 
 		tree_volume_node type;
-		int clock;
-		tree_volume() : fils(nullptr), pere(nullptr), frere(nullptr), is_topo(false), clock(0)
+		uint32 clock;
+		tree_volume() : fils(nullptr), pere(nullptr), frere(nullptr), is_topo(false), have_contact(false), clock(0)
 		{
 		}
 
@@ -164,22 +167,27 @@ public:
 	std::shared_ptr<Attribute<std::vector<Vertex>>> inc_vertices_;
 	std::shared_ptr<Attribute<double>> Det_F_Volume_;
 	std::shared_ptr<Attribute<Mat3d>> F_;
+	std::shared_ptr<Attribute<double>> s_;
 	// Integration Values
 
+	std::shared_ptr<Attribute<Vec3>> centroid_;
+	std::shared_ptr<Attribute<double>> distance_plan_;
 	std::shared_ptr<Attribute<Vec3>> pos_;
 	std::shared_ptr<Attribute<Vec3>> pos_prev_;
 	std::shared_ptr<Attribute<Vec3>> speed_;
 	std::shared_ptr<Attribute<Vec3>> f_ext_;
 	std::shared_ptr<Attribute<Vec3>> Grad_C_i_;
 	std::shared_ptr<Attribute<Vec3>> Grad_C2_i_;
+	std::shared_ptr<Attribute<double>> error_volume_;
 
 	tree_volume* hierarchy_;
 	std::shared_ptr<Attribute<tree_volume*>> hierarchy_node_;
 
 	XPBD_Multiresolution()
 		: init_pos_(nullptr), init_cm_(nullptr), masse_(nullptr), inv_Q_(nullptr), inc_vertices_(nullptr),
-		  Det_F_Volume_(nullptr), F_(nullptr), pos_(nullptr), pos_prev_(nullptr), speed_(nullptr), f_ext_(nullptr),
-		  Grad_C_i_(nullptr), hierarchy_(nullptr), hierarchy_node_(nullptr)
+		  Det_F_Volume_(nullptr), F_(nullptr), s_(nullptr), centroid_(nullptr), pos_(nullptr), pos_prev_(nullptr),
+		  speed_(nullptr), f_ext_(nullptr), Grad_C_i_(nullptr), error_volume_(nullptr), hierarchy_(nullptr),
+		  hierarchy_node_(nullptr)
 	{
 	}
 
@@ -200,6 +208,87 @@ public:
 	void solve_surface(MAP& m, MAP& geom, Volume v);
 
 	void solver(MAP& m, MAP* geom, double timestep, bool allow_modif_topo = true);
+
+	template <typename FUNC>
+	void compute_contact(MAP& m, const FUNC& f_contact)
+	{
+		foreach_cell(m, [&](Volume v) -> bool {
+			tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
+			t->have_contact = false;
+			foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
+				if (f_contact(w))
+					t->have_contact = true;
+				return !t->have_contact;
+			});
+			return true;
+		});
+		std::vector<Volume> volume_disable;
+		std::vector<Volume> volume_activate;
+		foreach_cell(m, [&](Volume v) -> bool {
+			tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
+			if (t->type == CURRENT && t->fils != nullptr)
+			{
+				if (t->have_contact)
+				{
+					t->have_contact = false;
+					volume_activate.push_back(Volume(t->volume_dart));
+					if (t->pere && t->pere->type != ROOT)
+					{
+						t->pere->type = NONE;
+					}
+					t->type = COARSE;
+					t->for_each_child([&](tree_volume* c) -> bool {
+						c->type = CURRENT;
+						return true;
+					});
+					return true;
+				}
+			}
+			if (!t->is_topo && t->pere != nullptr && t->pere->type == COARSE)
+			{
+				t->pere->have_contact = false;
+				t->pere->for_each_child([&](tree_volume* c) -> bool {
+					t->pere->have_contact = c->have_contact;
+					return !c->have_contact;
+				});
+				if (!t->pere->have_contact)
+				{
+					volume_disable.push_back(Volume(t->pere->volume_dart));
+					t->pere->type = CURRENT;
+					t->pere->for_each_child([&](tree_volume* c) -> bool {
+						c->type = NONE;
+						return true;
+					});
+				}
+			}
+
+			return true;
+		});
+
+		for (Volume v : volume_disable)
+		{
+			tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
+			if (t->pere->pere != nullptr)
+			{
+				bool result = true;
+				t->pere->pere->for_each_child([&](tree_volume* c) -> bool {
+					if (c->type != CURRENT)
+					{
+						result = false;
+					}
+					return result;
+				});
+				if (result)
+				{
+					t->pere->pere->type = COARSE;
+				}
+			}
+		}
+		activate_remove_volume(m, volume_activate, volume_disable);
+	}
+
+	template <typename FUNC>
+	void apply_cut(MAP& m, Vec3 dir_plan, double w, const FUNC& callback_vertices);
 };
 } // namespace simulation
 } // namespace cgogn

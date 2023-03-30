@@ -131,7 +131,7 @@ public:
 	XPBD_Multiresolution_View(const App& app)
 		: ViewModule(app, "XPBD (" + std::string{mesh_traits<MESH>::name} + ")"), selected_mesh_(nullptr),
 		  geom_mesh_(nullptr), selected_view_(app.current_view()), running_(false), apply_gravity(false),
-		  take_screenshot_(false)
+		  take_screenshot_(false), ground_(false)
 	{
 		f_keypress = [](View*, MESH*, int32, CellsSet<MESH, Vertex>*, CellsSet<MESH, Edge>*) {};
 	}
@@ -272,6 +272,7 @@ protected:
 		if (key_code == GLFW_KEY_P)
 		{
 			ground_ = !ground_;
+			std::cout << ground_ << std::endl;
 		}
 		if (key_code == GLFW_KEY_S)
 		{
@@ -445,6 +446,15 @@ protected:
 					p.frame_manipulator_.get_position(position);
 					p.frame_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, axis_z);
 					double d = position.dot(axis_z);
+					simu_solver.compute_contact(*selected_mesh_, [&](Vertex v) -> bool {
+						double tmp = value<Vec3>(*geom_mesh_, p.vertex_position_.get(), v).dot(axis_z);
+						if (tmp < d)
+						{
+							return true;
+						}
+						return false;
+					});
+
 					parallel_foreach_cell(*geom_mesh_, [&](Vertex v) -> bool {
 						double tmp = value<Vec3>(*geom_mesh_, p.vertex_position_.get(), v).dot(axis_z);
 						if (value<Vec3>(*geom_mesh_, p.vertex_position_.get(), v).dot(axis_z) < d)

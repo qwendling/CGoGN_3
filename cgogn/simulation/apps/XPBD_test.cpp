@@ -36,6 +36,7 @@
 #include <cgogn/core/ui_modules/mesh_provider.h>
 #include <cgogn/geometry/ui_modules/volume_selection.h>
 #include <cgogn/modeling/algos/subdivision.h>
+#include <cgogn/modeling/ui_modules/Fit_Volume_To_Surface.h>
 #include <cgogn/modeling/ui_modules/volume_emr_modeling.h>
 #include <cgogn/rendering/ui_modules/surface_render.h>
 #include <cgogn/rendering/ui_modules/volume_render.h>
@@ -125,6 +126,7 @@ int main(int argc, char** argv)
 	cgogn::ui::VolumeSelection<Mesh> vs(app);
 	cgogn::ui::XPBD_Multiresolution_View<MRMesh> xp_v(app);
 	cgogn::ui::VolumeEMRModeling<MRMesh> vmrm(app);
+	cgogn::ui::FitVolumeSurface<Surface, MRMesh> fvs(app);
 
 	cgogn::ui::View* v1 = app.current_view();
 	v1->link_module(&mp);
@@ -132,6 +134,7 @@ int main(int argc, char** argv)
 	v1->link_module(&vs);
 	v1->link_module(&xp_v);
 	v1->link_module(&sr);
+	v1->link_module(&fvs);
 
 	app.init_modules();
 
@@ -181,6 +184,10 @@ int main(int argc, char** argv)
 		std::vector<Face2> surface_faces_;
 		std::shared_ptr<Attribute<Vec3>> position3 = cgogn::get_attribute<Vec3, Vertex2>(*m_fine, "position");
 		std::shared_ptr<Attribute<Vec3>> n_vert = cgogn::add_attribute<Vec3, Vertex>(*m, "n_vert");
+
+		fvs.set_current_surface(m_fine);
+		fvs.set_current_surface_vertex_position(position3);
+		fvs.set_current_volume(mrm);
 
 		uint32 nb_vertices = mps.mesh_data(*m_fine).template nb_cells<Vertex2>();
 		uint32 nb_faces = mps.mesh_data(*m_fine).template nb_cells<Face2>();
@@ -232,6 +239,9 @@ int main(int argc, char** argv)
 #define IMAX 10
 			for (int i = 1; i <= IMAX; i++)
 			{
+				// fvs.regularize_surface_vertices(20);
+				for (int j = 0; j < 1; j++)
+					fvs.relocate_interior_vertices();
 				std::cout << "progress : " << i << std::endl;
 				for (Vertex v : vec_vertices)
 				{
@@ -291,6 +301,11 @@ int main(int argc, char** argv)
 					}
 				}
 			}
+			for (int i = 0; i < 10; i++)
+			{
+				fvs.regularize_surface_vertices(20);
+				// fvs.relocate_interior_vertices();
+			}
 		};
 
 		fn();
@@ -298,12 +313,37 @@ int main(int argc, char** argv)
 		vmrm.subdivide(*mrm, position.get());
 		vmrm.subdivide(*mrm, position.get());
 		mrm->current_level_ = mrm->maximum_level_;*/
+		for (int i = 0; i < 3; i++)
+			fvs.optimize_volume_vertices(10.0, true);
 
-		for (int j = 0; j < 3; j++)
+		for (int j = 0; j < 2; j++)
 		{
 			vmrm.subdivide(*mrm, position.get());
+
 			mrm->current_level_ = mrm->maximum_level_;
+			vmrm.changed_connectivity(*mrm, position.get());
+			fvs.update_topo();
+			// fvs.optimize_volume_vertices(10.0, true);
 			fn();
+			for (int l = 0; l < 5; l++)
+			{
+				for (int k = 0; k <= j + 1; k++)
+				{
+					mrm->current_level_ = k;
+					vmrm.changed_connectivity(*mrm, position.get());
+					fvs.update_topo();
+					for (int i = 0; i < 1; i++)
+					{
+						fvs.regularize_surface_vertices(20);
+						fvs.relocate_interior_vertices();
+						fvs.optimize_volume_vertices(10.0);
+					}
+				}
+			}
+
+			/*for (int i = 0; i < 10; i++)
+				fvs.optimize_volume_vertices(10.0, true);*/
+			// fvs.optimize_volume_vertices(10.0, true);
 		}
 
 		mrm->current_level_ = 0;
@@ -312,7 +352,7 @@ int main(int argc, char** argv)
 	{
 		vmrm.subdivide(*mrm, position.get());
 		vmrm.subdivide(*mrm, position.get());
-		vmrm.subdivide(*mrm, position.get());
+		// vmrm.subdivide(*mrm, position.get());
 		mrm->current_level_ = 0;
 	}
 

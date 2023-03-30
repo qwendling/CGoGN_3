@@ -1512,7 +1512,7 @@ auto butterflyMultiresolution(
 
 	if (!parents || !position_relative)
 	{
-		butterflySubdivisionVolumeAdaptative(m, angle_threshold, attributes);
+		butterflySubdivisionVolumeAdaptative<MRMESH>(m, angle_threshold, attributes);
 		return;
 	}
 

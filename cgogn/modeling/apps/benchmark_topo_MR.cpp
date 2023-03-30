@@ -147,7 +147,10 @@ int main(int argc, char** argv)
 		std::cout << "File could not be loaded" << std::endl;
 		return 1;
 	}
+	std::shared_ptr<Attribute<Vec3>> position2 = cgogn::get_attribute<Vec3, Vertex>(*m, "position2");
 
+	cgogn::modeling::butterflySubdivisionVolumeRegular(*m, 0.0f, {position2.get()});
+	cgogn::modeling::butterflySubdivisionVolumeRegular(*m, 0.0f, {position2.get()});
 	MRMesh* mrm = new MRMesh(*m);
 
 	cgogn::index_cells<Mesh::Face>(*mrm);
@@ -169,15 +172,15 @@ int main(int argc, char** argv)
 	mrm->change_resolution_level(1);
 	cgogn::modeling::butterflyMultiresolution(*mrm, 0.34f, {position.get()}, parent.get(), relative_pos.get());
 
-	m->add_resolution();
+	/*m->add_resolution();
 	mrm->change_resolution_level(2);
-	cgogn::modeling::butterflyMultiresolution(*mrm, 0.34f, {position.get()}, parent.get(), relative_pos.get());
+	cgogn::modeling::butterflyMultiresolution(*mrm, 0.34f, {position.get()}, parent.get(), relative_pos.get());*/
 
-	m->add_resolution();
+	/*m->add_resolution();
 	mrm->change_resolution_level(3);
-	cgogn::modeling::butterflyMultiresolution(*mrm, 0.34f, {position.get()}, parent.get(), relative_pos.get());
+	cgogn::modeling::butterflyMultiresolution(*mrm, 0.34f, {position.get()}, parent.get(), relative_pos.get());*/
 
-	mrm->change_resolution_level(2);
+	mrm->change_resolution_level(0);
 
 	std::srand(2124512438);
 

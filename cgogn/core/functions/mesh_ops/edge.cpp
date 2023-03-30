@@ -252,7 +252,9 @@ CMap3::Vertex cut_edge(CMap3& m, CMap3::Edge e, bool set_indices)
 	if (set_indices)
 	{
 		if (is_indexed<CMap3::Vertex>(m))
+		{
 			set_index(m, v, new_index<CMap3::Vertex>(m));
+		}
 		if (is_indexed<CMap3::Vertex2>(m))
 		{
 			Dart d = v.dart;

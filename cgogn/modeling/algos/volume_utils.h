@@ -24,8 +24,13 @@
 #ifndef CGOGN_MODELING_ALGOS_VOLUME_UTILS_H_
 #define CGOGN_MODELING_ALGOS_VOLUME_UTILS_H_
 
+#include <cgogn/core/functions/attributes.h>
+#include <cgogn/core/functions/mesh_info.h>
+#include <cgogn/core/functions/traversals/global.h>
 #include <cgogn/core/types/cmap/cmap3.h>
 #include <cgogn/geometry/types/vector_traits.h>
+
+#include <cgogn/io/surface/surface_import.h>
 
 namespace cgogn
 {
@@ -43,6 +48,73 @@ void extract_volume_surface(CMap3& m3, CMap3::Attribute<Vec3>* m3_vertex_positio
 							CMap2::Attribute<Vec3>* m2_vertex_position,
 							CMap2::Attribute<CMap3::Vertex>* m2_vertex_m3_vertex = nullptr,
 							CMap3::Attribute<CMap2::Vertex>* m3_vertex_m2_vertex = nullptr);
+
+/////////////
+// GENERIC //
+/////////////
+
+template <typename MAP>
+void extract_volume_surface(MAP& m3, CMap3::Attribute<Vec3>* m3_vertex_position, CMap2& m2,
+							CMap2::Attribute<Vec3>* m2_vertex_position,
+							CMap2::Attribute<CMap3::Vertex>* m2_vertex_m3_vertex = nullptr,
+							CMap3::Attribute<CMap2::Vertex>* m3_vertex_m2_vertex = nullptr)
+{
+	auto m2_vertex_index = add_attribute<uint32, typename MAP::Vertex>(m3, "m2_vertex_index");
+
+	cgogn::io::SurfaceImportData surface_data;
+	surface_data.vertex_position_attribute_name_ = m2_vertex_position->name();
+
+	uint32 vertex_id = 0;
+	foreach_cell(m3, [&](typename MAP::Vertex v3) -> bool {
+		if (is_incident_to_boundary(m3, v3))
+		{
+			surface_data.nb_vertices_++;
+			value<uint32>(m3, m2_vertex_index, v3) = vertex_id++;
+			surface_data.vertex_position_.push_back(value<Vec3>(m3, m3_vertex_position, v3));
+		}
+		return true;
+	});
+
+	std::vector<uint32> indices;
+	indices.reserve(4);
+	foreach_cell(m3, [&](typename MAP::Face f) -> bool {
+		if (is_incident_to_boundary(m3, f))
+		{
+			surface_data.nb_faces_++;
+			uint32 nbv = 0;
+			foreach_incident_vertex(m3, f, [&](typename MAP::Vertex v3) -> bool {
+				++nbv;
+				indices.push_back(value<uint32>(m3, m2_vertex_index, v3));
+				return true;
+			});
+
+			surface_data.faces_nb_vertices_.push_back(nbv);
+			surface_data.faces_vertex_indices_.insert(surface_data.faces_vertex_indices_.end(), indices.begin(),
+													  indices.end());
+			indices.clear();
+		}
+		return true;
+	});
+
+	import_surface_data(m2, surface_data);
+
+	if (m2_vertex_m3_vertex || m3_vertex_m2_vertex)
+	{
+		foreach_cell(m3, [&](typename MAP::Vertex v3) -> bool {
+			if (is_incident_to_boundary(m3, v3))
+			{
+				uint32 vertex_id = surface_data.vertex_id_after_import_[value<uint32>(m3, m2_vertex_index, v3)];
+				if (m2_vertex_m3_vertex)
+					(*m2_vertex_m3_vertex)[vertex_id] = v3;
+				if (m3_vertex_m2_vertex)
+					value<CMap2::Vertex>(m3, m3_vertex_m2_vertex, v3) = of_index<CMap2::Vertex>(m2, vertex_id);
+			}
+			return true;
+		});
+	}
+
+	remove_attribute<typename MAP::Vertex>(m3, m2_vertex_index);
+}
 
 } // namespace modeling
 

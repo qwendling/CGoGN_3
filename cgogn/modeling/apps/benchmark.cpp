@@ -356,6 +356,13 @@ int main(int argc, char** argv)
 
 	mrm->change_resolution_level(0);
 
+	int nb_volume = 0;
+	cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
+		nb_volume++;
+		return true;
+	});
+	std::cout << "total volume mr : " << nb_volume << std::endl;
+
 	std::cout << "Resolution 0 : " << std::endl;
 	test(mrm, position.get());
 	test2(m2, position.get());
@@ -364,6 +371,12 @@ int main(int argc, char** argv)
 	activate_all_volume(mrm);
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 	std::cout << "temps activate mrmap : " << duration << std::endl;
+	nb_volume = 0;
+	cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
+		nb_volume++;
+		return true;
+	});
+	std::cout << "total volume mr : " << nb_volume << std::endl;
 	start = std::clock();
 	cgogn::modeling::butterflySubdivisionVolumeRegular(*m2, 0.0f, {position.get()});
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
@@ -377,27 +390,39 @@ int main(int argc, char** argv)
 	activate_all_volume(mrm);
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 	std::cout << "temps activate mrmap : " << duration << std::endl;
-	start = std::clock();
+	nb_volume = 0;
+	cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
+		nb_volume++;
+		return true;
+	});
+	std::cout << "total volume mr : " << nb_volume << std::endl;
+	/*start = std::clock();
 	cgogn::modeling::butterflySubdivisionVolumeRegular(*m2, 0.0f, {position.get()});
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps subdivise cmap : " << duration << std::endl;
+	std::cout << "temps subdivise cmap : " << duration << std::endl;*/
 
 	std::cout << "Resolution 2 : " << std::endl;
 	test(mrm, position.get());
-	test2(m2, position.get());
+	// test2(m2, position.get());
 
 	start = std::clock();
 	activate_all_volume(mrm);
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 	std::cout << "temps activate mrmap : " << duration << std::endl;
-	start = std::clock();
+	nb_volume = 0;
+	cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
+		nb_volume++;
+		return true;
+	});
+	std::cout << "total volume mr : " << nb_volume << std::endl;
+	/*start = std::clock();
 	cgogn::modeling::butterflySubdivisionVolumeRegular(*m2, 0.0f, {position.get()});
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps subdivise cmap : " << duration << std::endl;
+	std::cout << "temps subdivise cmap : " << duration << std::endl;*/
 
 	std::cout << "Resolution 3 : " << std::endl;
 	test(mrm, position.get());
-	test2(m2, position.get());
+	// test2(m2, position.get());
 
 	mrm->change_resolution_level(1);
 	// std::srand(std::time(nullptr));

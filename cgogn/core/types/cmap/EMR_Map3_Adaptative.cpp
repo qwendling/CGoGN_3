@@ -104,6 +104,23 @@ Dart EMR_Map3_Adaptative::get_phi1_buffer(Dart d) const
 			Dart d3 = phi3(*this, d);
 			uint32 l_d3 = dart_level(d3);
 			uint32 l_d = dart_level(d);
+			emr.current_level_ = std::max(l_d, l_d3);
+			Dart test = phi1(emr, d);
+			if (dart_is_visible(test))
+				return test;
+			if (l_d3 > l_d)
+			{
+				emr.current_level_ = l_d3 - 1;
+				Dart tmp = phi3(emr, d);
+				emr.current_level_ = l_d3;
+				return phi3(emr, tmp);
+			}
+			emr.current_level_ = l_d3;
+			Dart d_tmp = phi3(emr, d3);
+			emr.current_level_--;
+			d_tmp = phi3(emr, d_tmp);
+			emr.current_level_++;
+			return phi3(emr, d_tmp);
 
 			if (l_d3 == l_d)
 			{
