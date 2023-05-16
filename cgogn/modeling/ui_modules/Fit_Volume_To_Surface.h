@@ -21,8 +21,8 @@
  *                                                                              *
  *******************************************************************************/
 
-#ifndef CGOGN_MODULE_TUBULAR_MESH_H_
-#define CGOGN_MODULE_TUBULAR_MESH_H_
+#ifndef CGOGN_MODULE_FIT_VOLUME_SURFACE_H_
+#define CGOGN_MODULE_FIT_VOLUME_SURFACE_H_
 
 #include <cgogn/core/ui_modules/mesh_provider.h>
 #include <cgogn/ui/app.h>
@@ -990,4 +990,4 @@ private:
 
 } // namespace cgogn
 
-#endif // CGOGN_MODULE_TUBULAR_MESH_H_
+#endif // CGOGN_MODULE_FIT_VOLUME_SURFACE_H_

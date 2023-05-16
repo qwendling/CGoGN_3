@@ -37,6 +37,8 @@
 #include <cgogn/core/types/cmap/dart_marker.h>
 #include <cgogn/core/types/cmap/orbit_traversal.h>
 
+#include <forward_list>
+
 namespace cgogn
 {
 
@@ -92,6 +94,107 @@ auto foreach_cell(const MESH& m, const FUNC& f, CMapBase::TraversalPolicy traver
 					dm.mark(d);
 					return true;
 				});
+				if (!f(c))
+					break;
+			}
+		}
+	}
+}
+
+template <typename FUNC>
+auto foreach_cell(const EMR_Map3_Adaptative& m, const FUNC& f, CMapBase::TraversalPolicy traversal_policy)
+{
+	using CELL = func_parameter_type<FUNC>;
+	static_assert(is_in_tuple<CELL, typename mesh_traits<EMR_Map3_Adaptative>::Cells>::value,
+				  "CELL not supported in this MESH");
+	static_assert(is_func_parameter_same<FUNC, CELL>::value, "Wrong function cell parameter type");
+	static_assert(is_func_return_same<FUNC, bool>::value, "Given function should return a bool");
+
+	if (traversal_policy == CMapBase::TraversalPolicy::AUTO && is_indexed<CELL>(m))
+	{
+
+		if (m.maximum_level_ - m.current_level_ >= 2)
+		{
+			foreach_cell_fast(m, f);
+		}
+		else
+		{
+			CellMarker<EMR_Map3_Adaptative, CELL> cm(m);
+			for (Dart d = m.begin(), end = m.end(); d != end; d = m.next(d))
+			{
+				const CELL c(d);
+				if (!is_boundary(m, d) && !cm.is_marked(c))
+				{
+					cm.mark(c);
+					if (!f(c))
+						break;
+				}
+			}
+		}
+	}
+	else
+	{
+		DartMarker dm(m);
+		for (Dart d = m.begin(), end = m.end(); d != end; d = m.next(d))
+		{
+			if (!is_boundary(m, d) && !dm.is_marked(d))
+			{
+				const CELL c(d);
+				foreach_dart_of_orbit(m, c, [&](Dart d) -> bool {
+					dm.mark(d);
+					return true;
+				});
+				if (!f(c))
+					break;
+			}
+		}
+	}
+}
+
+template <typename FUNC>
+auto foreach_cell_fast(const EMR_Map3_Adaptative& m, const FUNC& f)
+{
+	using CELL = func_parameter_type<FUNC>;
+	static_assert(is_in_tuple<CELL, typename mesh_traits<EMR_Map3_Adaptative>::Cells>::value,
+				  "CELL not supported in this MESH");
+	static_assert(is_func_parameter_same<FUNC, CELL>::value, "Wrong function cell parameter type");
+	static_assert(is_func_return_same<FUNC, bool>::value, "Given function should return a bool");
+
+	CellMarker<EMR_Map3_Adaptative, CELL> cm(m);
+	DartMarkerStore dm(m);
+	std::forward_list<Dart> list_dart;
+	for (Dart d = m.begin(), end = m.end(); d != end; d = m.next(d))
+	{
+		if (m.dart_level(d) != 0 || dm.is_marked(d))
+			return;
+		dm.mark(d);
+		list_dart.push_front(d);
+		while (!list_dart.empty())
+		{
+			Dart it = list_dart.front();
+			list_dart.pop_front();
+			Dart d1 = phi1(m, it);
+			if (!dm.is_marked(d1))
+			{
+				dm.mark(d1);
+				list_dart.push_front(d1);
+			}
+			Dart d2 = phi2(m, it);
+			if (!dm.is_marked(d2))
+			{
+				dm.mark(d2);
+				list_dart.push_front(d2);
+			}
+			Dart d3 = phi3(m, it);
+			if (!dm.is_marked(d3))
+			{
+				dm.mark(d3);
+				list_dart.push_front(d3);
+			}
+			const CELL c(it);
+			if (!is_boundary(m, it) && !cm.is_marked(c))
+			{
+				cm.mark(c);
 				if (!f(c))
 					break;
 			}

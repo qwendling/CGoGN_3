@@ -178,7 +178,7 @@ public:
 
 		// Compute Volume
 		// double Ve = geometry::volume(m, v, pos_.get());
-		double Ve = det_F * value<double>(m, init_volume_, v);
+		double Ve = fabs(det_F * value<double>(m, init_volume_, v));
 
 		// Compute alpha_H = 1/(LAMBDA*V)
 		double alpha_h = 1.0f / (LAME_LAMBDA * Ve);
@@ -262,7 +262,7 @@ public:
 
 		// Compute Volume
 		// double Ve = geometry::volume(m, v, pos_.get());
-		double Ve = F.determinant() * value<double>(m, init_volume_, v);
+		double Ve = fabs(F.determinant() * value<double>(m, init_volume_, v));
 
 		// Compute alpha_D = 1/(MU*V)
 		double alpha_d = 1.0f / (LAME_MU * Ve);
@@ -383,9 +383,12 @@ public:
 			return true;
 		});
 	}
-
+#define SHOW_PERFORMANCE_LOG 1
 	void solver(MAP& m, double timestep)
 	{
+		std::clock_t start;
+		double duration;
+		start = std::clock();
 		double h = timestep / NUM_SUBSTEP;
 		std::vector<Volume> vec_volume;
 		std::vector<Vertex> vec_vertices;
@@ -402,7 +405,12 @@ public:
 			});
 			return true;
 		});
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+#if SHOW_PERFORMANCE_LOG
+		std::cout << "\033[1;32mtime init XPBD : \033[0m" << duration << std::endl;
+#endif
 
+		start = std::clock();
 		for (int i = 0; i < NUM_SUBSTEP; i++)
 		{
 			// Initialisation sub step
@@ -434,14 +442,20 @@ public:
 				for (int i = 0; i < 3; i++)
 					if (fabs(new_v[i]) < EPS)
 						new_v[i] = 0;
-				value<Vec3>(m, speed_, v) = 0.995 * new_v;
+				value<Vec3>(m, speed_, v) = (1 - (0.005 * h)) * new_v;
+				// value<Vec3>(m, speed_, v) = new_v;
 			}
 			// Damping
 			/*foreach_cell(m, [&](Volume v) -> bool {
-				applyDamping(m, v, 0.5, timestep);
+				applyDamping(m, v, 0.1, timestep);
 				return true;
 			});*/
 		}
+
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+#if SHOW_PERFORMANCE_LOG
+		std::cout << "\033[1;36mtime resolve XPBD : \033[0m" << duration << std::endl;
+#endif
 	}
 };
 } // namespace simulation

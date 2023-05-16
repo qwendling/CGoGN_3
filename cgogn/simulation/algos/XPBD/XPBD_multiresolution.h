@@ -8,7 +8,7 @@
 #include <cgogn/geometry/algos/volume.h>
 #include <cgogn/geometry/types/vector_traits.h>
 
-#define POISSON_RATIO 0.4
+#define POISSON_RATIO 0.3
 #define YOUNG_MODULUS 1e6
 
 #define LAME_MU (YOUNG_MODULUS / (2 * (1 + POISSON_RATIO)))
@@ -17,7 +17,7 @@
 #define SHEAR_MODULUS (YOUNG_MODULUS / (2 * (1 + POISSON_RATIO)))
 #define BULK_MODULUS (YOUNG_MODULUS / (3 * (1 - 2 * POISSON_RATIO)))
 
-#define NUM_SUBSTEP 100
+#define NUM_SUBSTEP 50
 #define DENSITY 10
 
 #define EPS 1e-12
@@ -182,6 +182,8 @@ public:
 
 	tree_volume* hierarchy_;
 	std::shared_ptr<Attribute<tree_volume*>> hierarchy_node_;
+	uint32 nb_volume_current;
+	uint32 nb_volume_init;
 
 	XPBD_Multiresolution()
 		: init_pos_(nullptr), init_cm_(nullptr), masse_(nullptr), inv_Q_(nullptr), inc_vertices_(nullptr),
@@ -208,6 +210,8 @@ public:
 	void solve_surface(MAP& m, MAP& geom, Volume v);
 
 	void solver(MAP& m, MAP* geom, double timestep, bool allow_modif_topo = true);
+
+	void compute_error_point(MAP& m, const Vec3& p, double quotat);
 
 	template <typename FUNC>
 	void compute_contact(MAP& m, const FUNC& f_contact)

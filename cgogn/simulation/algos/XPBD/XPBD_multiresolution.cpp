@@ -9,6 +9,7 @@ namespace simulation
 {
 void XPBD_Multiresolution::init_solver(MAP& m, std::shared_ptr<Attribute<Vec3>> pos)
 {
+	nb_volume_init = 0;
 	pos_ = pos;
 	init_pos_ = add_attribute<Vec3, Vertex>(m, "XPBD_Init_pos");
 	init_cm_ = add_attribute<Vec3, Volume>(m, "XPBD_init_cm");
@@ -123,6 +124,7 @@ void XPBD_Multiresolution::init_solver(MAP& m, std::shared_ptr<Attribute<Vec3>> 
 	}
 
 	foreach_cell(m, [&](Volume v) -> bool {
+		nb_volume_init++;
 		std::vector<Vertex> vertices;
 		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
 			vertices.push_back(w);
@@ -135,6 +137,7 @@ void XPBD_Multiresolution::init_solver(MAP& m, std::shared_ptr<Attribute<Vec3>> 
 		}
 		return true;
 	});
+	nb_volume_current = nb_volume_init;
 
 	parallel_foreach_cell(m, [&](Volume v) -> bool {
 		double masse = 0;
@@ -754,6 +757,7 @@ void XPBD_Multiresolution::constraint_Neo_Hookean_H(MAP& m, Volume v, double h)
 
 	// Compute C  = det(F) - (1+MU/LAMBDA)
 	double det_F = F.determinant();
+	// HERE - OR + ?
 	double C = det_F - (1 + LAME_MU / LAME_LAMBDA);
 
 	// Compute Volume
@@ -941,11 +945,11 @@ void XPBD_Multiresolution::constraint_Zero_Energy(MAP& m, Volume v, double)
 }
 void XPBD_Multiresolution::applyDamping(MAP& m, Volume v, double damping_coeff, double time_step)
 {
-	Vec3 x_cm;
-	Vec3 v_cm;
+	Vec3 x_cm = Vec3::Zero();
+	Vec3 v_cm = Vec3::Zero();
 	Vec3 L;
-	Mat3d I;
-	double sm_i;
+	Mat3d I = Mat3d::Zero();
+	double sm_i = 0;
 	foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
 		double m_i = value<double>(m, masse_, w);
 		x_cm += m_i * value<Vec3>(m, pos_.get(), w);
@@ -1194,6 +1198,125 @@ void XPBD_Multiresolution::compute_error(MAP& m, std::vector<Volume>& volume_act
 #endif
 }
 
+void XPBD_Multiresolution::compute_error_point(MAP& m, const Vec3& p, double quotat)
+{
+	std::cout << "Debut eval Error" << std::endl;
+	std::vector<Volume> volume_activate;
+	std::vector<Volume> volume_disable;
+	std::forward_list<tree_volume*> list_volume_coarse;
+	std::forward_list<tree_volume*> list_volume_fine;
+	uint32 nb_fine = 0, nb_coarse = 0;
+	static uint32 clock_error = 0;
+	clock_error++;
+
+	foreach_cell(m, [&](Volume v) -> bool {
+		tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
+		if (t->type == CURRENT && t->fils != nullptr)
+		{
+			list_volume_fine.push_front(t);
+			double error = (geometry::centroid<Vec3>(m, Volume(t->volume_dart), pos_.get()) - p).squaredNorm();
+			value<double>(m, error_volume_, Volume(t->volume_dart)) = error;
+			t->error = error;
+			nb_fine++;
+		}
+		if (!t->is_topo && t->pere != nullptr && t->pere->type == COARSE)
+		{
+			if (t->pere->clock == clock_error)
+				return true;
+			t->pere->clock = clock_error;
+			list_volume_coarse.push_front(t);
+			t->pere->error = 0;
+			t->pere->for_each_child([&](tree_volume* c) -> bool {
+				double error = (geometry::centroid<Vec3>(m, Volume(c->volume_dart), pos_.get()) - p).squaredNorm();
+				t->pere->error += error;
+				return true;
+			});
+			t->pere->error /= 8;
+			nb_coarse++;
+		}
+		return true;
+	});
+	list_volume_fine.sort([&](tree_volume* t1, tree_volume* t2) { return t1->error < t2->error; });
+	list_volume_coarse.sort([&](tree_volume* t1, tree_volume* t2) { return t1->pere->error > t2->pere->error; });
+
+	auto it = list_volume_coarse.begin();
+	double e_max = 0;
+	if (!list_volume_coarse.empty())
+	{
+		e_max = list_volume_coarse.front()->pere->error;
+	}
+
+	while (1)
+	{
+		if (list_volume_fine.empty())
+			break;
+
+		tree_volume* t = list_volume_fine.front();
+		list_volume_fine.pop_front();
+		double e = t->error;
+		if (e > e_max && nb_volume_current > quotat * nb_volume_init)
+		{
+			break;
+		}
+		if (e < e_max)
+		{
+			it++;
+			e_max = 0;
+			if (it != list_volume_coarse.end())
+			{
+				e_max = (*it)->pere->error;
+			}
+		}
+
+		nb_volume_current += 7;
+		volume_activate.push_back(Volume(t->volume_dart));
+		if (t->pere && t->pere->type != ROOT)
+		{
+			t->pere->type = NONE;
+		}
+		t->type = COARSE;
+		t->for_each_child([&](tree_volume* c) -> bool {
+			c->type = CURRENT;
+			return true;
+		});
+	}
+
+	while (nb_volume_current > quotat * nb_volume_init)
+	{
+		if (list_volume_coarse.empty())
+			break;
+		tree_volume* t = list_volume_coarse.front();
+		list_volume_coarse.pop_front();
+		if (t->pere->type != COARSE)
+			continue;
+		nb_volume_current -= 7;
+		volume_disable.push_back(Volume(t->pere->volume_dart));
+		t->pere->type = CURRENT;
+		t->pere->for_each_child([&](tree_volume* c) -> bool {
+			c->type = NONE;
+			return true;
+		});
+		if (t->pere->pere != nullptr)
+		{
+			bool result = true;
+			t->pere->pere->for_each_child([&](tree_volume* c) -> bool {
+				if (c->type != CURRENT)
+				{
+					result = false;
+				}
+				return result;
+			});
+			if (result)
+			{
+				t->pere->pere->type = COARSE;
+			}
+		}
+	}
+	std::cout << "avant remove" << std::endl;
+	activate_remove_volume(m, volume_activate, volume_disable);
+	std::cout << "apres remove" << std::endl;
+}
+
 #define SHOW_PERFORMANCE_LOG 1
 void XPBD_Multiresolution::solver(MAP& m, MAP* geom, double timestep, bool allow_modif_topo)
 {
@@ -1209,9 +1332,10 @@ void XPBD_Multiresolution::solver(MAP& m, MAP* geom, double timestep, bool allow
 	});
 	foreach_cell(m, [&](Volume v) -> bool {
 		vec_volume.push_back(v);
-		value<std::vector<Vertex>>(m, inc_vertices_.get(), v).clear();
+		std::vector<Vertex>& vector_inc_vertices = value<std::vector<Vertex>>(m, inc_vertices_.get(), v);
+		vector_inc_vertices.clear();
 		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-			value<std::vector<Vertex>>(m, inc_vertices_.get(), v).push_back(w);
+			vector_inc_vertices.push_back(w);
 			return true;
 		});
 		return true;
@@ -1253,11 +1377,12 @@ void XPBD_Multiresolution::solver(MAP& m, MAP* geom, double timestep, bool allow
 			for (int i = 0; i < 3; i++)
 				if (fabs(new_v[i]) < EPS)
 					new_v[i] = 0;
-			value<Vec3>(m, speed_, v) = 0.995 * new_v;
+			value<Vec3>(m, speed_, v) = (1 - (0.005 * h)) * new_v;
+			// value<Vec3>(m, speed_, v) = new_v;
 		}
 		// Damping
 		/*foreach_cell(m, [&](Volume v) -> bool {
-			applyDamping(m, v, 0.5, timestep);
+			applyDamping(m, v, 0.1, timestep);
 			return true;
 		});*/
 	}

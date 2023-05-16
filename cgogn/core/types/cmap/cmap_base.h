@@ -145,6 +145,7 @@ struct CGOGN_CORE_EXPORT CMapBase
 	{
 		std::unique_lock<std::mutex> lk(m_);
 		nb_reader--;
+		lk.unlock();
 		cv.notify_all();
 	}
 
@@ -165,6 +166,7 @@ struct CGOGN_CORE_EXPORT CMapBase
 		std::unique_lock<std::mutex> lk(m_);
 		nb_writer--;
 		is_modify = false;
+		lk.unlock();
 		cv.notify_all();
 	}
 };

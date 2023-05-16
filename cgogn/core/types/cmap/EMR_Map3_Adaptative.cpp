@@ -220,30 +220,32 @@ Dart EMR_Map3_Adaptative::get_phi3_buffer(Dart d) const
 	if (std::get<0>(buffer) != m_.clock_ || std::get<1>(buffer) != clock_views_ ||
 		std::get<2>(buffer) != current_level_)
 	{
+		Dart result;
 		if (current_level_ == maximum_level_)
 		{
-			std::get<3>(buffer) = (*((*m_.MR_phi3_)[current_level_]))[d.index];
+			result = (*((*m_.MR_phi3_)[current_level_]))[d.index];
 		}
 		else
 		{
 			uint32 d_level = dart_level(d);
 			if (d_level == maximum_level_)
 			{
-				std::get<3>(buffer) = (*((*m_.MR_phi3_)[d_level]))[d.index];
+				result = (*((*m_.MR_phi3_)[d_level]))[d.index];
 			}
 			else
 			{
 
 				for (int i = maximum_level_; i >= int(d_level); --i)
 				{
-					std::get<3>(buffer) = (*((*m_.MR_phi3_)[i]))[d.index];
-					if (get_dart_visibility(std::get<3>(buffer)) <= current_level_)
+					result = (*((*m_.MR_phi3_)[i]))[d.index];
+					if (get_dart_visibility(result) <= current_level_)
 					{
 						break;
 					}
 				}
 			}
 		}
+		std::get<3>(buffer) = result;
 		std::get<0>(buffer) = m_.clock_;
 		std::get<1>(buffer) = clock_views_;
 		std::get<2>(buffer) = current_level_;
@@ -341,11 +343,10 @@ uint32 EMR_Map3_Adaptative::get_dart_visibility(Dart d) const
 			if (r != d)
 				result = std::max(get_dart_visibility(r), result);
 		}
-
+		std::get<3>(buffer) = result;
 		std::get<0>(buffer) = m_.clock_;
 		std::get<1>(buffer) = clock_views_;
 		std::get<2>(buffer) = current_level_;
-		std::get<3>(buffer) = result;
 	}
 	return std::get<3>(buffer);
 }

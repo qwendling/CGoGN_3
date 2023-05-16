@@ -32,6 +32,17 @@ target_link_libraries(XPBD_test
 	${CMAKE_DL_LIBS}
 )
 
+add_executable(XPBD_CMap XPBD_CMap.cpp)
+target_link_libraries(XPBD_CMap
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::simulation
+	cgogn::modeling
+	${CMAKE_DL_LIBS}
+)
+
 add_executable(shape_matching shape_matching.cpp)
 target_link_libraries(shape_matching
 	cgogn::core

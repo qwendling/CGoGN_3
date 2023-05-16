@@ -488,7 +488,8 @@ protected:
 
 			if (p.render_vertices_ && p.param_point_sprite_->attributes_initialized())
 			{
-				p.param_point_sprite_->point_size_ = p.vertex_base_size_ * p.vertex_scale_factor_;
+				// p.param_point_sprite_->point_size_ = p.vertex_base_size_ * p.vertex_scale_factor_;
+				p.param_point_sprite_->point_size_ = p.vertex_scale_factor_;
 				p.param_point_sprite_->bind(proj_matrix, view_matrix);
 				md.draw(rendering::POINTS);
 				p.param_point_sprite_->release();

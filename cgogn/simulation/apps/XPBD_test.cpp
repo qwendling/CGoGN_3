@@ -316,7 +316,7 @@ int main(int argc, char** argv)
 		for (int i = 0; i < 3; i++)
 			fvs.optimize_volume_vertices(10.0, true);
 
-		for (int j = 0; j < 2; j++)
+		for (int j = 0; j < 3; j++)
 		{
 			vmrm.subdivide(*mrm, position.get());
 
@@ -325,7 +325,7 @@ int main(int argc, char** argv)
 			fvs.update_topo();
 			// fvs.optimize_volume_vertices(10.0, true);
 			fn();
-			for (int l = 0; l < 5; l++)
+			/*for (int l = 0; l < 5; l++)
 			{
 				for (int k = 0; k <= j + 1; k++)
 				{
@@ -339,7 +339,7 @@ int main(int argc, char** argv)
 						fvs.optimize_volume_vertices(10.0);
 					}
 				}
-			}
+			}*/
 
 			/*for (int i = 0; i < 10; i++)
 				fvs.optimize_volume_vertices(10.0, true);*/
