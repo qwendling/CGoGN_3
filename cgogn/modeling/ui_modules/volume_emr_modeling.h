@@ -23,7 +23,7 @@
 
 #ifndef CGOGN_MODULE_VOLUME_EMR_MODELING_H_
 #define CGOGN_MODULE_VOLUME_EMR_MODELING_H_
-
+#include <GLFW/glfw3.h>
 #include <cgogn/ui/module.h>
 #include <cgogn/ui/modules/mesh_provider/mesh_provider.h>
 
@@ -42,7 +42,7 @@ namespace ui
 {
 
 template <typename EMR>
-class VolumeEMRModeling : public Module
+class VolumeEMRModeling : public ViewModule
 {
 	using MRMesh = EMR;
 
@@ -51,15 +51,18 @@ class VolumeEMRModeling : public Module
 
 	using Vertex = typename mesh_traits<MRMesh>::Vertex;
 	using Edge = typename mesh_traits<MRMesh>::Edge;
+	using Face = typename mesh_traits<MRMesh>::Face;
+	using Volume = typename mesh_traits<MRMesh>::Volume;
 
 	using Vec3 = geometry::Vec3;
 
 public:
 	VolumeEMRModeling(const App& app)
-		: Module(app, "VolumeEMRModeling (" + std::string{mesh_traits<MRMesh>::name} + ")"),
+		: ViewModule(app, "VolumeEMRModeling (" + std::string{mesh_traits<MRMesh>::name} + ")"),
 		  selected_vertex_relative_position_(nullptr), selected_vertex_parents_(nullptr), selected_cph3_(nullptr),
 		  selected_cmap3_(nullptr), selected_vertex_position_(nullptr), selected_vertex_attr2_(nullptr),
-		  selected_vertex_attr3_(nullptr)
+		  selected_vertex_attr3_(nullptr), selected_vertices_set_(nullptr), selected_edges_set_(nullptr),
+		  selected_faces_set_(nullptr)
 	{
 	}
 	~VolumeEMRModeling()
@@ -106,6 +109,50 @@ public:
 		m.current_level_ = cur;
 
 		changed_connectivity(m, vertex_position);
+	}
+	void key_press_event(View*, int32 key_code)
+	{
+		if (key_code == GLFW_KEY_E)
+		{
+			if (selected_cph3_ && selected_edges_set_)
+			{
+				selected_edges_set_->foreach_cell([&](Edge e) -> bool {
+					selected_cph3_->activate_edge_subdivision(e);
+					return true;
+				});
+				changed_connectivity(*selected_cph3_, selected_vertex_position_.get());
+				emr_provider_->emit_connectivity_changed(*selected_cph3_);
+				emr_provider_->emit_attribute_changed(*selected_cph3_, selected_vertex_position_.get());
+			}
+		}
+		if (key_code == GLFW_KEY_F)
+		{
+			if (selected_cph3_ && selected_faces_set_)
+			{
+				selected_faces_set_->foreach_cell([&](Face f) -> bool {
+					selected_cph3_->activate_face_subdivision(f);
+					return true;
+				});
+				changed_connectivity(*selected_cph3_, selected_vertex_position_.get());
+				emr_provider_->emit_connectivity_changed(*selected_cph3_);
+				emr_provider_->emit_attribute_changed(*selected_cph3_, selected_vertex_position_.get());
+			}
+		}
+		if (key_code == GLFW_KEY_V)
+		{
+			if (selected_cph3_ && selected_faces_set_)
+			{
+				selected_faces_set_->foreach_cell([&](Face f) -> bool {
+					if (is_boundary(*selected_cph3_, f.dart))
+						f.dart = phi3(*selected_cph3_, f.dart);
+					selected_cph3_->activate_volume_subdivision(Volume(f.dart));
+					return true;
+				});
+				changed_connectivity(*selected_cph3_, selected_vertex_position_.get());
+				emr_provider_->emit_connectivity_changed(*selected_cph3_);
+				emr_provider_->emit_attribute_changed(*selected_cph3_, selected_vertex_position_.get());
+			}
+		}
 	}
 
 protected:
@@ -260,6 +307,14 @@ protected:
 												});
 				ImGui::EndCombo();
 			}
+			MeshData<MRMesh>& md = emr_provider_->mesh_data(*selected_cph3_);
+
+			imgui_combo_cells_set(md, selected_vertices_set_, "Vertex Set",
+								  [&](CellsSet<MRMesh, Vertex>* cs) { selected_vertices_set_ = cs; });
+			imgui_combo_cells_set(md, selected_edges_set_, "Edge Set",
+								  [&](CellsSet<MRMesh, Edge>* cs) { selected_edges_set_ = cs; });
+			imgui_combo_cells_set(md, selected_faces_set_, "Face Set",
+								  [&](CellsSet<MRMesh, Face>* cs) { selected_faces_set_ = cs; });
 			if (selected_vertex_relative_position_)
 			{
 				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
@@ -281,6 +336,10 @@ private:
 	std::shared_ptr<Attribute<Vec3>> selected_vertex_position_;
 	std::shared_ptr<Attribute<Vec3>> selected_vertex_attr2_;
 	std::shared_ptr<Attribute<Vec3>> selected_vertex_attr3_;
+
+	CellsSet<MRMesh, Vertex>* selected_vertices_set_;
+	CellsSet<MRMesh, Edge>* selected_edges_set_;
+	CellsSet<MRMesh, Face>* selected_faces_set_;
 
 	MeshProvider<MRMesh>* emr_provider_;
 	MeshProvider<typename MRMesh::BASE>* cmap3_provider_;

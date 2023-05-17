@@ -36,6 +36,7 @@
 #include <cgogn/geometry/algos/selection.h>
 #include <cgogn/geometry/types/vector_traits.h>
 
+#include <cgogn/rendering/shaders/shader_bold_line.h>
 #include <cgogn/rendering/shaders/shader_flat.h>
 #include <cgogn/rendering/shaders/shader_point_sprite.h>
 #include <cgogn/rendering/vbo_update.h>
@@ -68,7 +69,9 @@ class VolumeSelection : public ViewModule
 	enum SelectingCell
 	{
 		VertexSelect,
-		FaceSelect
+		EdgeSelect,
+		FaceSelect,
+		VolumeSelect
 	};
 
 	enum SelectionMethod
@@ -83,12 +86,17 @@ class VolumeSelection : public ViewModule
 	{
 		Parameters()
 			: vertex_position_(nullptr), vertex_scale_factor_(1.0), selected_vertices_set_(nullptr),
-			  selected_faces_set_(nullptr), selecting_cell_(VertexSelect), selection_method_(SingleCell),
-			  choosing_cell_(false)
+			  selected_edges_set_(nullptr), selected_faces_set_(nullptr), selecting_cell_(VertexSelect),
+			  selection_method_(SingleCell), choosing_cell_(false)
 		{
 			param_point_sprite_ = rendering::ShaderPointSprite::generate_param();
 			param_point_sprite_->color_ = rendering::GLColor(1, 0, 0, 0.65f);
 			param_point_sprite_->set_vbos({&selected_vertices_vbo_});
+
+			param_edge_ = rendering::ShaderBoldLine::generate_param();
+			param_edge_->color_ = rendering::GLColor(1, 0, 0, 0.65f);
+			param_edge_->width_ = 2.0f;
+			param_edge_->set_vbos({&selected_edges_vbo_});
 
 			param_flat_ = rendering::ShaderFlat::generate_param();
 			param_flat_->front_color_ = rendering::GLColor(1, 0, 0, 0.65f);
@@ -110,6 +118,21 @@ class VolumeSelection : public ViewModule
 				selected_vertices_set_->foreach_cell(
 					[&](Vertex v) { selected_vertices_position.push_back(value<Vec3>(*mesh_, vertex_position_, v)); });
 				rendering::update_vbo(selected_vertices_position, &selected_vertices_vbo_);
+			}
+		}
+
+		void update_selected_edges_vbo()
+		{
+			if (selected_edges_set_)
+			{
+				std::vector<Vec3> selected_edges_vertices_position;
+				selected_edges_vertices_position.reserve(selected_edges_set_->size() * 2);
+				selected_edges_set_->foreach_cell([&](Edge e) {
+					selected_edges_vertices_position.push_back(value<Vec3>(*mesh_, vertex_position_, Vertex(e.dart)));
+					selected_edges_vertices_position.push_back(
+						value<Vec3>(*mesh_, vertex_position_, Vertex(phi2(*mesh_, e.dart))));
+				});
+				rendering::update_vbo(selected_edges_vertices_position, &selected_edges_vbo_);
 			}
 		}
 
@@ -139,15 +162,18 @@ class VolumeSelection : public ViewModule
 		std::shared_ptr<Attribute<Vec3>> vertex_position_;
 
 		std::unique_ptr<rendering::ShaderPointSprite::Param> param_point_sprite_;
+		std::unique_ptr<rendering::ShaderBoldLine::Param> param_edge_;
 		std::unique_ptr<rendering::ShaderFlat::Param> param_flat_;
 
 		float32 vertex_scale_factor_;
 		float32 vertex_base_size_;
 
 		rendering::VBO selected_vertices_vbo_;
+		rendering::VBO selected_edges_vbo_;
 		rendering::VBO selected_faces_vbo_;
 
 		CellsSet<MESH, Vertex>* selected_vertices_set_;
+		CellsSet<MESH, Edge>* selected_edges_set_;
 		CellsSet<MESH, Face>* selected_faces_set_;
 		uint32 selected_faces_nb_triangles_;
 
@@ -155,6 +181,7 @@ class VolumeSelection : public ViewModule
 		SelectionMethod selection_method_;
 
 		std::vector<Vertex> picked_vertices_;
+		std::vector<Edge> picked_edges_;
 		std::vector<Face> picked_faces_;
 		uint32 current_candidate_index_;
 		bool current_candidate_state_;
@@ -203,6 +230,17 @@ private:
 					}
 				}));
 		mesh_connections_[m].push_back(
+			boost::synapse::connect<typename MeshProvider<MESH>::template cells_set_changed<Edge>>(
+				m, [this, m](CellsSet<MESH, Edge>* set) {
+					Parameters& p = parameters_[m];
+					if (p.selected_edges_set_ == set && p.vertex_position_)
+					{
+						p.update_selected_edges_vbo();
+						for (View* v : linked_views_)
+							v->request_update();
+					}
+				}));
+		mesh_connections_[m].push_back(
 			boost::synapse::connect<typename MeshProvider<MESH>::template cells_set_changed<Face>>(
 				m, [this, m](CellsSet<MESH, Face>* set) {
 					Parameters& p = parameters_[m];
@@ -225,6 +263,7 @@ public:
 		{
 			p.vertex_base_size_ = float32(geometry::mean_edge_length(m, p.vertex_position_.get()) / 6);
 			p.update_selected_vertices_vbo();
+			p.update_selected_edges_vbo();
 			p.update_selected_faces_vbo();
 		}
 
@@ -288,6 +327,31 @@ protected:
 										break;
 									}
 									mesh_provider_->emit_cells_set_changed(*selected_mesh_, p.selected_vertices_set_);
+								}
+							}
+							break;
+						case EdgeSelect:
+							if (p.selected_edges_set_)
+							{
+								cgogn::geometry::picking(*selected_mesh_, p.vertex_position_.get(), A, B,
+														 p.picked_edges_);
+								if (!p.picked_edges_.empty())
+								{
+									p.choosing_cell_ = true;
+									p.clicked_button_ = button;
+									p.current_candidate_index_ = 0;
+									p.current_candidate_state_ =
+										p.selected_edges_set_->contains(p.picked_edges_[p.current_candidate_index_]);
+									switch (button)
+									{
+									case 0:
+										p.selected_edges_set_->select(p.picked_edges_[p.current_candidate_index_]);
+										break;
+									case 1:
+										p.selected_edges_set_->unselect(p.picked_edges_[p.current_candidate_index_]);
+										break;
+									}
+									mesh_provider_->emit_cells_set_changed(*selected_mesh_, p.selected_edges_set_);
 								}
 							}
 							break;
@@ -407,6 +471,13 @@ protected:
 				glDrawArrays(GL_POINTS, 0, p.selected_vertices_set_->size());
 				p.param_point_sprite_->release();
 			}
+			else if (p.selecting_cell_ == EdgeSelect && p.selected_edges_set_ && p.selected_edges_set_->size() > 0 &&
+					 p.param_edge_->attributes_initialized())
+			{
+				p.param_edge_->bind(proj_matrix, view_matrix);
+				glDrawArrays(GL_LINES, 0, p.selected_edges_set_->size() * 2);
+				p.param_edge_->release();
+			}
 			else if (p.selecting_cell_ == FaceSelect && p.selected_faces_set_ && p.selected_faces_set_->size() > 0 &&
 					 p.param_flat_->attributes_initialized())
 			{
@@ -452,6 +523,8 @@ protected:
 				int* ptr_sel_cell = reinterpret_cast<int*>(&p.selecting_cell_);
 				need_update |= ImGui::RadioButton("Vertex", ptr_sel_cell, VertexSelect);
 				ImGui::SameLine();
+				need_update |= ImGui::RadioButton("Edge", ptr_sel_cell, EdgeSelect);
+				ImGui::SameLine();
 				need_update |= ImGui::RadioButton("Face", ptr_sel_cell, FaceSelect);
 
 				ImGui::RadioButton("Single", reinterpret_cast<int*>(&p.selection_method_), SingleCell);
@@ -480,6 +553,28 @@ protected:
 					need_update |= ImGui::ColorEdit3("color##vertices", p.param_point_sprite_->color_.data(),
 													 ImGuiColorEditFlags_NoInputs);
 					need_update |= ImGui::SliderFloat("size##vertices", &(p.vertex_scale_factor_), 0.1f, 2.0f);
+				}
+				else if (p.selecting_cell_ == EdgeSelect)
+				{
+					if (ImGui::Button("Create set##edges_set"))
+						md.template add_cells_set<Edge>();
+					imgui_combo_cells_set(md, p.selected_edges_set_, "Sets", [&](CellsSet<MESH, Edge>* cs) {
+						p.selected_edges_set_ = cs;
+						p.update_selected_edges_vbo();
+						need_update = true;
+					});
+					if (p.selected_edges_set_)
+					{
+						ImGui::Text("(nb elements: %d)", p.selected_edges_set_->size());
+						if (ImGui::Button("Clear##edges_set"))
+						{
+							p.selected_vertices_set_->clear();
+							mesh_provider_->emit_cells_set_changed(*selected_mesh_, p.selected_edges_set_);
+						}
+					}
+					ImGui::TextUnformatted("Drawing parameters");
+					need_update |= ImGui::ColorEdit3("front color##flat", p.param_edge_->color_.data(),
+													 ImGuiColorEditFlags_NoInputs);
 				}
 				else if (p.selecting_cell_ == FaceSelect)
 				{

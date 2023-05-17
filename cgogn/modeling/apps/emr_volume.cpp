@@ -87,6 +87,7 @@ int main(int argc, char** argv)
 	v1->link_module(&mrmp);
 	v1->link_module(&vr);
 	v1->link_module(&vs);
+	v1->link_module(&vmrm);
 
 	/*cgogn::ui::View* v2 = app.add_view();
 	v2->link_module(&mp);
