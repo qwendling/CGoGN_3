@@ -37,6 +37,7 @@
 #include <cgogn/geometry/ui_modules/volume_selection.h>
 #include <cgogn/modeling/algos/subdivision.h>
 #include <cgogn/modeling/ui_modules/Fit_Volume_To_Surface.h>
+#include <cgogn/modeling/ui_modules/multiresolution_editing.h>
 #include <cgogn/modeling/ui_modules/volume_emr_modeling.h>
 #include <cgogn/rendering/ui_modules/surface_render.h>
 #include <cgogn/rendering/ui_modules/volume_render.h>
@@ -127,6 +128,7 @@ int main(int argc, char** argv)
 	cgogn::ui::XPBD_Multiresolution_View<MRMesh> xp_v(app);
 	cgogn::ui::VolumeEMRModeling<MRMesh> vmrm(app);
 	cgogn::ui::FitVolumeSurface<Surface, MRMesh> fvs(app);
+	cgogn::ui::Multiresolution_editing<MRMesh> mre(app);
 
 	cgogn::ui::View* v1 = app.current_view();
 	v1->link_module(&mp);
@@ -135,6 +137,7 @@ int main(int argc, char** argv)
 	v1->link_module(&xp_v);
 	v1->link_module(&sr);
 	v1->link_module(&fvs);
+	v1->link_module(&mre);
 
 	app.init_modules();
 
@@ -316,7 +319,7 @@ int main(int argc, char** argv)
 		for (int i = 0; i < 3; i++)
 			fvs.optimize_volume_vertices(10.0, true);
 
-		for (int j = 0; j < 3; j++)
+		for (int j = 0; j < 1; j++)
 		{
 			vmrm.subdivide(*mrm, position.get());
 

@@ -52,6 +52,7 @@ target_sources(${PROJECT_NAME}	PRIVATE
 		"${CMAKE_CURRENT_LIST_DIR}/ui_modules/Fit_Volume_To_Surface.h"
 		"${CMAKE_CURRENT_LIST_DIR}/ui_modules/linked_volumes.h"
 		"${CMAKE_CURRENT_LIST_DIR}/ui_modules/volume_emr_modeling.h"
+		"${CMAKE_CURRENT_LIST_DIR}/ui_modules/multiresolution_editing.h"
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

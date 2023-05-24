@@ -421,19 +421,6 @@ protected:
 			std::cout << pos_cylinder1 << std::endl;
 			v->request_update();
 		}
-		if (key_code == GLFW_KEY_Y)
-		{
-			if (inverse_control_)
-			{
-				pos_cylinder1 -= Eigen::Vector3f(0, 0.1, 0);
-			}
-			else
-			{
-				pos_cylinder1 += Eigen::Vector3f(0, 0.1, 0);
-			}
-			std::cout << pos_cylinder1 << std::endl;
-			v->request_update();
-		}
 		if (key_code == GLFW_KEY_Z)
 		{
 			if (inverse_control_)
