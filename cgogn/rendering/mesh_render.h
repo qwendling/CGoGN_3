@@ -100,6 +100,7 @@ class CGOGN_RENDERING_EXPORT MeshRender
 protected:
 	std::array<std::unique_ptr<EBO>, SIZE_BUFFER> indices_buffers_;
 	std::array<bool, SIZE_BUFFER> indices_buffers_uptodate_;
+	bool smooth_volume_faces_;
 
 public:
 	MeshRender();
@@ -109,6 +110,21 @@ public:
 	inline bool is_primitive_uptodate(DrawingType prim)
 	{
 		return indices_buffers_uptodate_[prim % SIZE_BUFFER];
+	}
+
+	inline void set_smooth_volume_faces(bool svf)
+	{
+		smooth_volume_faces_ = svf;
+	}
+
+	inline bool  get_smooth_volume_faces() const
+	{
+		return smooth_volume_faces_;
+	}
+
+	bool& ref_smooth_volume_faces()
+	{
+		return smooth_volume_faces_;
 	}
 
 	inline void set_primitive_dirty(DrawingType prim)
@@ -285,22 +301,51 @@ protected:
 					ivol = index_of(m, vol);
 
 				auto& vertices = vvertices[worker_index];
+				if (smooth_volume_faces_)
+				{
+					foreach_incident_face(m, vol, [&](Face f) -> bool {
+						auto& tif = table_indices_f[worker_index];
+						if (codegree(m, f) == 3)
+						{
+							vertices.clear();
+							append_incident_vertices(m, f, vertices);
+							tif.push_back(index_of(m, vertices[0]));
+							tif.push_back(index_of(m, vertices[2]));
+							tif.push_back(index_of(m, vertices[1]));
 
-				foreach_incident_face(m, vol, [&](Face f) -> bool {
-					auto& tif = table_indices_f[worker_index];
-					if (codegree(m, f) == 3)
-					{
-						vertices.clear();
-						append_incident_vertices(m, f, vertices);
-						tif.push_back(index_of(m, vertices[0]));
-						tif.push_back(index_of(m, vertices[1]));
-						tif.push_back(index_of(m, vertices[2]));
-						tif.push_back(ivol);
-					}
-					else
-						geometry::append_ear_triangulation(m, f, position, tif, [&]() { tif.push_back(ivol); });
-					return true;
-				});
+							tif.push_back(index_of(m, vertices[1]));
+							tif.push_back(index_of(m, vertices[0]));
+							tif.push_back(index_of(m, vertices[2]));
+
+							tif.push_back(index_of(m, vertices[2]));
+							tif.push_back(index_of(m, vertices[1]));
+							tif.push_back(index_of(m, vertices[0]));
+							tif.push_back(ivol);
+						}
+						else
+							geometry::append_ear_triangulation3(m, f, position, tif, [&]() { tif.push_back(ivol); });
+						return true;
+					});
+				}
+				else
+				{
+					foreach_incident_face(m, vol, [&](Face f) -> bool {
+						auto& tif = table_indices_f[worker_index];
+						if (codegree(m, f) == 3)
+						{
+							vertices.clear();
+							append_incident_vertices(m, f, vertices);
+							tif.push_back(index_of(m, vertices[0]));
+							tif.push_back(index_of(m, vertices[1]));
+							tif.push_back(index_of(m, vertices[2]));
+							tif.push_back(ivol);
+						}
+						else
+							geometry::append_ear_triangulation(m, f, position, tif, [&]() { tif.push_back(ivol); });
+						return true;
+					});
+
+				}
 
 				foreach_incident_edge(m, vol, [&](Edge e) -> bool {
 					vertices.clear();

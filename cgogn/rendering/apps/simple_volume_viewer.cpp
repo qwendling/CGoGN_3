@@ -28,6 +28,8 @@
 
 #include <cgogn/core/ui_modules/mesh_provider.h>
 #include <cgogn/rendering/ui_modules/volume_render.h>
+#include <cgogn/rendering/ui_modules/topo_render.h>
+
 
 #include <cgogn/geometry/algos/centroid.h>
 #include <cgogn/geometry/functions/distance.h>
@@ -52,6 +54,7 @@ int main(int argc, char** argv)
 	if (argc < 2)
 	{
 		filename = std::string(DEFAULT_MESH_PATH) + std::string("tet/hex_dominant.meshb");
+		//filename = std::string(DEFAULT_MESH_PATH) + std::string("tet/hand.tet");
 	}
 	else
 		filename = std::string(argv[1]);
@@ -64,12 +67,14 @@ int main(int argc, char** argv)
 
 	cgogn::ui::MeshProvider<Mesh> mp(app);
 	cgogn::ui::VolumeRender<Mesh> vr(app);
+	cgogn::ui::TopoRender<Mesh> tpr(app);
 
 	app.init_modules();
 
 	cgogn::ui::View* v1 = app.current_view();
 	v1->link_module(&mp);
 	v1->link_module(&vr);
+	v1->link_module(&tpr);
 
 	Mesh* m = mp.load_volume_from_file(filename);
 	if (!m)

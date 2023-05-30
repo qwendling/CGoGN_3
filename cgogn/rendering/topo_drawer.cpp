@@ -30,8 +30,8 @@ namespace rendering
 {
 
 TopoDrawer::TopoDrawer()
-	: dart_color_(1, 1, 1, 1), phi2_color_(1, 0, 0, 1), phi3_color_(1, 1, 0, 1), shrink_v_(0.8f), shrink_f_(0.85f),
-	  shrink_e_(0.95f)
+	: dart_color_(1, 1, 1, 1), phi2_color_(1, 0, 0, 1), phi3_color_(1, 1, 0, 1), shrink_v_(0.9f), shrink_f_(0.85f),
+	  shrink_e_(0.9f)
 {
 	vbo_darts_ = std::make_unique<VBO>(3);
 	vbo_relations_ = std::make_unique<VBO>(3);
@@ -42,21 +42,20 @@ TopoDrawer::~TopoDrawer()
 {
 }
 
-TopoDrawer::Renderer::Renderer(TopoDrawer* tr) : topo_drawer_data_(tr), width_(2.0f)
+TopoDrawer::Renderer::Renderer(TopoDrawer* tr) : topo_drawer_data_(tr), width_(2.0f), render_darts_(true),render_phi2_(false),render_phi3_(false)
+
 {
-	param_bl_ = ShaderBoldLineColor::generate_param();
+	param_bl_ = ShaderBoldLineColorNoTB::generate_param();
 	param_bl_->set_vbos({tr->vbo_darts_.get(), tr->vbo_color_darts_.get()});
+	// tr->vbo_color_darts_.get()});
 
 	param_bl2_ = ShaderBoldLine::generate_param();
 	param_bl2_->set_vbos({tr->vbo_relations_.get()});
 	param_bl2_->color_ = tr->phi2_color_;
 
 	param_rp_ = ShaderRoundPointColor::generate_param();
-
-	param_rp_->bind_vao();
-	tr->vbo_darts_->associate(1, 2, 0);
-	tr->vbo_color_darts_->associate(2, 2, 0);
-	param_rp_->release_vao();
+	param_rp_->size_ = 3.0f;
+	param_rp_->set_vbos_stride({{tr->vbo_darts_.get(), 2, 0},{tr->vbo_color_darts_.get(), 2, 0}});
 }
 
 TopoDrawer::Renderer::~Renderer()
@@ -67,25 +66,29 @@ void TopoDrawer::Renderer::draw(const GLMat4& projection, const GLMat4& modelvie
 {
 	param_bl_->width_ = width_;
 	param_bl2_->width_ = width_;
-	param_rp_->size_ = 2.0f * width_;
+	param_rp_->size_ = 3.0f * width_;
 
-	param_bl_->bind(projection, modelview);
+	if (render_darts_)
+	{
+		param_bl_->bind(projection, modelview);
+//		param_bl_->color_ = topo_drawer_data_->dart_color_;
+		glDrawArrays(GL_LINES, 0, topo_drawer_data_->vbo_darts_->size());
+		param_bl_->release();
 
-	glDrawArrays(GL_LINES, 0, topo_drawer_data_->vbo_darts_->size());
+		param_rp_->bind(projection, modelview);
+		glDrawArrays(GL_POINTS, 0, topo_drawer_data_->vbo_darts_->size() / 2);
+		param_rp_->release();
+	}
 
-	param_bl_->release();
+	if (render_phi2_)
+	{
+		param_bl2_->color_ = topo_drawer_data_->phi2_color_;
+		param_bl2_->bind(projection, modelview);
+		glDrawArrays(GL_LINES, 0, topo_drawer_data_->vbo_darts_->size());
+		param_bl2_->release();
+	}
 
-	param_rp_->bind(projection, modelview);
-
-	glDrawArrays(GL_POINTS, 0, topo_drawer_data_->vbo_darts_->size() / 2);
-	param_rp_->release();
-
-	param_bl2_->color_ = topo_drawer_data_->phi2_color_;
-	param_bl2_->bind(projection, modelview);
-	glDrawArrays(GL_LINES, 0, topo_drawer_data_->vbo_darts_->size());
-	param_bl2_->release();
-
-	if (topo_drawer_data_->vbo_relations_->size() > topo_drawer_data_->vbo_darts_->size())
+	if ((topo_drawer_data_->vbo_relations_->size() > topo_drawer_data_->vbo_darts_->size()) && render_phi3_)
 	{
 		param_bl2_->color_ = topo_drawer_data_->phi3_color_;
 		param_bl2_->bind(projection, modelview);
@@ -146,6 +149,19 @@ void TopoDrawer::update_color(Dart d, const Vec3& rgb)
 		vbo_color_darts_->copy_data(uint32(x) * 24u, 24u, rgbf);
 		vbo_color_darts_->release();
 	}
+}
+
+void TopoDrawer::reset_all_colors(const GLVec3& rgb)
+{
+	vbo_color_darts_->bind();
+	float* ptr = vbo_color_darts_->lock_pointer();
+	for(int i =0; i<vbo_color_darts_->size();++i)
+	{
+		*ptr++ = rgb[0];
+		*ptr++ = rgb[1];
+		*ptr++ = rgb[2];
+	}
+	vbo_color_darts_->release_pointer();
 }
 
 Dart TopoDrawer::pick(const Vec3& A, const Vec3& B, const Vec4& plane, Vec3* dp1, Vec3* dp2)

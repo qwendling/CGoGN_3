@@ -37,16 +37,9 @@ DECLARE_SHADER_CLASS(RoundPointColor, false, CGOGN_STR(RoundPointColor))
 
 class CGOGN_RENDERING_EXPORT ShaderParamRoundPointColor : public ShaderParam
 {
-	inline void set_uniforms() override
-	{
-		int viewport[4];
-		glGetIntegerv(GL_VIEWPORT, viewport);
-		GLVec2 wd(size_ / float32(viewport[2]), size_ / float32(viewport[3]));
-		shader_->set_uniforms_values(wd, plane_clip_, plane_clip2_);
-	}
+	void set_uniforms() override;
 
 public:
-	GLColor color_;
 	float32 size_;
 	GLVec4 plane_clip_;
 	GLVec4 plane_clip2_;
@@ -61,12 +54,10 @@ public:
 	inline ~ShaderParamRoundPointColor() override
 	{
 	}
-
-
 };
 
 } // namespace rendering
 
 } // namespace cgogn
 
-#endif // CGOGN_RENDERING_SHADERS_ROUND_POINT_COLOR_H_
+#endif // CGOGN_RENDERING_SHADERS_ROUND_POINT_H_

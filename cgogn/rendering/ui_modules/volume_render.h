@@ -40,6 +40,7 @@
 #include <cgogn/rendering/shaders/shader_explode_volumes_color.h>
 #include <cgogn/rendering/shaders/shader_explode_volumes_line.h>
 #include <cgogn/rendering/shaders/shader_explode_volumes_scalar.h>
+
 #include <cgogn/rendering/shaders/shader_point_sprite.h>
 
 #include <cgogn/geometry/algos/centroid.h>
@@ -85,7 +86,8 @@ class VolumeRender : public ViewModule
 	struct Parameters
 	{
 		Parameters()
-			: vertex_position_(nullptr), vertex_position_vbo_(nullptr), vertex_clipping_position_(nullptr),
+			: vertex_position_(nullptr),
+			  vertex_position_vbo_(nullptr), vertex_clipping_position_(nullptr),
 			  volume_clipping_position_(nullptr), volume_clipping_position_vbo_(nullptr), volume_scalar_(nullptr),
 			  volume_scalar_vbo_(nullptr), volume_color_(nullptr), volume_color_vbo_(nullptr), volume_center_(nullptr),
 			  volume_center_vbo_(nullptr), render_vertices_(false), render_edges_(false), render_volumes_(true),
@@ -101,17 +103,31 @@ class VolumeRender : public ViewModule
 			param_bold_line_->width_ = 2.0f;
 
 			param_volume_ = rendering::ShaderExplodeVolumes::generate_param();
-			param_volume_->color_ = {0.4f, 0.8f, 1.0f, 1.0f};
+			param_volume_smooth_ = rendering::ShaderExplodeVolumesSmooth::generate_param();
+			param_volume_smooth_->data_ = param_volume_->data_;
+			param_volume_gen_ = param_volume_.get();
+
+			param_volume_->data_->color_ = {0.4f, 0.8f, 1.0f, 1.0f};
 
 			param_volume_line_ = rendering::ShaderExplodeVolumesLine::generate_param();
 			param_volume_line_->color_ = {0.0f, 0.0f, 0.0f, 1.0f};
-			param_volume_line_->explode_ = param_volume_->explode_;
+			param_volume_line_->explode_ = param_volume_->data_->explode_;
 
 			param_volume_color_ = rendering::ShaderExplodeVolumesColor::generate_param();
-			param_volume_color_->explode_ = param_volume_->explode_;
+			param_volume_color_smooth_ = rendering::ShaderExplodeVolumesColorSmooth::generate_param();
+			param_volume_color_smooth_->data_ = param_volume_color_->data_;
+			param_volume_color_gen_ = param_volume_color_.get();
+			param_volume_color_->data_->explode_ = param_volume_->data_->explode_;
 
 			param_volume_scalar_ = rendering::ShaderExplodeVolumesScalar::generate_param();
-			param_volume_scalar_->explode_ = param_volume_->explode_;
+			param_volume_scalar_smooth_ = rendering::ShaderExplodeVolumesScalarSmooth::generate_param();
+			param_volume_scalar_smooth_->data_ = param_volume_scalar_->data_;
+			param_volume_scalar_gen_ = param_volume_scalar_.get();
+			param_volume_scalar_->data_->explode_ = param_volume_->data_->explode_;
+
+
+			param_volume_color_gen_ = param_volume_color_.get();
+			param_volume_scalar_gen_ = param_volume_scalar_.get();
 		}
 
 		CGOGN_NOT_COPYABLE_NOR_MOVABLE(Parameters);
@@ -139,6 +155,12 @@ class VolumeRender : public ViewModule
 		std::unique_ptr<rendering::ShaderExplodeVolumesLine::Param> param_volume_line_;
 		std::unique_ptr<rendering::ShaderExplodeVolumesColor::Param> param_volume_color_;
 		std::unique_ptr<rendering::ShaderExplodeVolumesScalar::Param> param_volume_scalar_;
+		std::unique_ptr<rendering::ShaderExplodeVolumesSmooth::Param> param_volume_smooth_;
+		std::unique_ptr<rendering::ShaderExplodeVolumesColorSmooth::Param> param_volume_color_smooth_;
+		std::unique_ptr<rendering::ShaderExplodeVolumesScalarSmooth::Param> param_volume_scalar_smooth_;
+		rendering::ShaderParam* param_volume_gen_;
+		rendering::ShaderParam* param_volume_color_gen_;
+		rendering::ShaderParam* param_volume_scalar_gen_;
 
 		bool render_vertices_;
 		bool render_edges_;
@@ -167,6 +189,7 @@ public:
 	{
 		outline_engine_ = rendering::Outliner::instance();
 		// compute_volume_center_engine_ = std::make_unique<rendering::ComputeVolumeCenterEngine>();
+	
 	}
 
 	~VolumeRender()
@@ -270,10 +293,17 @@ public:
 		p.param_bold_line_->set_vbos({p.vertex_position_vbo_, p.vertex_clipping_position_vbo_});
 
 		p.param_volume_->set_vbos({p.vertex_position_vbo_, p.volume_center_vbo_, p.volume_clipping_position_vbo_});
+		p.param_volume_smooth_->set_vbos({p.vertex_position_vbo_, p.volume_center_vbo_, p.volume_clipping_position_vbo_});
+
 		p.param_volume_line_->set_vbos({p.vertex_position_vbo_, p.volume_center_vbo_, p.volume_clipping_position_vbo_});
 		p.param_volume_color_->set_vbos(
 			{p.vertex_position_vbo_, p.volume_center_vbo_, p.volume_color_vbo_, p.volume_clipping_position_vbo_});
+		p.param_volume_color_smooth_->set_vbos(
+			{p.vertex_position_vbo_, p.volume_center_vbo_, p.volume_color_vbo_, p.volume_clipping_position_vbo_});
+
 		p.param_volume_scalar_->set_vbos(
+			{p.vertex_position_vbo_, p.volume_center_vbo_, p.volume_scalar_vbo_, p.volume_clipping_position_vbo_});
+		p.param_volume_scalar_smooth_->set_vbos(
 			{p.vertex_position_vbo_, p.volume_center_vbo_, p.volume_scalar_vbo_, p.volume_clipping_position_vbo_});
 
 		Scalar size = (md.bb_max_ - md.bb_min_).norm() / 25;
@@ -315,10 +345,17 @@ public:
 		p.param_bold_line_->set_vbos({p.vertex_position_vbo_, p.vertex_clipping_position_vbo_});
 
 		p.param_volume_->set_vbos({p.vertex_position_vbo_, p.volume_center_vbo_, p.volume_clipping_position_vbo_});
+		p.param_volume_smooth_->set_vbos({p.vertex_position_vbo_, p.volume_center_vbo_, p.volume_clipping_position_vbo_});
+
 		p.param_volume_line_->set_vbos({p.vertex_position_vbo_, p.volume_center_vbo_, p.volume_clipping_position_vbo_});
-		p.param_volume_color_->set_vbos(
-			{p.vertex_position_vbo_, p.volume_center_vbo_, p.volume_color_vbo_, p.volume_clipping_position_vbo_});
+		p.param_volume_color_->set_vbos({p.vertex_position_vbo_, p.volume_center_vbo_, p.volume_color_vbo_, p.volume_clipping_position_vbo_});
+		p.param_volume_color_smooth_->set_vbos({p.vertex_position_vbo_, p.volume_center_vbo_, p.volume_color_vbo_, p.volume_clipping_position_vbo_});
+
+
+
 		p.param_volume_scalar_->set_vbos(
+			{p.vertex_position_vbo_, p.volume_center_vbo_, p.volume_scalar_vbo_, p.volume_clipping_position_vbo_});
+		p.param_volume_scalar_smooth_->set_vbos(
 			{p.vertex_position_vbo_, p.volume_center_vbo_, p.volume_scalar_vbo_, p.volume_clipping_position_vbo_});
 
 		v.request_update();
@@ -340,6 +377,7 @@ public:
 			p.volume_color_vbo_ = nullptr;
 
 		p.param_volume_color_->set_vbos({p.vertex_position_vbo_, p.volume_center_vbo_, p.volume_color_vbo_});
+		p.param_volume_color_smooth_->set_vbos({p.vertex_position_vbo_, p.volume_center_vbo_, p.volume_color_vbo_});
 
 		v.request_update();
 	}
@@ -361,11 +399,49 @@ public:
 		else
 		{
 			p.volume_scalar_vbo_ = nullptr;
-			p.param_volume_scalar_->color_map_.min_value_ = 0.0f;
-			p.param_volume_scalar_->color_map_.max_value_ = 1.0f;
+			p.param_volume_scalar_->data_->color_map_.min_value_ = 0.0f;
+			p.param_volume_scalar_->data_->color_map_.max_value_ = 1.0f;
+			p.param_volume_scalar_smooth_->data_->color_map_.min_value_ = 0.0f;
+			p.param_volume_scalar_smooth_->data_->color_map_.max_value_ = 1.0f;
 		}
 
 		p.param_volume_scalar_->set_vbos({p.vertex_position_vbo_, p.volume_center_vbo_, p.volume_scalar_vbo_});
+		p.param_volume_scalar_smooth_->set_vbos({p.vertex_position_vbo_, p.volume_center_vbo_, p.volume_scalar_vbo_});
+	}
+
+	void set_volume_explode(View& v, const MESH& m, float expl)
+	{
+		Parameters& p = parameters_[&v][&m];
+		p.param_volume_->data_->explode_ = expl;
+		p.param_volume_line_->explode_ = expl;
+		p.param_volume_color_->data_->explode_ = expl;
+		p.param_volume_scalar_->data_->explode_ = expl;
+		p.param_volume_smooth_->data_->explode_ = expl;
+		p.param_volume_color_smooth_->data_->explode_ = expl;
+		p.param_volume_scalar_smooth_->data_->explode_ = expl;
+	}
+
+	void set_smoothing(const MESH& m, bool smo)
+	{
+		MeshData<MESH>& md = mesh_provider_->mesh_data(m);
+		if(smo)
+			for (auto& vp : parameters_)
+			{
+				vp.second[&m].param_volume_gen_ = vp.second[&m].param_volume_smooth_.get();
+				vp.second[&m].param_volume_color_gen_ = vp.second[&m].param_volume_color_smooth_.get();
+				vp.second[&m].param_volume_scalar_gen_ = vp.second[&m].param_volume_scalar_smooth_.get();
+			}
+				
+		else
+			for (auto& vp : parameters_)
+			{
+				vp.second[&m].param_volume_gen_ = vp.second[&m].param_volume_.get();
+				vp.second[&m].param_volume_color_gen_ = vp.second[&m].param_volume_color_.get();
+				vp.second[&m].param_volume_scalar_gen_ = vp.second[&m].param_volume_scalar_.get();
+			}
+
+		md.mesh_render()->set_smooth_volume_faces(smo);
+		md.mesh_render()->set_primitive_dirty(rendering::DrawingType::VOLUMES_FACES);
 	}
 
 protected:
@@ -380,8 +456,11 @@ protected:
 			if (v > max)
 				max = v;
 		}
-		p.param_volume_scalar_->color_map_.min_value_ = min;
-		p.param_volume_scalar_->color_map_.max_value_ = max;
+		p.param_volume_scalar_->data_->color_map_.min_value_ = min;
+		p.param_volume_scalar_->data_->color_map_.max_value_ = max;
+		p.param_volume_scalar_smooth_->data_->color_map_.min_value_ = min;
+		p.param_volume_scalar_smooth_->data_->color_map_.max_value_ = max;
+
 	}
 
 	void update_volume_center(View& v, const MESH& m)
@@ -435,11 +514,11 @@ protected:
 				switch (p.color_per_cell_)
 				{
 				case GLOBAL: {
-					if (p.param_volume_->attributes_initialized())
+					if (p.param_volume_gen_->attributes_initialized())
 					{
-						p.param_volume_->bind(proj_matrix, view_matrix);
+						p.param_volume_gen_->bind(proj_matrix, view_matrix);
 						md.draw(rendering::VOLUMES_FACES, p.vertex_position_);
-						p.param_volume_->release();
+						p.param_volume_gen_->release();
 					}
 				}
 				break;
@@ -447,20 +526,20 @@ protected:
 					switch (p.color_type_)
 					{
 					case SCALAR: {
-						if (p.param_volume_scalar_->attributes_initialized())
+						if (p.param_volume_scalar_gen_->attributes_initialized())
 						{
-							p.param_volume_scalar_->bind(proj_matrix, view_matrix);
+							p.param_volume_scalar_gen_->bind(proj_matrix, view_matrix);
 							md.draw(rendering::VOLUMES_FACES, p.vertex_position_);
-							p.param_volume_scalar_->release();
+							p.param_volume_scalar_gen_->release();
 						}
 					}
 					break;
 					case VECTOR: {
-						if (p.param_volume_color_->attributes_initialized())
+						if (p.param_volume_color_gen_->attributes_initialized())
 						{
-							p.param_volume_color_->bind(proj_matrix, view_matrix);
+							p.param_volume_color_gen_->bind(proj_matrix, view_matrix);
 							md.draw(rendering::VOLUMES_FACES, p.vertex_position_);
-							p.param_volume_color_->release();
+							p.param_volume_color_gen_->release();
 						}
 					}
 					break;
@@ -577,10 +656,10 @@ protected:
 					p.frame_manipulator_.get_axis(rendering::FrameManipulator::Zt, axis_z);
 					float32 d = -(position.dot(axis_z));
 					rendering::GLVec4 plane = rendering::construct_GLVec4(axis_z.x(), axis_z.y(), axis_z.z(), d);
-					p.param_volume_->plane_clip_ = plane;
+					p.param_volume_->data_->plane_clip_ = plane;
 					p.param_volume_line_->plane_clip_ = plane;
-					p.param_volume_color_->plane_clip_ = plane;
-					p.param_volume_scalar_->plane_clip_ = plane;
+					p.param_volume_color_->data_->plane_clip_ = plane;
+					p.param_volume_scalar_->data_->plane_clip_ = plane;
 				}
 				view->stop_event();
 				view->request_update();
@@ -631,12 +710,18 @@ protected:
 			need_update |= ImGui::Checkbox("Volumes", &p.render_volumes_);
 			if (p.render_volumes_)
 			{
-				if (ImGui::SliderFloat("Explode", &p.param_volume_->explode_, 0.01f, 1.0f))
+				bool& svf = mesh_provider_->mesh_data(*selected_mesh_).mesh_render()->ref_smooth_volume_faces();
+				if (ImGui::Checkbox("Smooth faces", &svf))
+				{
+					set_smoothing(*selected_mesh_, svf);
+					need_update = true;
+				}
+				if (ImGui::SliderFloat("Explode", &p.param_volume_->data_->explode_, 0.01f, 1.0f))
 				{
 					need_update = true;
-					p.param_volume_line_->explode_ = p.param_volume_->explode_;
-					p.param_volume_color_->explode_ = p.param_volume_->explode_;
-					p.param_volume_scalar_->explode_ = p.param_volume_->explode_;
+					p.param_volume_line_->explode_ = p.param_volume_->data_->explode_;
+					p.param_volume_color_->data_->explode_ = p.param_volume_->data_->explode_;
+					p.param_volume_scalar_->data_->explode_ = p.param_volume_->data_->explode_;
 				}
 
 				need_update |= ImGui::Checkbox("Volume lines", &p.render_volume_lines_);
@@ -672,19 +757,19 @@ protected:
 						p.param_point_sprite_->plane_clip_ = plane;
 						p.param_bold_line_->plane_clip_ = plane;
 					}
-					p.param_volume_->plane_clip_ = plane;
+					p.param_volume_->data_->plane_clip_ = plane;
 					p.param_volume_line_->plane_clip_ = plane;
-					p.param_volume_color_->plane_clip_ = plane;
-					p.param_volume_scalar_->plane_clip_ = plane;
+					p.param_volume_color_->data_->plane_clip_ = plane;
+					p.param_volume_scalar_->data_->plane_clip_ = plane;
 				}
 				else
 				{
 					p.param_point_sprite_->plane_clip_ = {0, 0, 0, 0};
 					p.param_bold_line_->plane_clip_ = {0, 0, 0, 0};
-					p.param_volume_->plane_clip_ = {0, 0, 0, 0};
+					p.param_volume_->data_->plane_clip_ = {0, 0, 0, 0};
 					p.param_volume_line_->plane_clip_ = {0, 0, 0, 0};
-					p.param_volume_color_->plane_clip_ = {0, 0, 0, 0};
-					p.param_volume_scalar_->plane_clip_ = {0, 0, 0, 0};
+					p.param_volume_color_->data_->plane_clip_ = {0, 0, 0, 0};
+					p.param_volume_scalar_->data_->plane_clip_ = {0, 0, 0, 0};
 				}
 
 				need_update |= ImGui::Checkbox("Show clipping plane", &p.show_frame_manipulator_);
@@ -708,7 +793,7 @@ protected:
 				if (p.color_per_cell_ == GLOBAL)
 				{
 					need_update |=
-						ImGui::ColorEdit3("Volume color", p.param_volume_->color_.data(), ImGuiColorEditFlags_NoInputs);
+						ImGui::ColorEdit3("Volume color", p.param_volume_->data_->color_.data(), ImGuiColorEditFlags_NoInputs);
 				}
 				else if (p.color_per_cell_ == PER_VOLUME)
 				{
@@ -733,11 +818,11 @@ protected:
 							[&](const std::shared_ptr<Attribute<Scalar>>& attribute) {
 								set_volume_scalar(*selected_view_, *selected_mesh_, attribute);
 							});
-						need_update |=
-							ImGui::InputFloat("Scalar min##volumecolor", &p.param_volume_scalar_->color_map_.min_value_,
+						need_update |= ImGui::InputFloat("Scalar min##volumecolor",
+														 &p.param_volume_scalar_->data_->color_map_.min_value_,
 											  0.01f, 1.0f, "%.3f");
-						need_update |=
-							ImGui::InputFloat("Scalar max##volumecolor", &p.param_volume_scalar_->color_map_.max_value_,
+						need_update |= ImGui::InputFloat("Scalar max##volumecolor",
+														 &p.param_volume_scalar_->data_->color_map_.max_value_,
 											  0.01f, 1.0f, "%.3f");
 						if (ImGui::Checkbox("Auto update min/max##volumecolor", &p.auto_update_volume_scalar_min_max_))
 						{

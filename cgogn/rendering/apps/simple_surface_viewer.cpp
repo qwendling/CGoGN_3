@@ -1,4 +1,4 @@
-/*******************************************************************************
+/**************	*****************************************************************
  * CGoGN: Combinatorial and Geometric modeling with Generic N-dimensional Maps  *
  * Copyright (C), IGG Group, ICube, University of Strasbourg, France            *
  *                                                                              *
@@ -29,6 +29,7 @@
 #include <cgogn/core/ui_modules/mesh_provider.h>
 #include <cgogn/geometry/ui_modules/surface_differential_properties.h>
 #include <cgogn/rendering/ui_modules/surface_render.h>
+#include <cgogn/rendering/ui_modules/topo_render.h>
 
 #define DEFAULT_MESH_PATH CGOGN_STR(CGOGN_DATA_PATH) "/meshes/"
 
@@ -46,9 +47,9 @@ using Scalar = cgogn::geometry::Scalar;
 int main(int argc, char** argv)
 {
 	std::string filename;
-	if (argc > 1)
-	// 	filename = std::string(DEFAULT_MESH_PATH) + std::string("off/socket.off");
-	// else
+	if (argc <= 1)
+	 	filename = std::string(DEFAULT_MESH_PATH) + std::string("off/socket.off");
+	else
 		filename = std::string(argv[1]);
 
 	cgogn::thread_start();
@@ -60,12 +61,15 @@ int main(int argc, char** argv)
 	cgogn::ui::MeshProvider<Mesh> mp(app);
 	cgogn::ui::SurfaceRender<Mesh> sr(app);
 	cgogn::ui::SurfaceDifferentialProperties<Mesh> sdp(app);
+	cgogn::ui::TopoRender<Mesh> tpr(app);
 
 	app.init_modules();
 
 	cgogn::ui::View* v1 = app.current_view();
 	v1->link_module(&mp);
 	v1->link_module(&sr);
+	v1->link_module(&tpr);
+
 
 	if (filename.length() > 0)
 	{
@@ -96,6 +100,7 @@ int main(int argc, char** argv)
 
 		sr.set_vertex_position(*v1, *m, vertex_position);
 		sr.set_vertex_normal(*v1, *m, vertex_normal);
+		tpr.set_vertex_position(*v1, *m, vertex_position);
 	}
 
 	return app.launch();

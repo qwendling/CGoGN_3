@@ -410,6 +410,67 @@ public:
 		}
 	}
 
+
+	template <typename FUNC>
+	void append_3indices(std::vector<uint32>& table_indices, const FUNC& post_func)
+	{
+		if (nb_verts_ < 3)
+			return;
+
+		auto addIndices = [&](Vertex x) {
+			table_indices.push_back(index_of(m_, x));
+			table_indices.push_back(index_of(m_, Vertex(phi_1(m_,x.dart))));
+			table_indices.push_back(index_of(m_, Vertex(phi1(m_,x.dart))));
+		};
+
+		if (nb_verts_ == 3)
+		{
+			foreach_incident_vertex(m_, face_, [&](Vertex v) -> bool {
+				addIndices(v);
+				return true;
+			});
+			post_func();
+			return;
+		}
+
+		while (nb_verts_ > 3)
+		{
+			// take best (and valid!) ear
+			typename VPMS::iterator be_it = ears_.begin(); // best ear
+			VertexPoly* be = *be_it;
+	
+			addIndices(be->vert_);
+			addIndices(be->next_->vert_);
+			addIndices(be->prev_->vert_);
+			post_func();
+			--nb_verts_;
+
+			if (nb_verts_ > 3) // do not recompute if only one triangle left
+			{
+				// remove ears and two sided ears
+				ears_.erase(be_it); // from map of ears
+				ears_.erase(be->next_->ear_);
+				ears_.erase(be->prev_->ear_);
+				be = VertexPoly::erase(be); // and remove ear vertex from polygon
+				recompute_2_ears(be);
+			}
+			else // finish (no need to update ears)
+			{
+				// remove ear from polygon
+				be = VertexPoly::erase(be);
+				// last triangle
+				addIndices(be->vert_);
+				addIndices(be->next_->vert_);
+				addIndices(be->prev_->vert_);
+				post_func();
+				// release memory of last triangle in polygon
+				delete be->next_;
+				delete be->prev_;
+				delete be;
+			}
+		}
+	}
+
 	/**
 	 * @brief apply the ear triangulation the face
 	 */
@@ -461,6 +522,22 @@ void append_ear_triangulation(const MESH& mesh, const typename mesh_traits<MESH>
 {
 	EarTriangulation tri(const_cast<MESH&>(mesh), f, position);
 	tri.append_indices(table_indices, post_func);
+}
+
+/**
+ * @brief compute ear triangulation with 3 indices out per vertex for normal on face vertices computation
+ * @param map
+ * @param f face
+ * @param position
+ * @param table_indices table of indices (vertex embedding) to append
+ */
+template <typename MESH, typename FUNC>
+void append_ear_triangulation3(const MESH& mesh, const typename mesh_traits<MESH>::Face f,
+							  const typename mesh_traits<MESH>::template Attribute<Vec3>* position,
+							  std::vector<uint32>& table_indices, const FUNC& post_func)
+{
+	EarTriangulation tri(const_cast<MESH&>(mesh), f, position);
+	tri.append_3indices(table_indices, post_func);
 }
 
 /**

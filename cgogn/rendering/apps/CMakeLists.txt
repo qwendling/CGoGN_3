@@ -68,6 +68,16 @@ target_link_libraries(test_shape
 	${CMAKE_DL_LIBS}
 )
 
+add_executable(simple_topo_viewer simple_topo_viewer.cpp)
+target_link_libraries(simple_topo_viewer			
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	${CMAKE_DL_LIBS}
+)
+
+
 if(APPLE)
 	find_library(CORE_FOUNDATION CoreFoundation)
 	find_library(CARBON Carbon)
@@ -87,6 +97,12 @@ if(APPLE)
 		${CORE_FOUNDATION}
 		${CARBON}
 	)
+
+	target_link_libraries(simple_topo_viewer
+		${CORE_FOUNDATION}
+		${CARBON}
+	)
+
 #	target_link_libraries(surface_volume_viewer
 #		${CORE_FOUNDATION}
 #		${CARBON}

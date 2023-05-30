@@ -370,6 +370,42 @@ void ShaderParam::set_vbos(const std::vector<VBO*>& vbos)
 	}
 }
 
+void ShaderParam::set_vbos_stride(const std::vector<std::tuple<VBO*,int,int>>& vbos)
+{
+	//	assert(uint32(vbos.size()) == shader_->nb_attributes());
+
+	if (shader_->use_texture_buffer())
+	{
+		std::cerr << "VBO with texture buffer do not support stride" << std::endl;
+		return;
+	}
+	else
+	{
+		attributes_initialized_ = true;
+		vao_->bind();
+		GLuint attrib = 1u;
+		for (auto& vs : vbos)
+		{
+			auto* v = std::get<0>(vs);
+			int stride = std::get<1>(vs);
+			int first = std::get<2>(vs);
+
+			if (v)
+				v->associate(attrib,stride,first);
+			else
+				attributes_initialized_ = false;
+			attrib++;
+		}
+		// if the last optional clipping attribute is not given, use the first vbo as the last attribute
+		// TODO: not very clean...
+		if (attributes_initialized_ && optional_clipping_attribute_ && uint32(vbos.size()) < shader_->nb_attributes())
+			std::get<0>(vbos[0])->associate(attrib, std::get<1>(vbos[0]), std::get<2>(vbos[0]));
+		vao_->release();
+	}
+}
+
+
+
 } // namespace rendering
 
 } // namespace cgogn

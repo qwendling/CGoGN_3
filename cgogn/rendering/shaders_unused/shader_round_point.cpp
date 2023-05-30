@@ -23,7 +23,7 @@
 
 #define CGOGN_RENDER_SHADERS_ROUND_POINT_CPP_
 
-#include <cgogn/rendering/shaders/shader_round_point.h>
+#include <cgogn/rendering/shaders_unused/shader_round_point.h>
 
 #include <iostream>
 

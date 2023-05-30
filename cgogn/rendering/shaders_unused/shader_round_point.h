@@ -54,7 +54,7 @@ public:
 	using ShaderType = ShaderRoundPoint;
 
 	ShaderParamRoundPoint(ShaderType* sh)
-		: ShaderParam(sh), color_(color_point_default), size_(2), plane_clip_(0, 0, 0, 0), plane_clip2_(0, 0, 0, 0)
+		: ShaderParam(sh), color_(1.0f,1.0f,1.0f,1.0f), size_(2), plane_clip_(0, 0, 0, 0), plane_clip2_(0, 0, 0, 0)
 	{
 	}
 

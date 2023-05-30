@@ -475,6 +475,8 @@ public:
 	 */
 	virtual void set_vbos(const std::vector<VBO*>& vbos);
 
+	void set_vbos_stride(const std::vector<std::tuple<VBO*, int, int>>& vbos);
+
 	// /**
 	//  * @brief set one vbo into the vao
 	//  * @param attrib_id, vbo

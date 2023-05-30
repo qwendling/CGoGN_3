@@ -99,6 +99,33 @@ public:
 	}
 };
 
+
+DECLARE_SHADER_CLASS(BoldLineColorNoTB, false, CGOGN_STR(BoldLineColorNoTB))
+
+class CGOGN_RENDERING_EXPORT ShaderParamBoldLineColorNoTB : public ShaderParam
+{
+	void set_uniforms() override;
+
+public:
+	float32 width_;
+	float32 lighted_;
+	GLVec4 plane_clip_;
+	GLVec4 plane_clip2_;
+
+	using ShaderType = ShaderBoldLineColorNoTB;
+
+	ShaderParamBoldLineColorNoTB(ShaderType* sh)
+		: ShaderParam(sh, true), width_(1.0f), lighted_(0.0f), plane_clip_(0, 0, 0, 0),
+		  plane_clip2_(0, 0, 0, 0)
+	{
+	}
+
+	inline ~ShaderParamBoldLineColorNoTB() override
+	{
+	}
+};
+
+
 } // namespace rendering
 
 } // namespace cgogn

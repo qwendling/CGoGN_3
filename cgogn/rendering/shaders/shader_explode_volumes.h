@@ -21,8 +21,8 @@
  *                                                                              *
  *******************************************************************************/
 
-#ifndef CGOGN_RENDERING_SHADERS_EXPLODE_VOLUMES_H_
-#define CGOGN_RENDERING_SHADERS_EXPLODE_VOLUMES_H_
+#ifndef CGOGN_RENDERING_SHADERS_EXPLODE_VOLUMES_SMOOTH_H_
+#define CGOGN_RENDERING_SHADERS_EXPLODE_VOLUMES_SMOOTH_H_
 
 #include <cgogn/rendering/cgogn_rendering_export.h>
 #include <cgogn/rendering/shader_program.h>
@@ -32,6 +32,22 @@ namespace cgogn
 
 namespace rendering
 {
+
+//data of shader (can be shared between flat/smooth version)
+struct ExplodeVolumeData
+{
+	GLColor color_;
+	GLVec3 light_position_;
+	float32 explode_;
+	GLVec4 plane_clip_;
+	GLVec4 plane_clip2_;
+	inline ExplodeVolumeData()
+		: color_(0.9f, 0, 0, 1), light_position_(100, 1000, 5000), explode_(0.9f), plane_clip_(0, 0, 0, 0),
+		  plane_clip2_(0, 0, 0, 0)
+	{}
+
+};
+
 
 DECLARE_SHADER_CLASS(ExplodeVolumes, true, CGOGN_STR(ExplodeVolumes))
 
@@ -55,23 +71,58 @@ class CGOGN_RENDERING_EXPORT ShaderParamExplodeVolumes : public ShaderParam
 	};
 
 public:
-	GLColor color_;
-	GLVec3 light_position_;
-	float32 explode_;
-	GLVec4 plane_clip_;
-	GLVec4 plane_clip2_;
+	std::shared_ptr<ExplodeVolumeData> data_;
 
 	using ShaderType = ShaderExplodeVolumes;
 
 	inline ShaderParamExplodeVolumes(ShaderType* sh)
-		: ShaderParam(sh), color_(0.9f, 0, 0, 1), light_position_(10, 100, 1000), explode_(0.9f),
-		  plane_clip_(0, 0, 0, 0), plane_clip2_(0, 0, 0, 0)
+		: ShaderParam(sh)
 	{
+		data_ = std::make_shared<ExplodeVolumeData>();
 		for (auto& v : vbos_)
 			v = nullptr;
 	}
 
 	inline ~ShaderParamExplodeVolumes() override
+	{
+	}
+};
+
+DECLARE_SHADER_CLASS(ExplodeVolumesSmooth, true, CGOGN_STR(ExplodeVolumesSmooth))
+
+class CGOGN_RENDERING_EXPORT ShaderParamExplodeVolumesSmooth : public ShaderParam
+{
+	void set_uniforms() override;
+
+	std::array<VBO*, 3> vbos_;
+	inline void set_texture_buffer_vbo(uint32 i, VBO* vbo) override
+	{
+		vbos_[i] = vbo;
+	}
+	void bind_texture_buffers() override;
+	void release_texture_buffers() override;
+
+	enum VBOName : int32
+	{
+		VERTEX_POSITION = 0,
+		VOLUME_CENTER,
+		VOLUME_CLIPPING
+	};
+
+public:
+	std::shared_ptr<ExplodeVolumeData> data_;
+
+	using ShaderType = ShaderExplodeVolumesSmooth;
+
+	inline ShaderParamExplodeVolumesSmooth(ShaderType* sh)
+		: ShaderParam(sh)
+	{
+		data_ = std::make_shared<ExplodeVolumeData>();
+		for (auto& v : vbos_)
+			v = nullptr;
+	}
+
+	inline ~ShaderParamExplodeVolumesSmooth() override
 	{
 	}
 };

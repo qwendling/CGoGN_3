@@ -26,6 +26,7 @@
 
 #include <cgogn/core/ui_modules/mesh_provider.h>
 #include <cgogn/ui/app.h>
+#include <cgogn/ui/imgui_helpers.h>
 #include <cgogn/ui/module.h>
 #include <cgogn/ui/view.h>
 
@@ -83,7 +84,7 @@ class TopoRender : public ViewModule
 
 public:
 	TopoRender(const App& app)
-		: ViewModule(app, "Topo_Render (" + std::string{mesh_traits<MESH>::name} + ")"),
+		: ViewModule(app, "TopoRender (" + std::string{mesh_traits<MESH>::name} + ")"),
 		  selected_view_(app.current_view()), selected_mesh_(nullptr)
 	{
 	}
@@ -97,7 +98,10 @@ private:
 	{
 		for (View* v : linked_views_)
 		{
-			parameters_[v][m];
+			auto& p = parameters_[v][m];
+
+			p.topo_drawer_->reset_all_colors(rendering::GLVec3(1.0f,1.0f,1.0f));
+
 			std::shared_ptr<Attribute<Vec3>> vertex_position = cgogn::get_attribute<Vec3, Vertex>(*m, "position");
 			if (vertex_position)
 				set_vertex_position(*v, *m, vertex_position);
@@ -144,7 +148,6 @@ protected:
 	{
 		for (auto& [m, p] : parameters_[view])
 		{
-			// MeshData<MESH>& md = mesh_provider_->mesh_data(m);
 
 			const rendering::GLMat4& proj_matrix = view->projection_matrix();
 			const rendering::GLMat4& view_matrix = view->modelview_matrix();
@@ -160,70 +163,62 @@ protected:
 	{
 		bool need_update = false;
 
-		ImGui::Begin(name_.c_str(), nullptr, ImGuiWindowFlags_NoSavedSettings);
-		ImGui::SetWindowSize({0, 0});
-		if (ImGui::BeginCombo("View", selected_view_->name().c_str()))
-		{
-			for (View* v : linked_views_)
-			{
-				bool is_selected = v == selected_view_;
-				if (ImGui::Selectable(v->name().c_str(), is_selected))
-					selected_view_ = v;
-				if (is_selected)
-					ImGui::SetItemDefaultFocus();
-			}
-			ImGui::EndCombo();
-		}
+		if (app_.nb_views() > 1)
+			imgui_view_selector(this, selected_view_, [&](View* v) { selected_view_ = v; });
 
-		if (ImGui::ListBoxHeader("Mesh"))
-		{
-			mesh_provider_->foreach_mesh([this](MESH* m, const std::string& name) {
-				if (ImGui::Selectable(name.c_str(), m == selected_mesh_))
-					selected_mesh_ = m;
-			});
-			ImGui::ListBoxFooter();
-		}
+		imgui_mesh_selector(mesh_provider_, selected_mesh_, "Mesh", [&](MESH& m) {
+			selected_mesh_ = &m;
+			mesh_provider_->mesh_data(m).outlined_until_ = App::frame_time_ + 1.0;
+		});
 
 		if (selected_view_ && selected_mesh_)
 		{
-			float X_button_width = ImGui::CalcTextSize("X").x + ImGui::GetStyle().FramePadding.x * 2;
-
 			Parameters& p = parameters_[selected_view_][selected_mesh_];
 
-			if (ImGui::BeginCombo("Position", p.vertex_position_ ? p.vertex_position_->name().c_str() : "-- select --"))
-			{
-				foreach_attribute<Vec3, Vertex>(
-					*selected_mesh_, [&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
-						bool is_selected = attribute == p.vertex_position_;
-						if (ImGui::Selectable(attribute->name().c_str(), is_selected))
-							set_vertex_position(*selected_view_, *selected_mesh_, attribute);
-						if (is_selected)
-							ImGui::SetItemDefaultFocus();
-					});
-				ImGui::EndCombo();
-			}
-			if (p.vertex_position_)
-			{
-				ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - X_button_width);
-				if (ImGui::Button("X##position"))
-					set_vertex_position(*selected_view_, *selected_mesh_, nullptr);
-			}
-
+			imgui_combo_attribute<Vertex, Vec3>(*selected_mesh_, p.vertex_position_, "Position",
+								[&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
+									set_vertex_position(*selected_view_, *selected_mesh_, attribute);
+									});
+			
 			ImGui::Separator();
 			need_update |= ImGui::Checkbox("Topo", &p.render_topo_);
 
 			if (p.render_topo_)
 			{
 				ImGui::Separator();
-				ImGui::TextUnformatted("Volume parameters");
-				need_update |=
-					ImGui::ColorEdit3("colorDarts", p.topo_drawer_->dart_color_.data(), ImGuiColorEditFlags_NoInputs);
+				need_update |= (ImGui::Checkbox("Render darts", &p.topo_renderer_->render_darts_));
+				if (p.topo_renderer_->render_darts_)
+				{
+					if (ImGui::ColorEdit3("colorDarts", p.topo_drawer_->dart_color_.data(),
+											ImGuiColorEditFlags_NoInputs))
+					{
+						const auto& col = p.topo_drawer_->dart_color_;
+						p.topo_drawer_->reset_all_colors(rendering::GLVec3(col[0], col[1], col[2]));
+						need_update = true;
+					}
+				}
+				//ImGui::TextUnformatted("Volume parameters");
 				if (mesh_traits<MESH>::dimension >= 2)
-					need_update |= ImGui::ColorEdit3("colorPhi2", p.topo_drawer_->phi2_color_.data(),
-													 ImGuiColorEditFlags_NoInputs);
+				{
+					need_update |= ImGui::Checkbox("Render phi2", &p.topo_renderer_->render_phi2_);
+					if (p.topo_renderer_->render_phi2_)
+					{
+						need_update |= ImGui::ColorEdit3("colorPhi2", p.topo_drawer_->phi2_color_.data(),
+														 ImGuiColorEditFlags_NoInputs);
+					}
+				}
+
 				if (mesh_traits<MESH>::dimension >= 3)
-					need_update |= ImGui::ColorEdit3("colorPhi3", p.topo_drawer_->phi3_color_.data(),
-													 ImGuiColorEditFlags_NoInputs);
+				{
+					need_update |= ImGui::Checkbox("Render phi3", &p.topo_renderer_->render_phi3_);
+					if (p.topo_renderer_->render_phi3_)
+					{
+						need_update |= ImGui::ColorEdit3("colorPhi3", p.topo_drawer_->phi3_color_.data(),
+														 ImGuiColorEditFlags_NoInputs);
+					}
+				}
+
+				need_update |= ImGui::SliderFloat("Width", &p.topo_renderer_->width_, 1.0f, 5.0f);
 
 				need_update |= ImGui::SliderFloat("explodeEdges", &(p.topo_drawer_->shrink_e_), 0.01f, 1.0f);
 				if (mesh_traits<MESH>::dimension >= 2)
@@ -235,13 +230,42 @@ protected:
 				p.update_topo(*selected_mesh_);
 		}
 
-		ImGui::End();
+		float64 remain = mesh_provider_->mesh_data(*selected_mesh_).outlined_until_ - App::frame_time_;
+		if (remain > 0)
+			need_update = true;
 
 		if (need_update)
 		{
 			for (View* v : linked_views_)
 				v->request_update();
 		}
+	}
+
+public:
+
+	void set_dart_color(Dart d, const Eigen::Vector4f& color)
+	{
+		Parameters& p = parameters_[selected_view_][selected_mesh_];
+		p.topo_drawer_->update_color(d, color);
+
+	}
+
+	void reset_dart_color(Dart d)
+	{
+		Parameters& p = parameters_[selected_view_][selected_mesh_];
+		p.topo_drawer_->update_color(d, p.topo_drawer_->dart_color_);
+	}
+
+	void set_selected_mesh(const MESH& m)
+	{
+		selected_mesh_ = &m;
+	}
+
+	void set_volume_explode(float expl)
+	{
+		Parameters& p = parameters_[selected_view_][selected_mesh_];
+		p.topo_drawer_->shrink_v_ = expl;
+		p.update_topo(*selected_mesh_);
 	}
 
 private:

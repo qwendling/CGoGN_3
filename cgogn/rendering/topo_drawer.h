@@ -28,8 +28,8 @@
 #include <cgogn/rendering/cgogn_rendering_export.h>
 
 #include <cgogn/rendering/shaders/shader_bold_line.h>
-#include <cgogn/rendering/shaders/shader_bold_line_color.h>
 #include <cgogn/rendering/shaders/shader_no_illum.h>
+#include <cgogn/rendering/shaders_unused/shader_round_point_color.h>
 
 #include <cgogn/geometry/algos/centroid.h>
 #include <cgogn/geometry/functions/distance.h>
@@ -99,14 +99,14 @@ public:
 	template <typename MESH>
 	inline void update3D(const MESH& m, const typename mesh_traits<MESH>::template Attribute<geometry::Vec3>* position)
 	{
-		update3D_vbo<false>(m, position);
+		update3D_vbo<true>(m, position);
 	}
 
 	class CGOGN_RENDERING_EXPORT Renderer
 	{
 		friend class TopoDrawer;
 
-		std::unique_ptr<ShaderBoldLineColor::Param> param_bl_;
+		std::unique_ptr<ShaderBoldLineColorNoTB::Param> param_bl_;
 		std::unique_ptr<ShaderBoldLine::Param> param_bl2_;
 		// std::unique_ptr<ShaderRoundPointColor::Param> param_rp_;
 		TopoDrawer* topo_drawer_data_;
@@ -114,6 +114,9 @@ public:
 		Renderer(TopoDrawer* tr);
 
 	public:
+		bool render_darts_;
+		bool render_phi2_;
+		bool render_phi3_;
 		float width_;
 		~Renderer();
 
@@ -195,6 +198,7 @@ public:
 	 */
 	void update_color(Dart d, const GLColor& rgb);
 
+	void reset_all_colors(const GLVec3& rgb);
 	/**
 	 * @brief pick the closest dart to a given ray
 	 * @param A ray first point
@@ -587,6 +591,8 @@ void TopoDrawer::update3D_vbo(const MESH& m,
 		darts_pos_.reserve(nbvec);
 		for (const auto& dp : thdarts_pos)
 			darts_pos_.insert(darts_pos_.end(), dp.begin(), dp.end());
+		for (const auto& di : thdarts_id)
+			darts_id_.insert(darts_id_.end(), di.begin(), di.end());
 	}
 
 	std::vector<Vec3f> darts_col(nbvec, {dart_color_.x(), dart_color_.y(), dart_color_.z()});
@@ -597,7 +603,6 @@ void TopoDrawer::update3D_vbo(const MESH& m,
 	for (const auto& dp : thdarts_pos)
 		if (!dp.empty())
 		{
-
 			vbo_darts_->copy_data(beg * 12, uint32(dp.size()) * 12, dp[0].data());
 			beg += uint32(dp.size());
 		}

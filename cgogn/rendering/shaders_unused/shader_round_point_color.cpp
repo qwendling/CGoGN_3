@@ -21,9 +21,9 @@
  *                                                                              *
  *******************************************************************************/
 
-#define CGOGN_RENDER_SHADERS_ROUND_POINT_CPP_
+#define CGOGN_RENDER_SHADERS_ROUND_POINT_COLOR_CPP_
 
-#include <cgogn/rendering/shaders/shader_round_point_color.h>
+#include <cgogn/rendering/shaders_unused/shader_round_point_color.h>
 
 #include <iostream>
 
@@ -32,38 +32,46 @@ namespace cgogn
 
 namespace rendering
 {
+	void ShaderParamRoundPointColor::set_uniforms()
+	{
+		int viewport[4];
+		glGetIntegerv(GL_VIEWPORT, viewport);
+		GLVec2 wd(size_ / float32(viewport[2]), size_ / float32(viewport[3]));
+		shader_->set_uniforms_values(wd, plane_clip_, plane_clip2_);
+	}
 
-static const char* vertex_shader_source = "#version 150\n"
-										  "in vec3 vertex_pos;\n"
-										  "in vec3 vertex_color;\n"
-										  "out vec3 color_v;\n"
-										  "void main()\n"
-										  "{\n"
-										  "   color_v = vertex_color;\n"
-										  "   gl_Position = vec4(vertex_pos,1.0);\n"
-										  "}\n";
+static const char* vertex_shader_source = 
+	"#version 150\n"
+	"in vec3 vertex_pos;\n"
+	"in vec3 vertex_color;\n"
+	"flat out vec3 color;\n"
+	"void main()\n"
+	"{\n"
+	"   color = vertex_color;\n"
+	"   gl_Position =  vec4(vertex_pos,1.0);\n"
+	"}\n";
 
 static const char* geometry_shader_source =
 	"#version 150\n"
 	"layout (points) in;\n"
 	"layout (triangle_strip, max_vertices=4) out;\n"
+	"flat in vec3 color[];\n"
 	"uniform mat4 projection_matrix;\n"
 	"uniform mat4 model_view_matrix;\n"
 	"uniform vec2 pointSizes;\n"
 	"uniform vec4 plane_clip;\n"
 	"uniform vec4 plane_clip2;\n"
-	"in vec3 color_v[];\n"
 	"out vec2 local;\n"
-	"out vec3 color_f;\n"
+	"flat out vec3 col;\n"
 	"void main()\n"
 	"{\n"
 	"	float d = dot(plane_clip,gl_in[0].gl_Position);\n"
 	"	float d2 = dot(plane_clip2,gl_in[0].gl_Position);\n"
 	"	if ((d<=0.0)&&(d2<=0.0))\n"
 	"	{\n"
+	"		col = color[0];\n"
 	"		vec4 A = projection_matrix*model_view_matrix * gl_in[0].gl_Position;\n"
 	"		A = A/A.w;\n"
-	"		color_f = color_v[0];\n"
 	"		local = vec2(-1.0,-1.0);\n"
 	"		gl_Position = vec4(A.xyz-vec3(-pointSizes[0],-pointSizes[1],0.0), 1.0);\n"
 	"		EmitVertex();\n"
@@ -80,16 +88,19 @@ static const char* geometry_shader_source =
 	"	}\n"
 	"}\n";
 
-static const char* fragment_shader_source = "#version 150\n"
-											"in vec2 local;\n"
-											"in vec3 color_f;\n"
-											"out vec4 fragColor;\n"
-											"void main()\n"
-											"{\n"
-											"	float r2 = dot(local,local);\n"
-											"   if (r2 > 1.0) discard;\n"
-											"   fragColor = vec4(color_f,(1.0-r2*r2));\n"
-											"}\n";
+static const char* fragment_shader_source = 
+	"#version 150\n"
+	"in vec2 local;\n"
+	"flat in vec3 col;\n"
+	"out vec4 fragColor;\n"
+	"void main()\n"
+	"{\n"
+
+	"	float r2 = dot(local,local);\n"
+	"   if (r2 > 1.0) discard;\n"
+	"   fragColor = vec4(col,1);\n"
+	"//(1.0-r2*r2));\n"
+	"}\n";
 
 ShaderRoundPointColor* ShaderRoundPointColor::instance_ = nullptr;
 

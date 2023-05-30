@@ -29,7 +29,7 @@ namespace cgogn
 namespace rendering
 {
 
-MeshRender::MeshRender()
+MeshRender::MeshRender() : smooth_volume_faces_(false)
 {
 	for (uint32 i = 0u; i < SIZE_BUFFER; ++i)
 	{
