@@ -24,7 +24,6 @@
 #ifndef CGOGN_CORE_TYPES_CMAP_PHI_H_
 #define CGOGN_CORE_TYPES_CMAP_PHI_H_
 
-#include <cgogn/core/types/cmap/EMR3_compact.h>
 #include <cgogn/core/types/cmap/EMR_Map3.h>
 #include <cgogn/core/types/cmap/EMR_Map3_Adaptative.h>
 #include <cgogn/core/types/cmap/cmap3.h>
@@ -107,15 +106,6 @@ Dart phi1(const EMR_Map3& m, Dart d);
 Dart phi_1(const EMR_Map3& m, Dart d);
 Dart phi2(const EMR_Map3& m, Dart d);
 Dart phi3(const EMR_Map3& m, Dart d);
-
-//////////////////////
-// EMR_Map3_Compact //
-//////////////////////
-
-Dart phi1(const EMR_Map3_Compact& m, Dart d);
-Dart phi_1(const EMR_Map3_Compact& m, Dart d);
-Dart phi2(const EMR_Map3_Compact& m, Dart d);
-Dart phi3(const EMR_Map3_Compact& m, Dart d);
 
 ////////////////////////
 // EMRMap3_Adaptative //

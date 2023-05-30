@@ -17,7 +17,7 @@
 #define SHEAR_MODULUS (YOUNG_MODULUS / (2 * (1 + POISSON_RATIO)))
 #define BULK_MODULUS (YOUNG_MODULUS / (3 * (1 - 2 * POISSON_RATIO)))
 
-#define NUM_SUBSTEP 50
+#define NUM_SUBSTEP 200
 #define DENSITY 10
 
 #define EPS 1e-12

@@ -107,10 +107,16 @@ int main(int argc, char** argv)
 	else
 		filename = std::string(argv[1]);
 
-	if (argc == 3)
+	if (argc >= 3)
 	{
 		filename2 = std::string(argv[2]);
 		have_fine_mesh = true;
+	}
+
+	int nb_subdivision = 0;
+	if (argc >= 4)
+	{
+		nb_subdivision = std::atoi(argv[3]);
 	}
 
 	cgogn::thread_start();
@@ -319,7 +325,7 @@ int main(int argc, char** argv)
 		for (int i = 0; i < 3; i++)
 			fvs.optimize_volume_vertices(10.0, true);
 
-		for (int j = 0; j < 1; j++)
+		for (int j = 0; j < nb_subdivision; j++)
 		{
 			vmrm.subdivide(*mrm, position.get());
 

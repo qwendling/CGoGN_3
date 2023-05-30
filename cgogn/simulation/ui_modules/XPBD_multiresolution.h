@@ -134,7 +134,7 @@ public:
 		  geom_mesh_(nullptr), selected_view_(app.current_view()), running_(false), apply_gravity(false),
 		  take_screenshot_(false), ground_(false), inverse_control_(nullptr), draw_cylinder(false),
 		  radius_cylinder(2.0f), pos_cylinder1(2.6, 3.7, 5), Zaxis_cylinder1(0, 0, 1), pos_cylinder2(-8, -14, 5),
-		  Zaxis_cylinder2(0, 0, 1), pos_cylinder3(1.7, -21, 5), Zaxis_cylinder3(0, 0, 1), pos_sphere(7, 0, 0),
+		  Zaxis_cylinder2(0, 0, 1), pos_cylinder3(1.7, -21, 5), Zaxis_cylinder3(0, 0, 1), pos_sphere(7, 0, 1),
 		  shape_(nullptr), show_sphere_(false)
 	{
 		f_keypress = [](View*, MESH*, int32, CellsSet<MESH, Vertex>*, CellsSet<MESH, Edge>*) {};
@@ -517,9 +517,9 @@ protected:
 
 				if (show_sphere_)
 				{
-					Vec3 cm = geometry::centroid<Vec3>(*selected_mesh_, p.vertex_position_.get());
+					static Vec3 cm = geometry::centroid<Vec3>(*selected_mesh_, p.vertex_position_.get());
 					Eigen::Affine3f transfo = Eigen::Translation3f(cm.cast<float>()) *
-											  Eigen::AngleAxisf(0.1, Eigen::Vector3f::UnitY()) *
+											  Eigen::AngleAxisf(0.01, Eigen::Vector3f::UnitZ()) *
 											  Eigen::Translation3f(-cm.cast<float>());
 					pos_sphere = transfo * pos_sphere;
 				}
@@ -545,8 +545,8 @@ protected:
 				if (show_sphere_)
 				{
 					static double it_sphere = 0;
-					it_sphere += 0.01;
-					simu_solver.compute_error_point(*selected_mesh_, pos_sphere.cast<double>(), 4 + cos(it_sphere));
+					it_sphere += 0.1;
+					simu_solver.compute_error_point(*selected_mesh_, pos_sphere.cast<double>(), 4 + 2 * cos(it_sphere));
 				}
 				if (draw_cylinder)
 				{
@@ -891,11 +891,11 @@ protected:
 
 					if (take_screenshot_)
 					{
-						if (frame_number_ % 10 == 0)
+						if (frame_number_ % 1 == 0)
 						{
 							// mesh_provider_->emit_connectivity_changed(*selected_mesh_);
 							selected_view_->save_screenshot("../../../screen_video/screen" +
-															std::to_string(frame_number_ / 10) + ".jpg");
+															std::to_string(frame_number_ / 1) + ".jpg");
 						}
 						frame_number_++;
 					}

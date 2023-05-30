@@ -264,8 +264,6 @@ public:
 	{
 		Parameters& p = parameters_[&m];
 
-		simu_solver.init_solver(*selected_mesh_, vertex_position);
-
 		p.vertex_position_ = vertex_position;
 		if (p.vertex_position_)
 		{
@@ -289,23 +287,28 @@ protected:
 			mesh_provider_, this, &Multiresolution_editing<MESH>::init_mesh));
 	}
 
+	double Kernel_W(double dist, double h) const
+	{
+		double q = dist / h;
+		if (q > 1)
+			return 0;
+		double m1 = (1.0f - q);
+		double m2 = (4.0f * q + 1.0f);
+		double h3 = h * h * h;
+		double alpha_d = (21 / (2 * M_PI)) * (1 / h3);
+
+		return alpha_d * m1 * m1 * m1 * m1 * m2;
+	}
+
 	void key_press_event(View* v, int32 key_code) override
 	{
 		if (key_code == GLFW_KEY_Y)
 		{
 			if (selected_mesh_)
 			{
-				foreach_cell(*selected_mesh_, [&](Volume v) -> bool {
-					std::vector<Vertex>& vector_inc_vertices =
-						value<std::vector<Vertex>>(*selected_mesh_, simu_solver.inc_vertices_.get(), v);
-					vector_inc_vertices.clear();
-					foreach_incident_vertex(*selected_mesh_, v, [&](Vertex w) -> bool {
-						vector_inc_vertices.push_back(w);
-						return true;
-					});
-					return true;
-				});
+
 				Parameters& p = parameters_[selected_mesh_];
+				CellMarkerStore<MESH, Vertex> marker(*selected_mesh_);
 				p.selected_vertices_set_->foreach_cell([&](Vertex v) -> bool {
 					Vec3 n{0.0, 0.0, 0.0};
 					foreach_incident_face(*selected_mesh_, v, [&](Face f) -> bool {
@@ -320,43 +323,56 @@ protected:
 					n.normalize();
 					Vec3 delta = 0.5 * n;
 					value<Vec3>(*selected_mesh_, p.vertex_position_, v) += delta;
+					marker.mark(v);
+
+					double max_dist = 0;
 
 					foreach_incident_volume(*selected_mesh_, v, [&](Volume w) -> bool {
-						simu_solver.constraint_Zero_Energy(*selected_mesh_, w, 0.05);
-						return true;
-					});
-
-					foreach_incident_volume(*selected_mesh_, v, [&](Volume w) -> bool {
-						Mat3d F = value<Mat3d>(*selected_mesh_, simu_solver.F_, w);
-						uint32 cur_level = selected_mesh_->current_level_;
 						foreach_incident_vertex(*selected_mesh_, w, [&](Vertex v2) -> bool {
-							Vec3 cm(0, 0, 0);
-							Vec3 init_cm(0, 0, 0);
-							double total_masse = 0;
-							foreach_incident_vertex(*selected_mesh_, Volume(v2.dart), [&](Vertex v3) -> bool {
-								double m = value<double>(*selected_mesh_, simu_solver.masse_, v3);
-								cm += value<Vec3>(*selected_mesh_, p.vertex_position_, v3);
-								init_cm += value<Vec3>(*selected_mesh_, simu_solver.init_cm_, v3);
-								total_masse += m;
-								return true;
-							});
-							cm /= total_masse;
-							init_cm /= total_masse;
-							selected_mesh_->current_level_ += 1;
-							foreach_incident_vertex(*selected_mesh_, Volume(v2.dart), [&](Vertex v3) -> bool {
-								if (selected_mesh_->dart_level(v3.dart) != selected_mesh_->current_level_)
-									return true;
-								Vec3 init_r_i = value<Vec3>(*selected_mesh_, simu_solver.init_pos_.get(), v3) - init_cm;
-								value<Vec3>(*selected_mesh_, p.vertex_position_, v3) = cm + F * init_r_i;
-								return true;
-							});
-							selected_mesh_->current_level_ = cur_level;
+							Vec3 d = value<Vec3>(*selected_mesh_, p.vertex_position_, v) -
+									 value<Vec3>(*selected_mesh_, p.vertex_position_, v2);
+							double dist = d.norm();
+							if (dist > max_dist)
+								max_dist = dist;
 							return true;
 						});
-						selected_mesh_->current_level_ = cur_level;
 						return true;
 					});
+					max_dist *= 1.2;
+					std::function<void(Volume)> fn;
+					fn = [&](Volume vol) {
+						if (selected_mesh_->current_level_ == selected_mesh_->maximum_level_)
+						{
+							foreach_incident_vertex(*selected_mesh_, vol, [&](Vertex v3) -> bool {
+								if (marker.is_marked(v3))
+									return true;
+								marker.mark(v3);
+								Vec3 d = value<Vec3>(*selected_mesh_, p.vertex_position_, v) -
+										 value<Vec3>(*selected_mesh_, p.vertex_position_, v3);
+								double dist = d.norm();
+								double tmp = Kernel_W(dist, max_dist) / Kernel_W(0, max_dist);
+								value<Vec3>(*selected_mesh_, p.vertex_position_, v3) +=
+									(Kernel_W(dist, max_dist) / Kernel_W(0, max_dist)) * delta;
 
+								return true;
+							});
+						}
+						else
+						{
+							foreach_incident_vertex(*selected_mesh_, vol, [&](Vertex v2) -> bool {
+								selected_mesh_->current_level_ += 1;
+								fn(Volume(v2.dart));
+								selected_mesh_->current_level_ -= 1;
+								return true;
+							});
+						}
+					};
+					uint32 cur_level = selected_mesh_->current_level_;
+					foreach_incident_volume(*selected_mesh_, v, [&](Volume w) -> bool {
+						fn(w);
+						return true;
+					});
+					selected_mesh_->current_level_ = cur_level;
 					return true;
 				});
 				mesh_provider_->emit_attribute_changed(*selected_mesh_, p.vertex_position_.get());
@@ -578,7 +594,6 @@ private:
 	std::vector<std::shared_ptr<boost::synapse::connection>> connections_;
 	std::unordered_map<const MESH*, std::vector<std::shared_ptr<boost::synapse::connection>>> mesh_connections_;
 	MeshProvider<MESH>* mesh_provider_;
-	cgogn::simulation::XPBD_Multiresolution simu_solver;
 };
 
 } // namespace ui
