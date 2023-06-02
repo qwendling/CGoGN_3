@@ -171,6 +171,19 @@ int main(int argc, char** argv)
 
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*mrm, "position");
 	std::shared_ptr<Attribute<Vec3>> normal = cgogn::add_attribute<Vec3, Vertex>(*m, "normal__anim_multires");
+	if (have_fine_mesh)
+	{
+		std::shared_ptr<Attribute<Vec3>> position_surface = cgogn::get_attribute<Vec3, Vertex2>(*m_fine, "position");
+		cgogn::foreach_cell(*m_fine, [&](Vertex2 v) -> bool {
+			cgogn::value<Vec3>(*m_fine, position_surface, v) *= 100;
+			return true;
+		});
+	}
+
+	cgogn::foreach_cell(*mrm, [&](Vertex v) -> bool {
+		cgogn::value<Vec3>(*mrm, position, v) *= 100;
+		return true;
+	});
 
 	cgogn::index_cells<Mesh::Volume>(*mrm);
 	cgogn::index_cells<Mesh::Edge>(*mrm);
@@ -249,8 +262,9 @@ int main(int argc, char** argv)
 			for (int i = 1; i <= IMAX; i++)
 			{
 				// fvs.regularize_surface_vertices(20);
+				/*fvs.optimize_volume_vertices(10.0, true);
 				for (int j = 0; j < 1; j++)
-					fvs.relocate_interior_vertices();
+					fvs.relocate_interior_vertices();*/
 				std::cout << "progress : " << i << std::endl;
 				for (Vertex v : vec_vertices)
 				{
@@ -282,7 +296,7 @@ int main(int argc, char** argv)
 							Dir = -Dir;
 							Dir.normalize();
 							Dir *= std::min(nDir, nPos);
-							cgogn::value<Vec3>(*mrm, position.get(), v) += (double(i) / double(IMAX)) * Dir;
+							cgogn::value<Vec3>(*mrm, position.get(), v) += (1.0 / double(IMAX + 1 - i)) * Dir;
 						}
 						else
 						{
@@ -309,51 +323,66 @@ int main(int argc, char** argv)
 						}
 					}
 				}
+				for (int j = 0; j < 1; j++)
+					fvs.relocate_interior_vertices();
+				//  fvs.optimize_volume_vertices(10.0, true);
 			}
 			for (int i = 0; i < 10; i++)
 			{
-				fvs.regularize_surface_vertices(20);
+				// fvs.regularize_surface_vertices(20);
 				// fvs.relocate_interior_vertices();
+				//  fvs.optimize_volume_vertices(10.0, true);
 			}
 		};
 
-		fn();
+		// fn();
 		/*vmrm.subdivide(*mrm, position.get());
 		vmrm.subdivide(*mrm, position.get());
 		vmrm.subdivide(*mrm, position.get());
 		mrm->current_level_ = mrm->maximum_level_;*/
-		for (int i = 0; i < 3; i++)
-			fvs.optimize_volume_vertices(10.0, true);
-
+		/*for (int i = 0; i < 3; i++)
+			fvs.optimize_volume_vertices(10.0, true);*/
 		for (int j = 0; j < nb_subdivision; j++)
 		{
+			/*for (int i = 0; i < 10; i++)
+			{
+				fvs.optimize_volume_vertices(10.0, true);
+				fvs.relocate_interior_vertices();
+			}*/
 			vmrm.subdivide(*mrm, position.get());
 
 			mrm->current_level_ = mrm->maximum_level_;
 			vmrm.changed_connectivity(*mrm, position.get());
 			fvs.update_topo();
-			// fvs.optimize_volume_vertices(10.0, true);
 			fn();
-			/*for (int l = 0; l < 5; l++)
-			{
-				for (int k = 0; k <= j + 1; k++)
-				{
-					mrm->current_level_ = k;
-					vmrm.changed_connectivity(*mrm, position.get());
-					fvs.update_topo();
-					for (int i = 0; i < 1; i++)
-					{
-						fvs.regularize_surface_vertices(20);
-						fvs.relocate_interior_vertices();
-						fvs.optimize_volume_vertices(10.0);
-					}
-				}
-			}*/
-
-			/*for (int i = 0; i < 10; i++)
-				fvs.optimize_volume_vertices(10.0, true);*/
-			// fvs.optimize_volume_vertices(10.0, true);
 		}
+		/*for (int i = 0; i < 10; i++)
+		{
+			fvs.optimize_volume_vertices(10.0, true);
+			fvs.relocate_interior_vertices();
+		}*/
+		// fn();
+		/*for (int j = 0; j < nb_subdivision; j++)
+		{
+			for (int i = 0; i < 10; i++)
+			{
+				fvs.optimize_volume_vertices(10.0, true);
+				fvs.relocate_interior_vertices();
+			}
+			vmrm.subdivide(*mrm, position.get());
+
+			mrm->current_level_ = mrm->maximum_level_;
+			vmrm.changed_connectivity(*mrm, position.get());
+			fvs.update_topo();
+			for (int i = 0; i < 10; i++)
+			{
+				fvs.optimize_volume_vertices(10.0, true);
+				fvs.relocate_interior_vertices();
+			}
+			fn();
+
+
+		}*/
 
 		mrm->current_level_ = 0;
 	}
@@ -388,6 +417,11 @@ int main(int argc, char** argv)
 	std::cout << "temps solve xpbd : " << duration / 100.0f << std::endl;*/
 
 	// mp.emit_attribute_changed(*m, position.get());
+	fvs.set_current_volume(geometry_mesh);
+	fvs.update_topo();
+	fvs.refresh_volume_skin();
+	mrm->current_level_ = 0;
+
 	vmrm.changed_connectivity(*mrm, position.get());
 	vmrm.changed_connectivity(*geometry_mesh, position.get());
 

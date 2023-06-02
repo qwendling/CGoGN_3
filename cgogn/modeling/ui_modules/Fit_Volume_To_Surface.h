@@ -795,6 +795,9 @@ public:
 		volume_vertex_index_ = get_or_add_attribute<uint32, VolumeVertex>(*volume_, "vertex_index");
 		volume_edge_index_ = get_or_add_attribute<uint32, VolumeEdge>(*volume_, "edge_index");
 		volume_edge_target_length_ = get_or_add_attribute<Scalar, VolumeEdge>(*volume_, "target_length");
+		mesh_connections_[v].push_back(
+			boost::synapse::connect<typename MeshProvider<VOLUME>::template attribute_changed_t<Vec3>>(
+				v, [this, v](VolumeAttribute<Vec3>* attribute) { refresh_volume_skin(); }));
 	}
 
 	void set_current_surface_vertex_position(const std::shared_ptr<SurfaceAttribute<Vec3>>& attribute)
@@ -984,6 +987,7 @@ private:
 		hex_building_attributes_ig_;
 
 	std::shared_ptr<boost::synapse::connection> timer_connection_;
+	std::unordered_map<const VOLUME*, std::vector<std::shared_ptr<boost::synapse::connection>>> mesh_connections_;
 };
 
 } // namespace ui

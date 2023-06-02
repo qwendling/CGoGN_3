@@ -496,7 +496,7 @@ protected:
 		}
 	}
 
-#define TIME_STEP 0.005f
+#define TIME_STEP 0.01666f
 	void start()
 	{
 		running_ = true;
@@ -550,7 +550,7 @@ protected:
 				}
 				if (draw_cylinder)
 				{
-#if 0
+#if 1
 					simu_solver.compute_contact(*selected_mesh_, [&](Vertex v) -> bool {
 						Vec3& pos = value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v);
 						Vec3 axis_z = Zaxis_cylinder1;

@@ -108,7 +108,7 @@ public:
 
 		std::unique_ptr<ShaderBoldLineColorNoTB::Param> param_bl_;
 		std::unique_ptr<ShaderBoldLine::Param> param_bl2_;
-		// std::unique_ptr<ShaderRoundPointColor::Param> param_rp_;
+		std::unique_ptr<ShaderRoundPointColor::Param> param_rp_;
 		TopoDrawer* topo_drawer_data_;
 
 		Renderer(TopoDrawer* tr);
@@ -475,6 +475,12 @@ void TopoDrawer::update3D_vbo(const MESH& m,
 	using Vertex = typename mesh_traits<MESH>::Vertex;
 	using Face = typename mesh_traits<MESH>::Face;
 	using Volume = typename mesh_traits<MESH>::Volume;
+
+	darts_pos_.clear();
+	darts_pos_.reserve(1024 * 1024);
+
+	darts_id_.clear();
+	darts_id_.reserve(1024 * 1024);
 
 	auto POSITION = [&m, position](Vertex v) { return value<Vec3>(m, position, v); };
 

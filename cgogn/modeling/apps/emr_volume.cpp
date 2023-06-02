@@ -39,6 +39,7 @@
 #include <cgogn/modeling/algos/subdivision.h>
 #include <cgogn/modeling/ui_modules/volume_emr_modeling.h>
 #include <cgogn/rendering/ui_modules/surface_render.h>
+#include <cgogn/rendering/ui_modules/topo_render.h>
 #include <cgogn/rendering/ui_modules/volume_render.h>
 #include <cgogn/simulation/ui_modules/animation_multiresolution.h>
 
@@ -55,6 +56,145 @@ using Volume = typename cgogn::mesh_traits<MRMesh>::Volume;
 using Dart = cgogn::Dart;
 
 using Vec3 = cgogn::geometry::Vec3;
+
+class LocalInterface : public cgogn::ui::ViewModule
+{
+
+public:
+	LocalInterface(const cgogn::ui::App& app)
+		: cgogn::ui::ViewModule(app, "LocalInterface"), mesh_(nullptr), vertex_position_(nullptr),
+		  mesh_provider_(nullptr), vol_render_(nullptr), topo_render_(nullptr), moving_color_(1.0f, 0.0f, 1.0f, 1.0f)
+	{
+		view_ = app.current_view();
+	}
+
+	~LocalInterface()
+	{
+	}
+	void force_update()
+	{
+		for (cgogn::ui::View* v : linked_views_)
+			v->request_update();
+	}
+
+	Eigen::Vector4f get_color(Dart d)
+	{
+		Eigen::Vector4f result;
+		switch (mesh_->dart_level(d))
+		{
+		case 0:
+			result = Eigen::Vector4f(1.0f, 0.0, 0.0f, 1.0f);
+			break;
+		case 1:
+			result = Eigen::Vector4f(0.0f, 1.0, 0.0f, 1.0f);
+			break;
+		case 2:
+			result = Eigen::Vector4f(0.0f, 0.0, 1.0f, 1.0f);
+			break;
+		case 3:
+			result = Eigen::Vector4f(1.0f, 1.0, 0.0f, 1.0f);
+			break;
+		default:
+			result = Eigen::Vector4f(1.0f, 0.0, 1.0f, 1.0f);
+		}
+		return result;
+	}
+
+	void init() override
+	{
+		mesh_provider_ = static_cast<cgogn::ui::MeshProvider<MRMesh>*>(
+			app_.module("MeshProvider (" + std::string{cgogn::mesh_traits<MRMesh>::name} + ")"));
+
+		vol_render_ = static_cast<cgogn::ui::VolumeRender<MRMesh>*>(
+			app_.module("VolumeRender (" + std::string{cgogn::mesh_traits<MRMesh>::name} + ")"));
+		topo_render_ = static_cast<cgogn::ui::TopoRender<MRMesh>*>(
+			app_.module("TopoRender (" + std::string{cgogn::mesh_traits<MRMesh>::name} + ")"));
+	}
+
+	void left_panel() override
+	{
+		if (ImGui::SliderFloat("Explode", &expl_vol_, 0.01f, 1.0f))
+		{
+			vol_render_->set_volume_explode(*view_, *mesh_, expl_vol_);
+			topo_render_->set_volume_explode(expl_vol_ + 0.02f);
+			force_update();
+		}
+
+		if (ImGui::Button("init moving"))
+		{
+
+			for (Dart d : moving_darts)
+			{
+				topo_render_->reset_dart_color(d);
+			}
+			moving_darts.clear();
+			cgogn::foreach_cell(*mesh_, [&](Face f) -> bool {
+				if (cgogn::is_boundary(*mesh_, f.dart))
+					f.dart = phi3(*mesh_, f.dart);
+				if (!cgogn::is_boundary(*mesh_, phi3(*mesh_, f.dart)))
+				{
+					moving_darts.push_back(phi3(*mesh_, f.dart));
+					topo_render_->set_dart_color(phi3(*mesh_, f.dart), get_color(phi3(*mesh_, f.dart)));
+				}
+				moving_darts.push_back(f.dart);
+				topo_render_->set_dart_color(f.dart, get_color(f.dart));
+				return true;
+			});
+			force_update();
+		}
+
+		if (ImGui::Button("phi 1"))
+		{
+			for (Dart& d : moving_darts)
+			{
+				topo_render_->reset_dart_color(d);
+				d = phi1(*mesh_, d);
+				topo_render_->set_dart_color(d, get_color(d));
+			}
+			force_update();
+		}
+		if (ImGui::Button("phi -1"))
+		{
+			for (Dart& d : moving_darts)
+			{
+				topo_render_->reset_dart_color(d);
+				d = phi_1(*mesh_, d);
+				topo_render_->set_dart_color(d, get_color(d));
+			}
+			force_update();
+		}
+
+		if (ImGui::Button("phi 2"))
+		{
+			for (Dart& d : moving_darts)
+			{
+				topo_render_->reset_dart_color(d);
+				d = phi2(*mesh_, d);
+				topo_render_->set_dart_color(d, get_color(d));
+			}
+			force_update();
+		}
+
+		if (ImGui::Button("phi 3"))
+		{
+			cgogn::Dart new_moving_dart_ = cgogn::phi3(*mesh_, moving_dart_);
+			topo_render_->set_dart_color(new_moving_dart_, moving_color_);
+			topo_render_->reset_dart_color(moving_dart_);
+			moving_dart_ = new_moving_dart_;
+			force_update();
+		}
+	}
+	MRMesh* mesh_;
+	cgogn::ui::View* view_;
+	std::shared_ptr<Attribute<Vec3>> vertex_position_;
+	cgogn::ui::MeshProvider<MRMesh>* mesh_provider_;
+	cgogn::ui::VolumeRender<MRMesh>* vol_render_;
+	cgogn::ui::TopoRender<MRMesh>* topo_render_;
+	cgogn::Dart moving_dart_;
+	std::vector<Dart> moving_darts;
+	Eigen::Vector4f moving_color_;
+	float expl_vol_;
+};
 
 int main(int argc, char** argv)
 {
@@ -77,6 +217,8 @@ int main(int argc, char** argv)
 	cgogn::ui::MeshProvider<MRMesh> mrmp(app);
 	cgogn::ui::VolumeRender<MRMesh> vr(app);
 	cgogn::ui::VolumeSelection<MRMesh> vs(app);
+	cgogn::ui::TopoRender<MRMesh> tr(app);
+	LocalInterface interf(app);
 
 	cgogn::ui::VolumeEMRModeling<MRMesh> vmrm(app);
 
@@ -88,6 +230,8 @@ int main(int argc, char** argv)
 	v1->link_module(&vr);
 	v1->link_module(&vs);
 	v1->link_module(&vmrm);
+	v1->link_module(&tr);
+	v1->link_module(&interf);
 
 	/*cgogn::ui::View* v2 = app.add_view();
 	v2->link_module(&mp);
@@ -104,9 +248,6 @@ int main(int argc, char** argv)
 
 	MRMesh* mrm = vmrm.create_mrmesh(*m, mp.mesh_name(*m));
 	// MRMesh* mrm2 = vmrm.create_mrmesh(*m, mp.mesh_name(m));
-	MRMesh* mrm2 = mrm->get_copy();
-	mrm2->parent = mrm;
-	mrmp.register_mesh(mrm2, "copy");
 	cgogn::index_cells<Mesh::Face>(*mrm);
 	cgogn::index_cells<Mesh::Volume>(*mrm);
 	cgogn::index_cells<Mesh::Edge>(*mrm);
@@ -126,7 +267,6 @@ int main(int argc, char** argv)
 	mrmp.set_mesh_bb_vertex_position(*mrm, position);
 
 	vr.set_vertex_position(*v1, *mrm, position);
-	vr.set_vertex_position(*v1, *mrm2, nullptr);
 
 	// std::srand(std::time(nullptr));
 	std::srand(2124512438);
@@ -134,6 +274,10 @@ int main(int argc, char** argv)
 	std::vector<Volume> vol_vec;
 	std::vector<Volume> vol_vec_simpl;
 	cgogn::CellMarker<MRMesh, Volume> vm(*mrm);
+
+	vmrm.changed_connectivity(*mrm, position.get());
+	interf.mesh_ = mrm;
+	interf.vertex_position_ = position;
 
 	return app.launch();
 }
