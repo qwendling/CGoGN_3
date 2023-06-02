@@ -35,6 +35,7 @@
 #include <cgogn/geometry/functions/distance.h>
 #include <cgogn/modeling/algos/volume_utils.h>
 #include <cgogn/core/functions/mesh_ops/volume.h>
+#include <cgogn/core/functions/mesh_ops/edge.h>
 #include <cgogn/core/types/cmap/dart.h>
 
 #define DEFAULT_MESH_PATH CGOGN_STR(CGOGN_DATA_PATH) "/meshes/"
@@ -90,20 +91,90 @@ public:
 		setPosV(dp, Vec3(-1, -1, -1));
 		dp = cgogn::phi1(*mesh_, dp);
 		setPosV(dp, Vec3(-1.4, 1.4, -1));
+		//setPosV(dp, Vec3(-1, 1, -1));
+
 		dp = cgogn::phi1(*mesh_, dp);
 		setPosV(dp, Vec3(1, 1, -1));
 		dp = cgogn::phi1(*mesh_, dp);
 		setPosV(dp, Vec3(1.4, -1.4, -1));
+		//setPosV(dp, Vec3(1, -1, -1));
+
 		setPosV(cgogn::phi<2, -1>(*mesh_, dp), Vec3(0, 0, 1));
 
 		dh = cgogn::phi<2, 1, 1, 2>(*mesh_, dh);
 		setPosV(dh, Vec3(-1.2, -1.2, -3));
+		//setPosV(dh, Vec3(-1, -1, -3));
+
 		dh = cgogn::phi1(*mesh_, dh);
 		setPosV(dh, Vec3(-1, 1, -3));
 		dh = cgogn::phi1(*mesh_, dh);
 		setPosV(dh, Vec3(1.2, 1.2, -3));
+		//setPosV(dh, Vec3(1, 1, -3));
+
 		dh = cgogn::phi1(*mesh_, dh);
 		setPosV(dh, Vec3(1, -1, -3));
+
+		std::vector<Edge> ve;
+		ve.reserve(1024);
+		cgogn::foreach_cell(*mesh_, [&](Edge e) {
+			ve.push_back(e);
+			return true;
+		});
+
+		for (Edge e : ve)
+		{
+			Vertex v1(e.dart);
+			Vertex v2(cgogn::phi1(*mesh_, e.dart));
+			Vertex v3 = cgogn::cut_edge(*mesh_, e);
+			cgogn::value<Vec3>(*mesh_, vertex_position_, v3) = (cgogn::value<Vec3>(*mesh_, vertex_position_, v1) +
+																cgogn::value<Vec3>(*mesh_, vertex_position_, v2)) /
+																2.0;
+		}
+
+
+		dh = d_pyra_;
+		for (int i = 0; i < 4; ++i)
+		{
+			cgogn::Dart dv1 = cgogn::phi<2, 1, 1>(*mesh_, dh);
+			cgogn::Dart dv2 = cgogn::phi<1, 1>(*mesh_, dv1);
+			cgogn::cut_face(*mesh_, Vertex(dv1), Vertex(dv2));
+			dh = cgogn::phi<1, 1>(*mesh_, dh);
+		}
+
+		std::vector<cgogn::Dart> vp;
+		dh = cgogn::phi<2, 1, 1>(*mesh_, d_pyra_);
+		vp.push_back(dh);
+		dh = cgogn::phi<1, 2, 1>(*mesh_, dh);
+		vp.push_back(dh);
+		dh = cgogn::phi<1, 2, 1>(*mesh_, dh);
+		vp.push_back(dh);
+		dh = cgogn::phi<1, 2, 1>(*mesh_, dh);
+		vp.push_back(dh);
+
+		cgogn::cut_volume(*mesh_, vp);
+
+		for (int j = 0; j < 1; ++j)
+		{
+			ve.clear();
+
+			cgogn::foreach_cell(*mesh_, [&](Edge e) {
+				ve.push_back(e);
+				return true;
+			});
+
+			for (Edge e : ve)
+			{
+				Vertex v1(e.dart);
+				Vertex v2(cgogn::phi1(*mesh_, e.dart));
+				Vertex v3 = cgogn::cut_edge(*mesh_, e);
+				cgogn::value<Vec3>(*mesh_, vertex_position_, v3) = (cgogn::value<Vec3>(*mesh_, vertex_position_, v1) +
+																	cgogn::value<Vec3>(*mesh_, vertex_position_, v2)) /
+																   2.0;
+				auto z = cgogn::value<Vec3>(*mesh_, vertex_position_, v3).z();
+				cgogn::value<Vec3>(*mesh_, vertex_position_, v3) *= 0.95;
+				cgogn::value<Vec3>(*mesh_, vertex_position_, v3).z() = z;
+			}
+		}
 
 		cgogn::index_cells<Volume>(*mesh_);
 
