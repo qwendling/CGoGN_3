@@ -32,6 +32,7 @@ target_link_libraries(XPBD_test
 	${CMAKE_DL_LIBS}
 )
 
+
 add_executable(XPBD_CMap XPBD_CMap.cpp)
 target_link_libraries(XPBD_CMap
 	cgogn::core

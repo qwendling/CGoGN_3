@@ -43,6 +43,7 @@
 #include <cgogn/rendering/shaders/shader_point_sprite.h>
 #include <cgogn/rendering/vbo_update.h>
 #include <cgogn/simulation/algos/XPBD/XPBD_multiresolution.h>
+#include <cgogn/simulation/algos/linked_volumes/linked_volumes.h>
 
 #include <cgogn/modeling/algos/volume_utils.h>
 
@@ -74,6 +75,8 @@ class XPBD_Multiresolution_View : public ViewModule
 	using SurfaceFace = typename mesh_traits<SURFACE>::Face;
 
 	using Vertex = typename mesh_traits<MESH>::Vertex;
+	using Volume = typename mesh_traits<MESH>::Volume;
+	using Face = typename mesh_traits<MESH>::Face;
 	using Edge = typename mesh_traits<MESH>::Edge;
 
 	using Vec3 = geometry::Vec3;
@@ -145,7 +148,7 @@ public:
 		  take_screenshot_(false), ground_(false), inverse_control_(nullptr), draw_cylinder(false),
 		  radius_cylinder(200.0f), pos_cylinder1(170, -700, 5), Zaxis_cylinder1(0, 0, 1), pos_cylinder2(-800, -1400, 5),
 		  Zaxis_cylinder2(0, 0, 1), pos_cylinder3(170, -2100, 5), Zaxis_cylinder3(0, 0, 1), pos_sphere(700, 0, 100),
-		  shape_(nullptr), show_sphere_(false), sphere_radius_(100.0f)
+		  shape_(nullptr), show_sphere_(false), sphere_radius_(100.0f), gravity_intensity_(1.)
 	{
 		f_keypress = [](View*, MESH*, int32, CellsSet<MESH, Vertex>*, CellsSet<MESH, Edge>*) {};
 	}
@@ -324,6 +327,29 @@ protected:
 				});
 			}
 		}
+		if (key_code == GLFW_KEY_M)
+		{
+			if (selected_mesh_)
+			{
+				Parameters& p = parameters_[selected_mesh_];
+				Vec3 pos;
+				p.frame_manipulator_.get_position(pos);
+				Vec3 a;
+				p.frame_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, a);
+				std::cout << "pos : " << pos << std::endl;
+				std::cout << " normale : " << a << std::endl;
+				double d = pos.dot(a);
+				moving_vertices.clear();
+				parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
+					if (value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v).dot(a) < d)
+					{
+						value<bool>(*selected_mesh_, p.fixed_vertex.get(), v) = true;
+						moving_vertices.push_back(v);
+					}
+					return true;
+				});
+			}
+		}
 		if (key_code == GLFW_KEY_B)
 		{
 			draw_cylinder = !draw_cylinder;
@@ -334,11 +360,11 @@ protected:
 			if (selected_mesh_)
 			{
 				Parameters& p = parameters_[selected_mesh_];
-				Vec3 pos1(0, -406, 34);
-				Vec3 a1(0, 1, 0);
+				Vec3 pos1(10, 0, 0);
+				Vec3 a1(1, 0, 0);
 				double d1 = pos1.dot(a1);
-				Vec3 pos2(0, 82.5, -175.9);
-				Vec3 a2(0, -0.79, 0.61);
+				Vec3 pos2(1232, 0, 0);
+				Vec3 a2(-1, 0, 0);
 				double d2 = pos2.dot(a2);
 				parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
 					if (value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v).dot(a1) < d1 ||
@@ -346,6 +372,8 @@ protected:
 					{
 						value<bool>(*selected_mesh_, p.fixed_vertex.get(), v) = true;
 					}
+					if (value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v).dot(a2) < d2)
+						moving_vertices.push_back(v);
 					return true;
 				});
 			}
@@ -529,6 +557,89 @@ protected:
 					std::cout << value<Vec3>(*selected_mesh_, p.vertex_position_.get(), p.selected_vertex_)
 							  << std::endl;
 				}
+				for (Vertex v : moving_vertices)
+				{
+					value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v) += Vec3(1, 0, 0);
+				}
+				if (!moving_vertices.empty())
+				{
+					parallel_foreach_cell(*selected_mesh_, [&](Volume v) -> bool {
+						Eigen::JacobiSVD<Eigen::Matrix3d> svd;
+						std::shared_ptr<Attribute<Eigen::Matrix3d>> F =
+							get_attribute<Eigen::Matrix3d, Volume>(*selected_mesh_, "XPBD_F_volume");
+						Eigen::Matrix3d deformation_gradient = value<Eigen::Matrix3d>(*selected_mesh_, F, v);
+						Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(deformation_gradient);
+						auto eigenvalue = eigensolver.eigenvalues();
+						int max_id = 0;
+						for (int i = 1; i < 3; i++)
+						{
+							if (eigenvalue(i) > eigenvalue(max_id))
+							{
+								max_id = i;
+							}
+						}
+						std::shared_ptr<Attribute<double>> vol_eigen =
+							get_or_add_attribute<double, Volume>(*selected_mesh_, "Volume_eigen_value");
+						std::shared_ptr<Attribute<Vec3>> vol_eigen_vector =
+							get_or_add_attribute<Vec3, Volume>(*selected_mesh_, "Volume_eigen_vector");
+						value<double>(*selected_mesh_, vol_eigen, v) = eigenvalue(max_id);
+						value<Vec3>(*selected_mesh_, vol_eigen_vector, v) = eigensolver.eigenvectors().col(max_id);
+						std::shared_ptr<Attribute<double>> separation_volume =
+							get_or_add_attribute<double, Volume>(*selected_mesh_, "Separation_volume");
+						value<double>(*selected_mesh_, separation_volume, v) = 0;
+						return true;
+					});
+					std::vector<Face> face_unsew;
+					parallel_foreach_cell(*selected_mesh_, [&](Face f) -> bool {
+						if (is_incident_to_boundary(*selected_mesh_, f))
+							return true;
+						std::shared_ptr<Attribute<double>> vol_eigen =
+							get_attribute<double, Volume>(*selected_mesh_, "Volume_eigen_value");
+						std::shared_ptr<Attribute<Vec3>> vol_eigen_vector =
+							get_attribute<Vec3, Volume>(*selected_mesh_, "Volume_eigen_vector");
+						std::shared_ptr<Attribute<double>> face_tensor =
+							get_or_add_attribute<double, Face>(*selected_mesh_, "Face_tensor");
+						double evalue_1 = value<double>(*selected_mesh_, vol_eigen, Volume(f.dart));
+						double evalue_2 =
+							value<double>(*selected_mesh_, vol_eigen, Volume(phi3(*selected_mesh_, f.dart)));
+						Vec3 evector_1 = value<Vec3>(*selected_mesh_, vol_eigen_vector, Volume(f.dart));
+						Vec3 evector_2 =
+							value<Vec3>(*selected_mesh_, vol_eigen_vector, Volume(phi3(*selected_mesh_, f.dart)));
+						Vec3 face_normale = geometry::normal(*selected_mesh_, f, p.vertex_position_.get());
+						double tension = (evalue_1 - 1.) * abs(evector_1.normalized().dot(face_normale)) +
+										 (evalue_2 - 1.) * abs(evector_2.normalized().dot(face_normale));
+						value<double>(*selected_mesh_, face_tensor, f) = tension;
+						if (tension > 1.2)
+						{
+							std::shared_ptr<Attribute<double>> separation_volume =
+								get_attribute<double, Volume>(*selected_mesh_, "Separation_volume");
+							value<double>(*selected_mesh_, separation_volume, Volume(f.dart)) += 1;
+							value<double>(*selected_mesh_, separation_volume, Volume(phi3(*selected_mesh_, f.dart))) +=
+								1;
+							face_unsew.push_back(f);
+						}
+						return true;
+					});
+					for (Face f : face_unsew)
+					{
+						unsew_volume(*selected_mesh_, f, [&](std::pair<Vertex, Vertex> p) -> bool {
+							std::vector<std::shared_ptr<Attribute<Vec3>>> list_update_attribute;
+							list_update_attribute.push_back(simu_solver.pos_);
+							list_update_attribute.push_back(simu_solver.init_pos_);
+							list_update_attribute.push_back(simu_solver.speed_);
+							for (auto attr : list_update_attribute)
+							{
+								value<Vec3>(*selected_mesh_, attr, p.second) =
+									value<Vec3>(*selected_mesh_, attr, p.first);
+							}
+							return true;
+						});
+					}
+					if (!face_unsew.empty())
+					{
+						simu_solver.update_topo(*selected_mesh_);
+					}
+				}
 
 				if (show_sphere_)
 				{
@@ -547,7 +658,8 @@ protected:
 					{
 						parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
 							value<Vec3>(*selected_mesh_, p.vertex_forces_, v) +=
-								value<double>(*selected_mesh_, simu_solver.masse_, v) * Vec3(0, -98.1, 0);
+								value<double>(*selected_mesh_, simu_solver.masse_, v) * Vec3(0, -98.1, 0) *
+								gravity_intensity_;
 							return true;
 						});
 					}
@@ -931,11 +1043,16 @@ protected:
 						stop();
 					}
 				}
+				double min = 0, max = 100;
+				ImGui::SliderScalar("gravity", ImGuiDataType_Double, &gravity_intensity_, &min, &max);
 				if (need_update_)
 				{
 					p.update_move_vertex_vbo();
 
 					selected_mesh_->start_reader();
+					std::shared_ptr<Attribute<double>> separation_volume =
+						get_or_add_attribute<double, Volume>(*selected_mesh_, "Separation_volume");
+					mesh_provider_->emit_attribute_changed(*selected_mesh_, separation_volume.get());
 					mesh_provider_->emit_attribute_changed(*selected_mesh_, p.vertex_position_.get());
 					mesh_provider_->emit_attribute_changed(*selected_mesh_, simu_solver.Det_F_Volume_.get());
 					mesh_provider_->emit_connectivity_changed(*selected_mesh_);
@@ -994,6 +1111,8 @@ public:
 	bool show_sphere_;
 	float sphere_radius_;
 	rendering::ShapeDrawer* shape_;
+	double gravity_intensity_;
+	std::vector<Vertex> moving_vertices;
 
 	SURFACE* volume_skin_ = nullptr;
 	std::shared_ptr<SurfaceAttribute<Vec3>> volume_skin_vertex_position_ = nullptr;

@@ -34,6 +34,7 @@
 #include <cgogn/core/functions/traversals/volume.h>
 #include <cgogn/core/types/cmap/EMR3_compact.h>
 #include <cgogn/core/ui_modules/mesh_provider.h>
+#include <cgogn/geometry/ui_modules/surface_differential_properties.h>
 #include <cgogn/geometry/ui_modules/volume_selection.h>
 #include <cgogn/modeling/algos/subdivision.h>
 #include <cgogn/modeling/ui_modules/Fit_Volume_To_Surface.h>
@@ -135,6 +136,7 @@ int main(int argc, char** argv)
 	cgogn::ui::VolumeEMRModeling<MRMesh> vmrm(app);
 	cgogn::ui::FitVolumeSurface<Surface, MRMesh> fvs(app);
 	cgogn::ui::Multiresolution_editing<MRMesh> mre(app);
+	cgogn::ui::SurfaceDifferentialProperties<cgogn::CMap2> sdp(app);
 
 	cgogn::ui::View* v1 = app.current_view();
 	v1->link_module(&mp);
@@ -258,7 +260,7 @@ int main(int argc, char** argv)
 					vec_vertices.push_back(v);
 				return true;
 			});
-#define IMAX 10
+#define IMAX 5
 			for (int i = 1; i <= IMAX; i++)
 			{
 				// fvs.regularize_surface_vertices(20);
@@ -325,13 +327,14 @@ int main(int argc, char** argv)
 				}
 				for (int j = 0; j < 1; j++)
 					fvs.relocate_interior_vertices();
-				//  fvs.optimize_volume_vertices(10.0, true);
+				fvs.optimize_volume_vertices(10.0, true);
 			}
 			for (int i = 0; i < 10; i++)
 			{
-				// fvs.regularize_surface_vertices(20);
+				fvs.regularize_surface_vertices(5);
+				fvs.regularize_surface_vertices(20);
 				// fvs.relocate_interior_vertices();
-				//  fvs.optimize_volume_vertices(10.0, true);
+				// fvs.optimize_volume_vertices(10.0, true);
 			}
 		};
 
@@ -354,6 +357,10 @@ int main(int argc, char** argv)
 			mrm->current_level_ = mrm->maximum_level_;
 			vmrm.changed_connectivity(*mrm, position.get());
 			fvs.update_topo();
+			for (int k = 0; k < 3; k++)
+			{
+				fvs.regularize_surface_vertices(5);
+			}
 			fn();
 		}
 		/*for (int i = 0; i < 10; i++)
@@ -388,9 +395,9 @@ int main(int argc, char** argv)
 	}
 	else
 	{
-		vmrm.subdivide(*mrm, position.get());
-		vmrm.subdivide(*mrm, position.get());
 		// vmrm.subdivide(*mrm, position.get());
+		// vmrm.subdivide(*mrm, position.get());
+		//   vmrm.subdivide(*mrm, position.get());
 		mrm->current_level_ = 0;
 	}
 
