@@ -8,8 +8,8 @@
 #include <cgogn/geometry/algos/volume.h>
 #include <cgogn/geometry/types/vector_traits.h>
 
-#define POISSON_RATIO 0.35
-#define YOUNG_MODULUS 1e5
+#define POISSON_RATIO 0.45
+#define YOUNG_MODULUS 1e7
 
 #define LAME_MU (YOUNG_MODULUS / (2 * (1 + POISSON_RATIO)))
 #define LAME_LAMBDA ((YOUNG_MODULUS * POISSON_RATIO) / ((1 + POISSON_RATIO) * (1 - 2 * POISSON_RATIO)))
@@ -214,12 +214,14 @@ public:
 	void compute_error_point(MAP& m, const Vec3& p, double quotat);
 
 	template <typename FUNC>
-	void compute_contact(MAP& m, const FUNC& f_contact)
+	void compute_contact(MAP& m, MAP& geom, const FUNC& f_contact, uint32 max_level = 100u)
 	{
 		foreach_cell(m, [&](Volume v) -> bool {
 			tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
 			t->have_contact = false;
-			foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
+			if (m.volume_level(v.dart) >= max_level)
+				return true;
+			foreach_incident_vertex(geom, v, [&](Vertex w) -> bool {
 				if (f_contact(w))
 					t->have_contact = true;
 				return !t->have_contact;

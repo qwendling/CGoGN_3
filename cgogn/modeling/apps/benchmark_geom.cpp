@@ -161,6 +161,8 @@ int main(int argc, char** argv)
 	std::cout << "subdivision mono" << std::endl;
 	cgogn::modeling::butterflySubdivisionVolumeRegular(*m, 0.0f, {position.get()});
 	cgogn::modeling::butterflySubdivisionVolumeRegular(*m, 0.0f, {position.get()});
+	cgogn::modeling::butterflySubdivisionVolumeRegular(*m, 0.0f, {position.get()});
+	cgogn::modeling::butterflySubdivisionVolumeRegular(*m, 0.0f, {position.get()});
 
 	auto fn = [&]() -> Mesh* {
 		Mesh* m2 = new Mesh();

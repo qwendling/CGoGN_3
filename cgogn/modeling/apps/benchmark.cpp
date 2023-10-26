@@ -247,7 +247,7 @@ void test2(cgogn::CMap3* mrm, Attribute<Vec3>* attr)
 	std::cout << "temps CirculatorB : " << duration / 10.0f << std::endl;
 
 	start = std::clock();
-	for (int i = 0; i < 10; i++)
+	for (int i = 0; i < 100; i++)
 	{
 		cgogn::foreach_cell(*mrm, [&](Volume v) -> bool {
 			cgogn::geometry::centroid<Vec3>(*mrm, v, attr);
@@ -272,7 +272,7 @@ void test2(cgogn::CMap3* mrm, Attribute<Vec3>* attr)
 	}
 
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "temps centroid + smooth : " << duration / 10.0f << std::endl;
+	std::cout << "temps centroid + smooth : " << duration / 100.0f << std::endl;
 };
 
 void activate_all_volume(MRMesh* m)
@@ -418,10 +418,17 @@ int main(int argc, char** argv)
 		return true;
 	});
 	std::cout << "total volume mr : " << nb_volume << std::endl;
+
 	start = std::clock();
 	cgogn::modeling::butterflySubdivisionVolumeRegular(*m2, 0.0f, {position.get()});
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 	std::cout << "temps subdivise cmap : " << duration << std::endl;
+	nb_volume = 0;
+	cgogn::foreach_cell(*m2, [&](Volume v) -> bool {
+		nb_volume++;
+		return true;
+	});
+	std::cout << "total volume cmap : " << nb_volume << std::endl;
 
 	std::cout << "Resolution 3 : " << std::endl;
 	test(mrm, position.get());

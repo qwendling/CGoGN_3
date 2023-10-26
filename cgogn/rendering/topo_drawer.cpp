@@ -30,8 +30,8 @@ namespace rendering
 {
 
 TopoDrawer::TopoDrawer()
-	: dart_color_(1, 1, 1, 1), phi2_color_(1, 0, 0, 1), phi3_color_(1, 1, 0, 1), shrink_v_(0.9f), shrink_f_(0.85f),
-	  shrink_e_(0.9f)
+	: dart_color_(1, 1, 1, 1), phi2_color_(1, 0, 0, 1), phi3_color_(1, 1, 0, 1), shrink_v_(1.0f), shrink_f_(0.661f),
+	  shrink_e_(0.812f)
 {
 	vbo_darts_ = std::make_unique<VBO>(3);
 	vbo_relations_ = std::make_unique<VBO>(3);
@@ -42,7 +42,8 @@ TopoDrawer::~TopoDrawer()
 {
 }
 
-TopoDrawer::Renderer::Renderer(TopoDrawer* tr) : topo_drawer_data_(tr), width_(2.0f), render_darts_(true),render_phi2_(false),render_phi3_(false)
+TopoDrawer::Renderer::Renderer(TopoDrawer* tr)
+	: topo_drawer_data_(tr), width_(3.4f), render_darts_(true), render_phi2_(false), render_phi3_(false)
 
 {
 	param_bl_ = ShaderBoldLineColorNoTB::generate_param();
@@ -55,7 +56,7 @@ TopoDrawer::Renderer::Renderer(TopoDrawer* tr) : topo_drawer_data_(tr), width_(2
 
 	param_rp_ = ShaderRoundPointColor::generate_param();
 	param_rp_->size_ = 3.0f;
-	param_rp_->set_vbos_stride({{tr->vbo_darts_.get(), 2, 0},{tr->vbo_color_darts_.get(), 2, 0}});
+	param_rp_->set_vbos_stride({{tr->vbo_darts_.get(), 2, 0}, {tr->vbo_color_darts_.get(), 2, 0}});
 }
 
 TopoDrawer::Renderer::~Renderer()
@@ -71,7 +72,7 @@ void TopoDrawer::Renderer::draw(const GLMat4& projection, const GLMat4& modelvie
 	if (render_darts_)
 	{
 		param_bl_->bind(projection, modelview);
-//		param_bl_->color_ = topo_drawer_data_->dart_color_;
+		//		param_bl_->color_ = topo_drawer_data_->dart_color_;
 		glDrawArrays(GL_LINES, 0, topo_drawer_data_->vbo_darts_->size());
 		param_bl_->release();
 
@@ -155,7 +156,7 @@ void TopoDrawer::reset_all_colors(const GLVec3& rgb)
 {
 	vbo_color_darts_->bind();
 	float* ptr = vbo_color_darts_->lock_pointer();
-	for(int i =0; i<vbo_color_darts_->size();++i)
+	for (int i = 0; i < vbo_color_darts_->size(); ++i)
 	{
 		*ptr++ = rgb[0];
 		*ptr++ = rgb[1];

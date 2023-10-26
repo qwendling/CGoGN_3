@@ -44,6 +44,8 @@
 #include <cgogn/rendering/vbo_update.h>
 #include <cgogn/simulation/algos/XPBD/XPBD_multiresolution.h>
 
+#include <cgogn/modeling/algos/volume_utils.h>
+
 #include <boost/synapse/connect.hpp>
 #include <imgui/imgui.h>
 
@@ -62,6 +64,14 @@ class XPBD_Multiresolution_View : public ViewModule
 
 	template <typename T>
 	using Attribute = typename mesh_traits<MESH>::template Attribute<T>;
+
+	using SURFACE = CMap2;
+	template <typename T>
+	using SurfaceAttribute = typename mesh_traits<SURFACE>::template Attribute<T>;
+
+	using SurfaceVertex = typename mesh_traits<SURFACE>::Vertex;
+	using SurfaceEdge = typename mesh_traits<SURFACE>::Edge;
+	using SurfaceFace = typename mesh_traits<SURFACE>::Face;
 
 	using Vertex = typename mesh_traits<MESH>::Vertex;
 	using Edge = typename mesh_traits<MESH>::Edge;
@@ -133,9 +143,9 @@ public:
 		: ViewModule(app, "XPBD (" + std::string{mesh_traits<MESH>::name} + ")"), selected_mesh_(nullptr),
 		  geom_mesh_(nullptr), selected_view_(app.current_view()), running_(false), apply_gravity(false),
 		  take_screenshot_(false), ground_(false), inverse_control_(nullptr), draw_cylinder(false),
-		  radius_cylinder(2.0f), pos_cylinder1(2.6, 3.7, 5), Zaxis_cylinder1(0, 0, 1), pos_cylinder2(-8, -14, 5),
-		  Zaxis_cylinder2(0, 0, 1), pos_cylinder3(1.7, -21, 5), Zaxis_cylinder3(0, 0, 1), pos_sphere(7, 0, 1),
-		  shape_(nullptr), show_sphere_(false)
+		  radius_cylinder(200.0f), pos_cylinder1(170, -700, 5), Zaxis_cylinder1(0, 0, 1), pos_cylinder2(-800, -1400, 5),
+		  Zaxis_cylinder2(0, 0, 1), pos_cylinder3(170, -2100, 5), Zaxis_cylinder3(0, 0, 1), pos_sphere(700, 0, 100),
+		  shape_(nullptr), show_sphere_(false), sphere_radius_(100.0f)
 	{
 		f_keypress = [](View*, MESH*, int32, CellsSet<MESH, Vertex>*, CellsSet<MESH, Edge>*) {};
 	}
@@ -208,6 +218,8 @@ public:
 protected:
 	void init() override
 	{
+		surface_provider_ = static_cast<ui::MeshProvider<SURFACE>*>(
+			app_.module("MeshProvider (" + std::string{mesh_traits<SURFACE>::name} + ")"));
 		mesh_provider_ = static_cast<ui::MeshProvider<MESH>*>(
 			app_.module("MeshProvider (" + std::string{mesh_traits<MESH>::name} + ")"));
 		mesh_provider_->foreach_mesh([this](MESH& m, const std::string&) { init_mesh(&m); });
@@ -300,6 +312,8 @@ protected:
 				p.frame_manipulator_.get_position(pos);
 				Vec3 a;
 				p.frame_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, a);
+				std::cout << "pos : " << pos << std::endl;
+				std::cout << " normale : " << a << std::endl;
 				double d = pos.dot(a);
 				parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
 					if (value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v).dot(a) < d)
@@ -320,24 +334,20 @@ protected:
 			if (selected_mesh_)
 			{
 				Parameters& p = parameters_[selected_mesh_];
-				Vec3 pos;
-				p.frame_manipulator_.get_position(pos);
-				Vec3 a;
-				Eigen::Matrix3d m_rota;
-				m_rota << cos(0.1), sin(0.1), 0, -sin(0.1), cos(0.1), 0, 0, 0, 1;
-				p.frame_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, a);
-				double d = pos.dot(a);
+				Vec3 pos1(0, -406, 34);
+				Vec3 a1(0, 1, 0);
+				double d1 = pos1.dot(a1);
+				Vec3 pos2(0, 82.5, -175.9);
+				Vec3 a2(0, -0.79, 0.61);
+				double d2 = pos2.dot(a2);
 				parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
-					if (value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v).dot(a) < d)
+					if (value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v).dot(a1) < d1 ||
+						value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v).dot(a2) < d2)
 					{
-
-						/*value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v) =
-							m_rota * value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v);*/
-						value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v) += Vec3(0, 0, 1);
+						value<bool>(*selected_mesh_, p.fixed_vertex.get(), v) = true;
 					}
 					return true;
 				});
-				v->request_update();
 			}
 		}
 		if (key_code == GLFW_KEY_U)
@@ -347,11 +357,11 @@ protected:
 				// std::clock_t start = std::clock();
 				// double duration = 0;
 				Parameters& p = parameters_[selected_mesh_];
-				for (int i = 0; i < 150; i++)
+				for (int i = 0; i < 50; i++)
 				{
 					simu_solver.solver(*selected_mesh_, geom_mesh_, 0.01f, false);
-					simu_solver.compute_contact(*selected_mesh_, [&](Vertex v) -> bool {
-						Vec3& pos = value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v);
+					simu_solver.compute_contact(*selected_mesh_, *geom_mesh_, [&](Vertex v) -> bool {
+						Vec3& pos = value<Vec3>(*geom_mesh_, p.vertex_position_.get(), v);
 						Vec3 axis_z = Zaxis_cylinder1;
 
 						Vec3 pos2 = pos - pos_cylinder1.cast<double>();
@@ -388,7 +398,7 @@ protected:
 						}
 						return true;
 					});
-					pos_cylinder1 = Eigen::Vector3f(3, 3.7 + (cos(2 * M_PI / 100 * i) + 1) / 2.0 * 2.0 - 2.0, 0);
+					pos_cylinder1 = Eigen::Vector3f(260, 370 + (cos(2 * M_PI / 100 * i) + 1) / 2.0 * 300.0 - 300.0, 0);
 				}
 				/*duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 				std::cout << "temps solve xpbd : " << duration / 100.0f << std::endl;*/
@@ -397,16 +407,21 @@ protected:
 		}
 		if (key_code == GLFW_KEY_V)
 		{
-			if (selected_mesh_)
+			Parameters& p = parameters_[selected_mesh_];
+			for (int i = 0; i < 500; i++)
 			{
-				std::clock_t start = std::clock();
-				double duration = 0;
-				for (int i = 0; i < 100; i++)
-					simu_solver.solver(*selected_mesh_, geom_mesh_, 0.01f, false);
-				duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-				std::cout << "temps solve xpbd : " << duration / 100.0f << std::endl;
-				need_update_ = true;
+				static Vec3 cm = geometry::centroid<Vec3>(*selected_mesh_, p.vertex_position_.get());
+				Eigen::Affine3f transfo = Eigen::Translation3f(cm.cast<float>()) *
+										  Eigen::AngleAxisf(0.01, Eigen::Vector3f::UnitZ()) *
+										  Eigen::Translation3f(-cm.cast<float>());
+				pos_sphere = transfo * pos_sphere;
+				simu_solver.solver(*selected_mesh_, geom_mesh_, 0.01f, false);
+				simu_solver.compute_error_point(*selected_mesh_, pos_sphere.cast<double>(),
+												4 + 2 * cos(float(i) / 10.0f));
 			}
+			/*duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+			std::cout << "temps solve xpbd : " << duration / 100.0f << std::endl;*/
+			need_update_ = true;
 		}
 		if (key_code == GLFW_KEY_X)
 		{
@@ -532,7 +547,7 @@ protected:
 					{
 						parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
 							value<Vec3>(*selected_mesh_, p.vertex_forces_, v) +=
-								value<double>(*selected_mesh_, simu_solver.masse_, v) * Vec3(0, -9.81, 0);
+								value<double>(*selected_mesh_, simu_solver.masse_, v) * Vec3(0, -98.1, 0);
 							return true;
 						});
 					}
@@ -551,8 +566,8 @@ protected:
 				if (draw_cylinder)
 				{
 #if 1
-					simu_solver.compute_contact(*selected_mesh_, [&](Vertex v) -> bool {
-						Vec3& pos = value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v);
+					simu_solver.compute_contact(*selected_mesh_, *geom_mesh_, [&](Vertex v) -> bool {
+						Vec3& pos = value<Vec3>(*geom_mesh_, p.vertex_position_.get(), v);
 						Vec3 axis_z = Zaxis_cylinder1;
 
 						Vec3 pos2 = pos - pos_cylinder1.cast<double>();
@@ -563,7 +578,7 @@ protected:
 						{
 							return true;
 						}
-						/*axis_z = Zaxis_cylinder2;
+						axis_z = Zaxis_cylinder2;
 
 						pos2 = pos - pos_cylinder2.cast<double>();
 
@@ -582,11 +597,11 @@ protected:
 						if (dist < 0)
 						{
 							return true;
-						}*/
+						}
 						return false;
 					});
 #endif
-					parallel_foreach_cell(*geom_mesh_, [&](Vertex v) -> bool {
+					parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
 						Vec3& pos = value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v);
 						Vec3& speed = value<Vec3>(*selected_mesh_, simu_solver.speed_.get(), v);
 						Vec3 axis_z = Zaxis_cylinder1;
@@ -608,7 +623,7 @@ protected:
 							}
 							return true;
 						}
-						/*axis_z = Zaxis_cylinder2;
+						axis_z = Zaxis_cylinder2;
 
 						pos2 = pos - pos_cylinder2.cast<double>();
 
@@ -645,12 +660,13 @@ protected:
 								speed += dir_col_norm * tmp;
 							}
 							return true;
-						}*/
+						}
 						return true;
 					});
-					static int nb_iter = 0;
-					pos_cylinder1 = Eigen::Vector3f(3, 3.7 + (cos(2 * M_PI / 100 * nb_iter) + 1) / 2.0 * 2.0 - 2.0, 0);
-					nb_iter++;
+					/*static int nb_iter = 0;
+					pos_cylinder1 =
+						Eigen::Vector3f(260, 370 + (cos(2 * M_PI / 1000 * nb_iter) + 1) / 2.0 * 200.0 - 200.0, 0);
+					nb_iter++;*/
 				}
 				if (ground_)
 				{
@@ -659,7 +675,7 @@ protected:
 					p.frame_manipulator_.get_position(position);
 					p.frame_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, axis_z);
 					double d = position.dot(axis_z);
-					simu_solver.compute_contact(*selected_mesh_, [&](Vertex v) -> bool {
+					simu_solver.compute_contact(*selected_mesh_, *geom_mesh_, [&](Vertex v) -> bool {
 						double tmp = value<Vec3>(*geom_mesh_, p.vertex_position_.get(), v).dot(axis_z);
 						if (tmp < d)
 						{
@@ -668,13 +684,13 @@ protected:
 						return false;
 					});
 
-					parallel_foreach_cell(*geom_mesh_, [&](Vertex v) -> bool {
-						double tmp = value<Vec3>(*geom_mesh_, p.vertex_position_.get(), v).dot(axis_z);
-						if (value<Vec3>(*geom_mesh_, p.vertex_position_.get(), v).dot(axis_z) < d)
+					parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
+						double tmp = value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v).dot(axis_z);
+						if (value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v).dot(axis_z) < d)
 						{
-							value<Vec3>(*geom_mesh_, p.vertex_position_.get(), v) += (d - tmp) * axis_z;
-							value<Vec3>(*geom_mesh_, simu_solver.speed_.get(), v) -=
-								axis_z.dot(value<Vec3>(*geom_mesh_, simu_solver.speed_.get(), v)) * axis_z;
+							value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v) += (d - tmp) * axis_z;
+							value<Vec3>(*selected_mesh_, simu_solver.speed_.get(), v) -=
+								axis_z.dot(value<Vec3>(*selected_mesh_, simu_solver.speed_.get(), v)) * axis_z;
 						}
 						return true;
 					});
@@ -722,6 +738,32 @@ protected:
 		need_update_ = true;
 	}
 
+	void refresh_volume_skin()
+	{
+		if (!geom_mesh_)
+			return;
+		if (!volume_skin_)
+			volume_skin_ = surface_provider_->add_mesh("volume_skin");
+		Parameters& p = parameters_[selected_mesh_];
+
+		surface_provider_->clear_mesh(*volume_skin_);
+
+		volume_skin_vertex_position_ = get_or_add_attribute<Vec3, SurfaceVertex>(*volume_skin_, "position");
+		volume_skin_vertex_normal_ = get_or_add_attribute<Vec3, SurfaceVertex>(*volume_skin_, "normal");
+		volume_skin_vertex_index_ = get_or_add_attribute<uint32, SurfaceVertex>(*volume_skin_, "vertex_index");
+		volume_skin_vertex_volume_vertex_ = get_or_add_attribute<Vertex, SurfaceVertex>(*volume_skin_, "hex_vertex");
+		modeling::extract_volume_surface(*geom_mesh_, p.vertex_position_.get(), *volume_skin_,
+										 volume_skin_vertex_position_.get(), volume_skin_vertex_volume_vertex_.get());
+
+		uint32 nb_vertices = 0;
+		foreach_cell(*volume_skin_, [&](SurfaceVertex v) -> bool {
+			value<uint32>(*volume_skin_, volume_skin_vertex_index_, v) = nb_vertices++;
+			return true;
+		});
+
+		surface_provider_->emit_connectivity_changed(*volume_skin_);
+	}
+
 	void draw(View* view) override
 	{
 		const rendering::GLMat4& proj_matrix = view->projection_matrix();
@@ -760,23 +802,22 @@ protected:
 			Eigen::Affine3f transfo = Eigen::Translation3f(pos_cylinder1) *
 									  Eigen::AngleAxisf(std::acos(Zaxis_cylinder1.x()), Eigen::Vector3f::UnitZ()) *
 									  Eigen::AngleAxisf(std::acos(Zaxis_cylinder1.z()), Eigen::Vector3f::UnitY()) *
-									  Eigen::Scaling(radius_cylinder, radius_cylinder, 10.0f);
+									  Eigen::Scaling(radius_cylinder, radius_cylinder, 1000.0f);
 			shape_->draw(rendering::ShapeDrawer::CYLINDER, proj_matrix, view_matrix * transfo.matrix());
-			/*transfo = Eigen::Translation3f(pos_cylinder2) *
+			transfo = Eigen::Translation3f(pos_cylinder2) *
 					  Eigen::AngleAxisf(std::acos(Zaxis_cylinder2.x()), Eigen::Vector3f::UnitZ()) *
 					  Eigen::AngleAxisf(std::acos(Zaxis_cylinder2.z()), Eigen::Vector3f::UnitY()) *
-					  Eigen::Scaling(radius_cylinder, radius_cylinder, 10.0f);
+					  Eigen::Scaling(radius_cylinder, radius_cylinder, 1000.0f);
 			shape_->draw(rendering::ShapeDrawer::CYLINDER, proj_matrix, view_matrix * transfo.matrix());
 			transfo = Eigen::Translation3f(pos_cylinder3) *
 					  Eigen::AngleAxisf(std::acos(Zaxis_cylinder3.x()), Eigen::Vector3f::UnitZ()) *
 					  Eigen::AngleAxisf(std::acos(Zaxis_cylinder3.z()), Eigen::Vector3f::UnitY()) *
-					  Eigen::Scaling(radius_cylinder, radius_cylinder, 10.0f);
-			shape_->draw(rendering::ShapeDrawer::CYLINDER, proj_matrix, view_matrix * transfo.matrix());*/
+					  Eigen::Scaling(radius_cylinder, radius_cylinder, 1000.0f);
+			shape_->draw(rendering::ShapeDrawer::CYLINDER, proj_matrix, view_matrix * transfo.matrix());
 		}
 		if (show_sphere_)
 		{
-			Eigen::Affine3f transfo;
-			transfo = Eigen::Translation3f(pos_sphere);
+			Eigen::Affine3f transfo = Eigen::Translation3f(pos_sphere) * Eigen::Scaling(sphere_radius_);
 			shape_->draw(rendering::ShapeDrawer::SPHERE, proj_matrix, view_matrix * transfo.matrix());
 		}
 	}
@@ -823,6 +864,17 @@ protected:
 				if (ImGui::Selectable(name.c_str(), &m == geom_mesh_))
 				{
 					geom_mesh_ = &m;
+				}
+			});
+			ImGui::ListBoxFooter();
+		}
+
+		if (ImGui::ListBoxHeader("Surface Mesh"))
+		{
+			surface_provider_->foreach_mesh([this](SURFACE& m, const std::string& name) {
+				if (ImGui::Selectable(name.c_str(), &m == volume_skin_))
+				{
+					volume_skin_ = &m;
 				}
 			});
 			ImGui::ListBoxFooter();
@@ -885,9 +937,16 @@ protected:
 
 					selected_mesh_->start_reader();
 					mesh_provider_->emit_attribute_changed(*selected_mesh_, p.vertex_position_.get());
+					mesh_provider_->emit_attribute_changed(*selected_mesh_, simu_solver.Det_F_Volume_.get());
 					mesh_provider_->emit_connectivity_changed(*selected_mesh_);
 					if (geom_mesh_)
 						mesh_provider_->emit_attribute_changed(*geom_mesh_, p.vertex_position_.get());
+
+					if (volume_skin_)
+					{
+						refresh_volume_skin();
+						surface_provider_->emit_attribute_changed(*volume_skin_, volume_skin_vertex_position_.get());
+					}
 
 					if (take_screenshot_)
 					{
@@ -933,8 +992,15 @@ public:
 	Vec3 Zaxis_cylinder3;
 	Eigen::Vector3f pos_sphere;
 	bool show_sphere_;
-
+	float sphere_radius_;
 	rendering::ShapeDrawer* shape_;
+
+	SURFACE* volume_skin_ = nullptr;
+	std::shared_ptr<SurfaceAttribute<Vec3>> volume_skin_vertex_position_ = nullptr;
+	std::shared_ptr<SurfaceAttribute<uint32>> volume_skin_vertex_index_ = nullptr;
+	std::shared_ptr<SurfaceAttribute<Vec3>> volume_skin_vertex_normal_ = nullptr;
+	std::shared_ptr<SurfaceAttribute<Vertex>> volume_skin_vertex_volume_vertex_ = nullptr;
+	ui::MeshProvider<SURFACE>* surface_provider_ = nullptr;
 };
 
 } // namespace ui

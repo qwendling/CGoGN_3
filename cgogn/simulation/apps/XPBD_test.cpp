@@ -101,7 +101,7 @@ int main(int argc, char** argv)
 	bool have_fine_mesh = false;
 	if (argc < 2)
 	{
-		std::cout << "Usage: " << argv[0] << " volume_mesh_file" << std::endl;
+		std::cout << "Usage: " << argv[0] << " volume_mesh_file [fine mesh] [nb_subdiv]" << std::endl;
 		return 1;
 	}
 	else
@@ -417,10 +417,10 @@ int main(int argc, char** argv)
 	std::cout << "temps solve xpbd : " << duration / 100.0f << std::endl;*/
 
 	// mp.emit_attribute_changed(*m, position.get());
-	fvs.set_current_volume(geometry_mesh);
+	/*fvs.set_current_volume(geometry_mesh);
 	fvs.update_topo();
 	fvs.refresh_volume_skin();
-	mrm->current_level_ = 0;
+	mrm->current_level_ = 0;*/
 
 	vmrm.changed_connectivity(*mrm, position.get());
 	vmrm.changed_connectivity(*geometry_mesh, position.get());

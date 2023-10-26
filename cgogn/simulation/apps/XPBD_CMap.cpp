@@ -160,6 +160,20 @@ int main(int argc, char** argv)
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*m, "position");
 	std::shared_ptr<Attribute<Vec3>> normal = cgogn::add_attribute<Vec3, Vertex>(*m, "normal__anim_multires");
 
+	if (have_fine_mesh)
+	{
+		std::shared_ptr<Attribute<Vec3>> position_surface = cgogn::get_attribute<Vec3, Vertex2>(*m_fine, "position");
+		cgogn::foreach_cell(*m_fine, [&](Vertex2 v) -> bool {
+			cgogn::value<Vec3>(*m_fine, position_surface, v) *= 100;
+			return true;
+		});
+	}
+
+	cgogn::foreach_cell(*m, [&](Vertex v) -> bool {
+		cgogn::value<Vec3>(*m, position, v) *= 100;
+		return true;
+	});
+
 	cgogn::index_cells<Mesh::Volume>(*m);
 	cgogn::index_cells<Mesh::Edge>(*m);
 	cgogn::index_cells<Mesh::Face>(*m);

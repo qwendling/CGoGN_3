@@ -38,6 +38,7 @@
 #include <cgogn/modeling/ui_modules/linked_volumes.h>
 #include <cgogn/modeling/ui_modules/volume_emr_modeling.h>
 #include <cgogn/modeling/ui_modules/volume_mr_modeling.h>
+#include <cgogn/rendering/ui_modules/topo_render.h>
 #include <cgogn/rendering/ui_modules/volume_render.h>
 #include <cgogn/simulation/ui_modules/shape_matching.h>
 
@@ -78,6 +79,7 @@ int main(int argc, char** argv)
 	cgogn::ui::VolumeSelection<MRMesh> vs(app);
 	cgogn::ui::ShapeMatching<MRMesh> sm(app);
 	cgogn::ui::LinkedVolumes<MRMesh> lv(app);
+	cgogn::ui::TopoRender<MRMesh> tr(app);
 
 	cgogn::ui::VolumeEMRModeling<MRMesh> vmrm(app);
 
@@ -87,6 +89,7 @@ int main(int argc, char** argv)
 	v1->link_module(&vs);
 	v1->link_module(&sm);
 	v1->link_module(&lv);
+	v1->link_module(&tr);
 
 	/*cgogn::ui::View* v2 = app.add_view();
 	v2->link_module(&mp);

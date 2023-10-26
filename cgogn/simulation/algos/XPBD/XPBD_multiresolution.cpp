@@ -929,9 +929,14 @@ void XPBD_Multiresolution::constraint_Zero_Energy(MAP& m, Volume v, double)
 		}
 	}
 	value<Mat3d>(m, F_, v) = F;
+	value<Vec3>(m, centroid_, v) = cm;
 	// Pour l'erreur et la Visu
-	double det_F = F.determinant();
-	value<double>(m, Det_F_Volume_, v) = fabs(det_F);
+	// double det_F = F.determinant();
+	/*double energy = (det_F - (1 + LAME_MU / LAME_LAMBDA));
+	energy *= energy;
+	energy = LAME_LAMBDA / 2.0 * energy + LAME_MU / 2.0 * ((F.transpose() * F).trace() - 3);
+	double vol = value<double>(m, init_volume_, v) * det_F;
+	value<double>(m, Det_F_Volume_, v) = log(1 + fabs(vol * energy));*/
 
 	for (Vertex w : inc_vertices)
 	{
@@ -947,7 +952,7 @@ void XPBD_Multiresolution::applyDamping(MAP& m, Volume v, double damping_coeff, 
 {
 	Vec3 x_cm = Vec3::Zero();
 	Vec3 v_cm = Vec3::Zero();
-	Vec3 L;
+	Vec3 L = Vec3::Zero();
 	Mat3d I = Mat3d::Zero();
 	double sm_i = 0;
 	foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
@@ -991,7 +996,7 @@ void XPBD_Multiresolution::solve_surface(MAP& m, MAP& geom, Volume v)
 	if (!result)
 		return;
 	// Compute center of mass
-	double masse_vol = 0;
+	/*double masse_vol = 0;
 	Vec3 cm = Vec3(0, 0, 0);
 	std::vector<Vertex>& inc_vertices = value<std::vector<Vertex>>(m, inc_vertices_.get(), v);
 	for (Vertex w : inc_vertices)
@@ -999,40 +1004,9 @@ void XPBD_Multiresolution::solve_surface(MAP& m, MAP& geom, Volume v)
 		masse_vol += value<double>(m, masse_, w);
 		cm += value<double>(m, masse_, w) * value<Vec3>(m, pos_.get(), w);
 	}
-	cm /= masse_vol;
-
-	// Compute P
-	Mat3d P = Mat3d::Zero();
-	for (Vertex w : inc_vertices)
-	{
-		double m_i = value<double>(m, masse_, w);
-		Vec3 r_i = value<Vec3>(m, pos_.get(), w) - cm;
-		Vec3 init_r_i = value<Vec3>(m, init_pos_.get(), w) - value<Vec3>(m, init_cm_, v);
-		P += m_i * r_i * init_r_i.transpose();
-	}
-
-	Mat3d inv_Q = value<Mat3d>(m, inv_Q_, v);
-	P = (value<double>(m, s_, v) * P).eval();
-	// compute F = P*Q^-1
-	Mat3d F = P * inv_Q;
-
-	for (int i = 0; i < 3; i++)
-	{
-		for (int j = 0; j < 3; j++)
-		{
-			if (i == j)
-			{
-				if (fabs(F(i, j) - 1) < EPS)
-					F(i, j) = 1;
-			}
-			else
-			{
-				if (fabs(F(i, j)) < EPS)
-					F(i, j) = 0;
-			}
-		}
-	}
-	value<Mat3d>(m, F_, v) = F;
+	cm /= masse_vol;*/
+	Vec3 cm = value<Vec3>(m, centroid_, v);
+	Mat3d F = value<Mat3d>(m, F_, v);
 
 	foreach_incident_vertex(geom, v, [&](Vertex w) -> bool {
 		if (!m.vertex_is_visible(w.dart))
@@ -1200,7 +1174,6 @@ void XPBD_Multiresolution::compute_error(MAP& m, std::vector<Volume>& volume_act
 
 void XPBD_Multiresolution::compute_error_point(MAP& m, const Vec3& p, double quotat)
 {
-	std::cout << "Debut eval Error" << std::endl;
 	std::vector<Volume> volume_activate;
 	std::vector<Volume> volume_disable;
 	std::forward_list<tree_volume*> list_volume_coarse;
@@ -1312,9 +1285,7 @@ void XPBD_Multiresolution::compute_error_point(MAP& m, const Vec3& p, double quo
 			}
 		}
 	}
-	std::cout << "avant remove" << std::endl;
 	activate_remove_volume(m, volume_activate, volume_disable);
-	std::cout << "apres remove" << std::endl;
 }
 
 #define SHOW_PERFORMANCE_LOG 1
@@ -1343,6 +1314,7 @@ void XPBD_Multiresolution::solver(MAP& m, MAP* geom, double timestep, bool allow
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 #if SHOW_PERFORMANCE_LOG
 	std::cout << "\033[1;32mtime init XPBD : \033[0m" << duration << std::endl;
+	std::cout << "\033[1;32mnb DOFs : \033[0m" << vec_vertices.size() << std::endl;
 #endif
 
 	start = std::clock();
@@ -1377,14 +1349,14 @@ void XPBD_Multiresolution::solver(MAP& m, MAP* geom, double timestep, bool allow
 			for (int i = 0; i < 3; i++)
 				if (fabs(new_v[i]) < EPS)
 					new_v[i] = 0;
-			value<Vec3>(m, speed_, v) = (1 - (0.005 * h)) * new_v;
-			// value<Vec3>(m, speed_, v) = new_v;
+			// value<Vec3>(m, speed_, v) = (1 - (0.005 * h)) * new_v;
+			value<Vec3>(m, speed_, v) = new_v;
 		}
 		// Damping
-		/*foreach_cell(m, [&](Volume v) -> bool {
+		foreach_cell(m, [&](Volume v) -> bool {
 			applyDamping(m, v, 0.1, timestep);
 			return true;
-		});*/
+		});
 	}
 
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;

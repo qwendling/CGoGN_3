@@ -132,8 +132,8 @@ public:
 	XPBD_Module(const App& app)
 		: ViewModule(app, "XPBD (" + std::string{mesh_traits<MESH>::name} + ")"), selected_mesh_(nullptr),
 		  selected_view_(app.current_view()), running_(false), apply_gravity(false), take_screenshot_(false),
-		  ground_(false), inverse_control_(nullptr), draw_cylinder(false), radius_cylinder(2.0f),
-		  pos_cylinder1(2.6, 3.7, 5), Zaxis_cylinder1(0, 0, 1), pos_cylinder2(-8, -14, 5), Zaxis_cylinder2(0, 0, 1),
+		  ground_(false), inverse_control_(nullptr), draw_cylinder(false), radius_cylinder(200.0f),
+		  pos_cylinder1(170, -700, 5), Zaxis_cylinder1(0, 0, 1), pos_cylinder2(-8, -14, 5), Zaxis_cylinder2(0, 0, 1),
 		  pos_cylinder3(1.7, -21, 5), Zaxis_cylinder3(0, 0, 1), pos_sphere(7, 0, 0), shape_(nullptr),
 		  show_sphere_(false)
 	{
@@ -320,24 +320,20 @@ protected:
 			if (selected_mesh_)
 			{
 				Parameters& p = parameters_[selected_mesh_];
-				Vec3 pos;
-				p.frame_manipulator_.get_position(pos);
-				Vec3 a;
-				Eigen::Matrix3d m_rota;
-				m_rota << cos(0.1), sin(0.1), 0, -sin(0.1), cos(0.1), 0, 0, 0, 1;
-				p.frame_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, a);
-				double d = pos.dot(a);
+				Vec3 pos1(0, -406, 34);
+				Vec3 a1(0, 1, 0);
+				double d1 = pos1.dot(a1);
+				Vec3 pos2(0, 82.5, -175.9);
+				Vec3 a2(0, -0.79, 0.61);
+				double d2 = pos2.dot(a2);
 				parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
-					if (value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v).dot(a) < d)
+					if (value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v).dot(a1) < d1 ||
+						value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v).dot(a2) < d2)
 					{
-
-						/*value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v) =
-							m_rota * value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v);*/
-						value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v) += Vec3(0, 0, 1);
+						value<bool>(*selected_mesh_, p.fixed_vertex.get(), v) = true;
 					}
 					return true;
 				});
-				v->request_update();
 			}
 		}
 
@@ -358,8 +354,36 @@ protected:
 		{
 			if (selected_mesh_)
 			{
-				for (int i = 0; i < 150; i++)
-					simu_solver.solver(*selected_mesh_, 0.01f);
+				Parameters& p = parameters_[selected_mesh_];
+				for (int i = 0; i < 50; i++)
+				{
+					simu_solver.solver(*selected_mesh_, 0.01666f);
+					parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
+						Vec3& pos = value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v);
+						Vec3& speed = value<Vec3>(*selected_mesh_, simu_solver.speed_.get(), v);
+						Vec3 axis_z = Zaxis_cylinder1;
+
+						Vec3 pos2 = pos - pos_cylinder1.cast<double>();
+
+						double dist = axis_z.cross(pos2).norm() - radius_cylinder;
+
+						if (dist < 0)
+						{
+							Vec3 dir_collision = (axis_z * (axis_z.dot(pos2)) - pos2).normalized() * dist;
+							pos += dir_collision;
+
+							Vec3 dir_col_norm = dir_collision.normalized();
+							double tmp = speed.dot(-dir_col_norm);
+							if (tmp > 0)
+							{
+								speed += dir_col_norm * tmp;
+							}
+							return true;
+						}
+						return true;
+					});
+					pos_cylinder1 = Eigen::Vector3f(260, 370 + (cos(2 * M_PI / 100 * i) + 1) / 2.0 * 300.0 - 300.0, 0);
+				}
 				need_update_ = true;
 			}
 		}
@@ -451,7 +475,7 @@ protected:
 		}
 	}
 
-#define TIME_STEP 0.005f
+#define TIME_STEP 0.01666f
 	void start()
 	{
 		running_ = true;
@@ -618,7 +642,7 @@ protected:
 			Eigen::Affine3f transfo = Eigen::Translation3f(pos_cylinder1) *
 									  Eigen::AngleAxisf(std::acos(Zaxis_cylinder1.x()), Eigen::Vector3f::UnitZ()) *
 									  Eigen::AngleAxisf(std::acos(Zaxis_cylinder1.z()), Eigen::Vector3f::UnitY()) *
-									  Eigen::Scaling(radius_cylinder, radius_cylinder, 10.0f);
+									  Eigen::Scaling(radius_cylinder, radius_cylinder, 1000.0f);
 			shape_->draw(rendering::ShapeDrawer::CYLINDER, proj_matrix, view_matrix * transfo.matrix());
 			/*transfo = Eigen::Translation3f(pos_cylinder2) *
 					  Eigen::AngleAxisf(std::acos(Zaxis_cylinder2.x()), Eigen::Vector3f::UnitZ()) *

@@ -13,11 +13,10 @@ bool EMR_Map3_Adaptative::check_integrity() const
 	for (Dart d = this->begin(), end = this->end(); d != end; d = this->next(d))
 	{
 
-		int limit = INT_MAX;
 		int i = 0;
 		Dart it = phi1(*this, d);
 		bool is_permutation = false;
-		while (i < limit && !is_permutation)
+		while (i < 1e6 && !is_permutation)
 		{
 			is_permutation = it == d;
 			it = phi1(*this, it);
@@ -824,9 +823,7 @@ bool EMR_Map3_Adaptative::activate_volume_subdivision(Volume v)
 
 	uint32 v_level = dart_level(d);
 
-	/*if (current_level_ == maximum_level_)
-		return false;
-	m2.current_level_ = v_level;
+	/*m2.current_level_ = v_level;
 	if (dart_level(v.dart) > m2.current_level_)
 		return false;
 	if (!m2.volume_is_subdivided(v.dart))
@@ -837,6 +834,9 @@ bool EMR_Map3_Adaptative::activate_volume_subdivision(Volume v)
 	// Dart d = volume_oldest_dart(v.dart);
 
 	m2.current_level_ = v_level;
+
+	if (v_level == maximum_level_)
+		return false;
 
 	std::vector<Vertex> vect_vertices;
 	std::vector<Dart> vect_edge;

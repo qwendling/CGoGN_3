@@ -8,8 +8,8 @@
 #include <cgogn/geometry/types/vector_traits.h>
 #include <cgogn/simulation/algos/Simulation_constraint.h>
 
-#define POISSON_RATIO 0.4
-#define YOUNG_MODULUS 1e6
+#define POISSON_RATIO 0.45
+#define YOUNG_MODULUS 1e7
 
 #define LAME_MU (YOUNG_MODULUS / (2 * (1 + POISSON_RATIO)))
 #define LAME_LAMBDA ((YOUNG_MODULUS * POISSON_RATIO) / ((1 + POISSON_RATIO) * (1 - 2 * POISSON_RATIO)))
@@ -17,7 +17,7 @@
 #define SHEAR_MODULUS (YOUNG_MODULUS / (2 * (1 + POISSON_RATIO)))
 #define BULK_MODULUS (YOUNG_MODULUS / (3 * (1 - 2 * POISSON_RATIO)))
 
-#define NUM_SUBSTEP 50
+#define NUM_SUBSTEP 5
 #define DENSITY 10
 
 #define EPS 1e-12
@@ -351,11 +351,11 @@ public:
 	}
 	void applyDamping(MAP& m, Volume v, double damping_coeff, double time_step)
 	{
-		Vec3 x_cm;
-		Vec3 v_cm;
-		Vec3 L;
-		Mat3d I;
-		double sm_i;
+		Vec3 x_cm = Vec3::Zero();
+		Vec3 v_cm = Vec3::Zero();
+		Vec3 L = Vec3::Zero();
+		Mat3d I = Mat3d::Zero();
+		double sm_i = 0;
 		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
 			double m_i = value<double>(m, masse_, w);
 			x_cm += m_i * value<Vec3>(m, pos_.get(), w);
@@ -383,6 +383,7 @@ public:
 			return true;
 		});
 	}
+
 #define SHOW_PERFORMANCE_LOG 1
 	void solver(MAP& m, double timestep)
 	{
@@ -442,14 +443,14 @@ public:
 				for (int i = 0; i < 3; i++)
 					if (fabs(new_v[i]) < EPS)
 						new_v[i] = 0;
-				value<Vec3>(m, speed_, v) = (1 - (0.005 * h)) * new_v;
-				// value<Vec3>(m, speed_, v) = new_v;
+				// value<Vec3>(m, speed_, v) = (1 - (0.005 * h)) * new_v;
+				value<Vec3>(m, speed_, v) = new_v;
 			}
 			// Damping
-			/*foreach_cell(m, [&](Volume v) -> bool {
+			foreach_cell(m, [&](Volume v) -> bool {
 				applyDamping(m, v, 0.1, timestep);
 				return true;
-			});*/
+			});
 		}
 
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;

@@ -505,13 +505,16 @@ void unsew_volume(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3_Adaptative>
 	/*EMR_Map3_Adaptative m2(m.m_);
 	m2.current_level_ = f_level;
 	unsew_volume_aux(m2, Face(m.face_oldest_dart(f.dart)), callback_vertices, set_indices);*/
+	EMR_Map3_Adaptative* topo = &m;
+	if (m.topology_)
+		topo = m.topology_;
 
-	uint32 cur = m.topology_->current_level_;
-	m.topology_->current_level_ = f_level;
+	uint32 cur = topo->current_level_;
+	topo->current_level_ = f_level;
 
-	unsew_volume_aux(*m.topology_, Face(m.face_oldest_dart(f.dart)), callback_vertices, set_indices);
+	unsew_volume_aux(*topo, Face(m.face_oldest_dart(f.dart)), callback_vertices, set_indices);
 
-	m.topology_->current_level_ = cur;
+	topo->current_level_ = cur;
 
 	cgogn_message_assert(m.check_integrity(), "check integrity fail after cut");
 }
@@ -595,6 +598,8 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 		{
 			m.set_dart_level(phi3(m, it), m.dart_level(it3));
 			m.set_dart_level(phi3(m, it3), m.dart_level(it));
+			m.set_dart_visibility(phi3(m, it), 0);
+			m.set_dart_visibility(phi3(m, it3), 0);
 			m.m_.clock_++;
 			it = phi1(m, it);
 			it3 = phi_1(m, it3);
