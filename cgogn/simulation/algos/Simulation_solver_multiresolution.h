@@ -1044,7 +1044,6 @@ public:
 		{
 			CellMarker<MR_MAP, Vertex> coarse_marker(*coarse_meca_mesh_);
 			std::vector<Vertex> list_new_vertices_coarse;
-			uint tmp_cmp = 0;
 
 			for (Volume v : list_new_volume_coarse)
 			{
@@ -1056,7 +1055,6 @@ public:
 					}
 					return true;
 				});
-				tmp_cmp++;
 			}
 			CellMarker<MR_MAP, Vertex> current_marker(*mecanical_mesh_);
 			std::vector<Vertex> list_new_vertices_current;

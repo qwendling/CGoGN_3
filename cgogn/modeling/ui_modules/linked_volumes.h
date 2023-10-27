@@ -27,7 +27,7 @@
 #include <GLFW/glfw3.h>
 #include <cgogn/ui/app.h>
 #include <cgogn/ui/module.h>
-#include <cgogn/ui/modules/mesh_provider/mesh_provider.h>
+#include <cgogn/core/ui_modules/mesh_provider.h>
 #include <cgogn/ui/view.h>
 
 #include <cgogn/core/types/mesh_traits.h>

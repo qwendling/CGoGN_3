@@ -450,7 +450,7 @@ bool CPH3_adaptative::volume_is_subdivided(Dart d) const
 {
 	cgogn_message_assert(dart_is_visible(d), "Access to a dart not visible at this level");
 
-	uint vLevel = volume_level(d);
+	uint32 vLevel = volume_level(d);
 	if (vLevel < current_level_)
 		return false;
 
