@@ -47,7 +47,7 @@ public:
 	using ShaderType = ShaderFlatColorPerVertex;
 
 	ShaderParamFlatColorPerVertex(ShaderType* sh)
-		: ShaderParam(sh), ambiant_color_(0.05f, 0.05f, 0.05f, 1), light_position_(10, 100, 1000), double_side_(true)
+		: ShaderParam(sh), ambiant_color_(0.05f, 0.05f, 0.05f, 1), light_position_(1000, 10000, 100000), double_side_(true)
 	{
 	}
 

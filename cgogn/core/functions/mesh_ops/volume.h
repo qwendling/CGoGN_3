@@ -598,8 +598,8 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 		{
 			m.set_dart_level(phi3(m, it), m.dart_level(it3));
 			m.set_dart_level(phi3(m, it3), m.dart_level(it));
-			m.set_dart_visibility(phi3(m, it), 0);
-			m.set_dart_visibility(phi3(m, it3), 0);
+			// m.set_dart_visibility(phi3(m, it), m.get_dart_visibility_fast(it3));
+			// m.set_dart_visibility(phi3(m, it3), m.get_dart_visibility_fast(it));
 			m.m_.clock_++;
 			it = phi1(m, it);
 			it3 = phi_1(m, it3);

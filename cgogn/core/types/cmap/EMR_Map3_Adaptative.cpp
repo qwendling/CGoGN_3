@@ -328,12 +328,12 @@ uint32 EMR_Map3_Adaptative::get_dart_visibility(Dart d) const
 	if (std::get<0>(buffer) != m_.clock_ || std::get<1>(buffer) != clock_views_ ||
 		std::get<2>(buffer) != current_level_)
 	{
-		auto p = (*dart_visibility_)[d.index];
 		uint32 result = d_level;
-		if (p.first)
-			result = std::min(result, p.second);
 		if (!is_boundary(*this, d))
 		{
+			auto p = (*dart_visibility_)[d.index];
+			if (p.first)
+				result = std::min(result, p.second);
 			if (get_parent() != nullptr)
 			{
 				result = std::min(get_parent()->get_dart_visibility(d), result);
@@ -341,6 +341,23 @@ uint32 EMR_Map3_Adaptative::get_dart_visibility(Dart d) const
 			Dart r = get_representative(d);
 			if (r != d)
 				result = std::max(get_dart_visibility(r), result);
+		}
+		else
+		{
+			Dart tmp = (*((*m_.MR_phi3_)[d_level]))[d.index];
+			if (dart_level(tmp) == d_level)
+			{
+				// result = get_dart_visibility(tmp);
+			}
+			else
+			{
+				tmp = (*((*m_.MR_phi3_)[d_level - 1]))[tmp.index];
+				tmp = (*((*m_.MR_phi3_)[d_level]))[tmp.index];
+				// result = get_dart_visibility(tmp);
+			}
+			if (tmp == d)
+				std::cout << "problem" << std::endl;
+			result = get_dart_visibility(tmp);
 		}
 		std::get<3>(buffer) = result;
 		std::get<0>(buffer) = m_.clock_;

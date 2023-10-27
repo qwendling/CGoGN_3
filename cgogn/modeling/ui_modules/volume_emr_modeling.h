@@ -24,8 +24,8 @@
 #ifndef CGOGN_MODULE_VOLUME_EMR_MODELING_H_
 #define CGOGN_MODULE_VOLUME_EMR_MODELING_H_
 #include <GLFW/glfw3.h>
+#include <cgogn/core/ui_modules/mesh_provider.h>
 #include <cgogn/ui/module.h>
-#include <cgogn/ui/modules/mesh_provider/mesh_provider.h>
 
 #include <cgogn/core/types/mesh_traits.h>
 #include <cgogn/geometry/types/vector_traits.h>

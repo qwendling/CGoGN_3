@@ -561,6 +561,7 @@ protected:
 				{
 					value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v) += Vec3(1, 0, 0);
 				}
+				selected_mesh_->start_writer();
 				if (!moving_vertices.empty())
 				{
 					parallel_foreach_cell(*selected_mesh_, [&](Volume v) -> bool {
@@ -620,23 +621,24 @@ protected:
 						}
 						return true;
 					});
-					for (Face f : face_unsew)
-					{
-						unsew_volume(*selected_mesh_, f, [&](std::pair<Vertex, Vertex> p) -> bool {
-							std::vector<std::shared_ptr<Attribute<Vec3>>> list_update_attribute;
-							list_update_attribute.push_back(simu_solver.pos_);
-							list_update_attribute.push_back(simu_solver.init_pos_);
-							list_update_attribute.push_back(simu_solver.speed_);
-							for (auto attr : list_update_attribute)
-							{
-								value<Vec3>(*selected_mesh_, attr, p.second) =
-									value<Vec3>(*selected_mesh_, attr, p.first);
-							}
-							return true;
-						});
-					}
 					if (!face_unsew.empty())
 					{
+
+						for (Face f : face_unsew)
+						{
+							unsew_volume(*selected_mesh_, f, [&](std::pair<Vertex, Vertex> p) -> bool {
+								std::vector<std::shared_ptr<Attribute<Vec3>>> list_update_attribute;
+								list_update_attribute.push_back(simu_solver.pos_);
+								list_update_attribute.push_back(simu_solver.init_pos_);
+								list_update_attribute.push_back(simu_solver.speed_);
+								for (auto attr : list_update_attribute)
+								{
+									value<Vec3>(*selected_mesh_, attr, p.second) =
+										value<Vec3>(*selected_mesh_, attr, p.first);
+								}
+								return true;
+							});
+						}
 						simu_solver.update_topo(*selected_mesh_);
 					}
 				}
@@ -649,8 +651,6 @@ protected:
 											  Eigen::Translation3f(-cm.cast<float>());
 					pos_sphere = transfo * pos_sphere;
 				}
-
-				selected_mesh_->start_writer();
 				for (int i = 0; i < 1; i++)
 				{
 

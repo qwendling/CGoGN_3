@@ -667,11 +667,13 @@ void XPBD_Multiresolution::update_topo(MAP& m)
 		return true;
 	});
 	foreach_cell(m, [&](Volume v) -> bool {
+		std::vector<Vertex>& vertices = value<std::vector<Vertex>>(m, inc_vertices_.get(), v);
+		vertices.clear();
 		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
 			value<std::vector<Vertex>>(m, inc_vertices_.get(), v).push_back(w);
 			return true;
 		});
-		std::vector<Vertex>& vertices = value<std::vector<Vertex>>(m, inc_vertices_.get(), v);
+
 		double masse = value<double>(m, init_volume_, v) * DENSITY / vertices.size();
 		for (auto w : vertices)
 		{

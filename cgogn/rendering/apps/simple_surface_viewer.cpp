@@ -48,7 +48,7 @@ int main(int argc, char** argv)
 {
 	std::string filename;
 	if (argc <= 1)
-	 	filename = std::string(DEFAULT_MESH_PATH) + std::string("off/socket.off");
+		filename = std::string(DEFAULT_MESH_PATH) + std::string("off/socket.off");
 	else
 		filename = std::string(argv[1]);
 
@@ -69,7 +69,6 @@ int main(int argc, char** argv)
 	v1->link_module(&mp);
 	v1->link_module(&sr);
 	v1->link_module(&tpr);
-
 
 	if (filename.length() > 0)
 	{

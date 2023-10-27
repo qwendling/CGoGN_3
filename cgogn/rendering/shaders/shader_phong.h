@@ -54,7 +54,7 @@ public:
 
 	ShaderParamPhong(ShaderType* sh)
 		: ShaderParam(sh), front_color_(0.9f, 0, 0, 1), back_color_(0, 0, 0.9f, 1),
-		  ambiant_color_(0.05f, 0.05f, 0.05f, 1), light_position_(10, 100, 1000), double_side_(true),
+		  ambiant_color_(0.05f, 0.05f, 0.05f, 1), light_position_(1000, 10000, 100000), double_side_(true),
 		  specular_color_(1, 1, 1, 1), specular_coef_(250), ghost_mode_(false)
 	{
 	}
