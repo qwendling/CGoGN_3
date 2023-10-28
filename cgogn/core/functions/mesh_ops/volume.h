@@ -368,9 +368,67 @@ void unsew_volume_aux(EMR_Map3& m, const mesh_traits<EMR_Map3>::Face f, const FU
 		{
 			m.set_dart_level(phi3(m, it), m.dart_level(it3));
 			m.set_dart_level(phi3(m, it3), m.dart_level(it));
+			m.set_dart_visibility(phi3(m, it), 0);
+			m.set_dart_visibility(phi3(m, it3), 0);
+			m.m_.clock_++;
 			it = phi1(m, it);
 			it3 = phi_1(m, it3);
 		} while (it != f_rep);
+		/* std::array<Dart, 2> ar_dart = {it, it3};
+		for (int i = m.maximum_level_ - 1; i >=0 ; i--)
+		{
+			for (Dart tmp : ar_dart)
+			{
+				it = tmp;
+				// phi3
+				do
+				{
+					if (m.dart_level(it) <= i)
+					{
+						Dart d3 = (*((*m.m_.MR_phi2_)[i]))[it.index];
+						d3 = (*((*m.m_.MR_phi2_)[i + 1]))[d3.index];
+						d3 = (*((*m.m_.MR_phi3_)[i + 1]))[d3.index];
+						// Dart d3 = phi<23>(m2, phi2(m, it));
+						(*((*m.m_.MR_phi3_)[i]))[it.index] = d3;
+						(*((*m.m_.MR_phi3_)[i]))[d3.index] = it;
+					}
+					
+					it = phi1(m, it);
+				} while (it != tmp);
+				// phi2
+				do
+				{
+					if (m.dart_level(it) <= i)
+					{
+						Dart tmp = (*((*m.m_.MR_phi3_)[i + 1]))[it.index];
+						tmp = (*((*m.m_.MR_phi2_)[i + 1]))[tmp.index];
+						Dart d3 = (*((*m.m_.MR_phi3_)[i]))[it.index];
+
+
+						(*((*m.m_.MR_phi2_)[i]))[tmp.index] = d3;
+
+						(*((*m.m_.MR_phi2_)[i]))[d3.index] = tmp;
+					}
+
+					it = phi1(m, it);
+				} while (it != tmp);
+				// phi1
+				do
+				{
+					if (m.dart_level(it) <= i)
+					{
+						Dart d3_1 = (*((*m.m_.MR_phi1_)[i]))[it.index];
+						d3_1 = (*((*m.m_.MR_phi3_)[i]))[d3_1.index];
+						Dart d3 = (*((*m.m_.MR_phi3_)[i]))[it.index];
+						// Dart d3_1 = phi<13>(m, it);
+						// Dart d3 = phi3(m, it);
+						(*((*m.m_.MR_phi1_)[i]))[d3_1.index] = d3;
+						(*((*m.m_.MR_phi_1_)[i]))[d3.index] = d3_1;
+					}
+					it = phi1(m, it);
+				} while (it != tmp);
+			}
+		}*/
 	}
 	else
 	{
@@ -598,8 +656,8 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 		{
 			m.set_dart_level(phi3(m, it), m.dart_level(it3));
 			m.set_dart_level(phi3(m, it3), m.dart_level(it));
-			// m.set_dart_visibility(phi3(m, it), m.get_dart_visibility_fast(it3));
-			// m.set_dart_visibility(phi3(m, it3), m.get_dart_visibility_fast(it));
+			 m.set_dart_visibility(phi3(m, it),m.get_dart_visibility_fast(it3));
+			m.set_dart_visibility(phi3(m, it3), m.get_dart_visibility_fast(it));
 			m.m_.clock_++;
 			it = phi1(m, it);
 			it3 = phi_1(m, it3);

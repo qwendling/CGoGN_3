@@ -637,7 +637,7 @@ protected:
 										value<Vec3>(*selected_mesh_, attr, p.first);
 								}
 								return true;
-							});
+							},true);
 						}
 						simu_solver.update_topo(*selected_mesh_);
 					}
@@ -1002,15 +1002,21 @@ protected:
 
 			if (ImGui::BeginCombo("Position", p.vertex_position_ ? p.vertex_position_->name().c_str() : "-- select --"))
 			{
+				std::shared_ptr<Attribute<Vec3>> attr = nullptr;
 				foreach_attribute<Vec3, Vertex>(*selected_mesh_,
 												[&](const std::shared_ptr<Attribute<Vec3>>& attribute) {
 													bool is_selected = attribute == p.vertex_position_;
 													if (ImGui::Selectable(attribute->name().c_str(), is_selected))
-														set_vertex_position(*selected_mesh_, attribute);
+														attr = attribute;
+														
 													if (is_selected)
 														ImGui::SetItemDefaultFocus();
 												});
 				ImGui::EndCombo();
+				if (attr != nullptr)
+				{
+					set_vertex_position(*selected_mesh_, attr);
+				}
 			}
 			if (p.vertex_position_)
 			{

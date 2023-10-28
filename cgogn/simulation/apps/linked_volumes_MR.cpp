@@ -66,6 +66,7 @@ int main(int argc, char** argv)
 	}
 	else
 		filename = std::string(argv[1]);
+	std::cout << filename << std::endl;
 
 	cgogn::thread_start();
 

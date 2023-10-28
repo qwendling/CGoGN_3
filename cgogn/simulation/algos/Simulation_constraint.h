@@ -23,7 +23,10 @@ public:
 								  double time_step) = 0;
 	virtual void update_topo(const MAP&, const std::vector<Vertex>&){};
 	virtual void init_solver(MAP&, Attribute<Vec3>*){};
-	virtual Simulation_constraint<MAP>* get_new_ptr(){return nullptr};
+	virtual Simulation_constraint<MAP>* get_new_ptr()
+	{
+		return nullptr;
+	};
 	inline void update_vertices_cache(const MAP& m)
 	{
 		vertices_cache.clear();

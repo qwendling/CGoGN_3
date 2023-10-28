@@ -202,6 +202,25 @@ protected:
 					}
 					return true;
 				});
+				CellMarkerStore<MESH, Vertex> vm(*selected_mesh_);
+				std::vector<Vertex> CC_0;
+				CC_0.push_back(Vertex(Dart(0)));
+				vm.mark(Vertex(Dart(0)));
+				while (!CC_0.empty())
+				{
+					Vertex v = CC_0.back();
+					CC_0.pop_back();
+					cgogn::foreach_adjacent_vertex_through_edge(*selected_mesh_, v, [&](Vertex w) -> bool { 
+						if (!vm.is_marked(w))
+						{
+							vm.mark(w);
+							CC_0.push_back(w);
+							value<Vec3>(*selected_mesh_, p.vertex_position_.get(), w) += Vec3(3, 0, 0);
+						}
+						return true;
+					});
+				}
+
 				std::cout << "Fin découpe" << std::endl;
 
 				for (auto attr : list_update_attribute)
