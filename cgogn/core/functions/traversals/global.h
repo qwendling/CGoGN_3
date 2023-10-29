@@ -113,7 +113,7 @@ auto foreach_cell(const EMR_Map3_Adaptative& m, const FUNC& f, CMapBase::Travers
 	if (traversal_policy == CMapBase::TraversalPolicy::AUTO && is_indexed<CELL>(m))
 	{
 
-		if (m.maximum_level_ - m.current_level_ >= 2)
+		if (false && m.maximum_level_ - m.current_level_ >= 2)
 		{
 			foreach_cell_fast(m, f);
 		}

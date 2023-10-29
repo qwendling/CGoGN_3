@@ -565,7 +565,6 @@ protected:
 				if (!moving_vertices.empty())
 				{
 					parallel_foreach_cell(*selected_mesh_, [&](Volume v) -> bool {
-						Eigen::JacobiSVD<Eigen::Matrix3d> svd;
 						std::shared_ptr<Attribute<Eigen::Matrix3d>> F =
 							get_attribute<Eigen::Matrix3d, Volume>(*selected_mesh_, "XPBD_F_volume");
 						Eigen::Matrix3d deformation_gradient = value<Eigen::Matrix3d>(*selected_mesh_, F, v);
@@ -610,7 +609,7 @@ protected:
 						double tension = (evalue_1 - 1.) * abs(evector_1.normalized().dot(face_normale)) +
 										 (evalue_2 - 1.) * abs(evector_2.normalized().dot(face_normale));
 						value<double>(*selected_mesh_, face_tensor, f) = tension;
-						if (tension > 1.2)
+						if (tension > 0.5f)
 						{
 							std::shared_ptr<Attribute<double>> separation_volume =
 								get_attribute<double, Volume>(*selected_mesh_, "Separation_volume");

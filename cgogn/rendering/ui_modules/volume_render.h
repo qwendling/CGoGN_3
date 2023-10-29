@@ -500,6 +500,7 @@ protected:
 		for (auto& [m, p] : parameters_[view])
 		{
 			MeshData<MESH>& md = mesh_provider_->mesh_data(*m);
+			m->start_reader();
 
 			const rendering::GLMat4& proj_matrix = view->projection_matrix();
 			const rendering::GLMat4& view_matrix = view->modelview_matrix();
@@ -584,6 +585,7 @@ protected:
 					md.init_primitives(rendering::TRIANGLES);
 				outline_engine_->draw(p.vertex_position_vbo_, md.mesh_render(), proj_matrix, view_matrix, color);
 			}
+			m->end_reader();
 		}
 	}
 

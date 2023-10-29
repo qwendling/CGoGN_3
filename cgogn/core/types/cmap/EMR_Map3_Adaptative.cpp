@@ -460,7 +460,7 @@ Dart EMR_Map3_Adaptative::edge_youngest_dart(Dart d) const
 		return edge_youngest_dart(phi3(*this, d));
 	}
 	Dart it = phi2(*this, d);
-	if (m_.dart_level(d) > m_.dart_level(it))
+	if (m_.dart_level(d) >= m_.dart_level(it))
 		return d;
 	return it;
 }

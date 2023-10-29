@@ -55,6 +55,110 @@ using Volume = typename cgogn::mesh_traits<MRMesh>::Volume;
 
 using Vec3 = cgogn::geometry::Vec3;
 
+class LocalInterface : public cgogn::ui::ViewModule
+{
+
+public:
+	LocalInterface(const cgogn::ui::App& app)
+		: cgogn::ui::ViewModule(app, "LocalInterface"), mesh_(nullptr), vertex_position_(nullptr),
+		  mesh_provider_(nullptr), vol_render_(nullptr), topo_render_(nullptr), moving_color_(1.0f, 0.0f, 1.0f, 1.0f)
+	{
+		view_ = app.current_view();
+	}
+
+	~LocalInterface()
+	{
+	}
+	void force_update()
+	{
+		for (cgogn::ui::View* v : linked_views_)
+			v->request_update();
+	}
+
+	void init() override
+	{
+		mesh_provider_ = static_cast<cgogn::ui::MeshProvider<MRMesh>*>(
+			app_.module("MeshProvider (" + std::string{cgogn::mesh_traits<MRMesh>::name} + ")"));
+
+		vol_render_ = static_cast<cgogn::ui::VolumeRender<MRMesh>*>(
+			app_.module("VolumeRender (" + std::string{cgogn::mesh_traits<MRMesh>::name} + ")"));
+		topo_render_ = static_cast<cgogn::ui::TopoRender<MRMesh>*>(
+			app_.module("TopoRender (" + std::string{cgogn::mesh_traits<MRMesh>::name} + ")"));
+	}
+
+	void left_panel() override
+	{
+		if (ImGui::SliderFloat("Explode", &expl_vol_, 0.01f, 1.0f))
+		{
+			vol_render_->set_volume_explode(*view_, *mesh_, expl_vol_);
+			topo_render_->set_volume_explode(expl_vol_ + 0.02f);
+			force_update();
+		}
+
+		if (ImGui::Button("init moving"))
+		{
+			if (!moving_dart_.is_nil())
+				topo_render_->set_dart_color(moving_dart_, moving_color_);
+			moving_dart_ = cgogn::Dart(0);
+			topo_render_->set_dart_color(moving_dart_, moving_color_);
+			force_update();
+		}
+
+		if (ImGui::Button("ph1"))
+		{
+			cgogn::Dart new_moving_dart_ = cgogn::phi1(*mesh_, moving_dart_);
+			topo_render_->set_dart_color(new_moving_dart_, moving_color_);
+			topo_render_->reset_dart_color(moving_dart_);
+			moving_dart_ = new_moving_dart_;
+			force_update();
+		}
+
+		if (ImGui::Button("phi2"))
+		{
+			cgogn::Dart new_moving_dart_ = cgogn::phi2(*mesh_, moving_dart_);
+			topo_render_->set_dart_color(new_moving_dart_, moving_color_);
+			topo_render_->reset_dart_color(moving_dart_);
+			moving_dart_ = new_moving_dart_;
+			force_update();
+		}
+
+		if (ImGui::Button("phi3"))
+		{
+			cgogn::Dart new_moving_dart_ = cgogn::phi3(*mesh_, moving_dart_);
+			topo_render_->set_dart_color(new_moving_dart_, moving_color_);
+			topo_render_->reset_dart_color(moving_dart_);
+			moving_dart_ = new_moving_dart_;
+			force_update();
+		}
+		if (ImGui::Button("dart edge"))
+		{
+			std::cout << "edge index : " << index_of(*mesh_, Edge(moving_dart_)) << std::endl;
+			for (cgogn::Dart d = mesh_->begin(), end = mesh_->end(); d != end; d = mesh_->next(d))
+			{
+				if (!is_boundary(*mesh_, d))
+				{
+					if (index_of(*mesh_, Edge(moving_dart_)) == index_of(*mesh_, Edge(d)))
+					{
+						topo_render_->set_dart_color(d, moving_color_);
+					}
+				}
+			}
+			force_update();
+		}
+	}
+	MRMesh* mesh_;
+	cgogn::ui::View* view_;
+	std::shared_ptr<Attribute<Vec3>> vertex_position_;
+	cgogn::ui::MeshProvider<MRMesh>* mesh_provider_;
+	cgogn::ui::VolumeRender<MRMesh>* vol_render_;
+	cgogn::ui::TopoRender<MRMesh>* topo_render_;
+	cgogn::Dart d_hexa_;
+	cgogn::Dart d_pyra_;
+	cgogn::Dart moving_dart_;
+	Eigen::Vector4f moving_color_;
+	float expl_vol_;
+};
+
 int main(int argc, char** argv)
 {
 	setlocale(LC_ALL, "fr-FR");
@@ -81,6 +185,7 @@ int main(int argc, char** argv)
 	cgogn::ui::ShapeMatching<MRMesh> sm(app);
 	cgogn::ui::LinkedVolumes<MRMesh> lv(app);
 	cgogn::ui::TopoRender<MRMesh> tr(app);
+	LocalInterface interf(app);
 
 	cgogn::ui::VolumeEMRModeling<MRMesh> vmrm(app);
 
@@ -91,6 +196,7 @@ int main(int argc, char** argv)
 	v1->link_module(&sm);
 	v1->link_module(&lv);
 	v1->link_module(&tr);
+	v1->link_module(&interf);
 
 	/*cgogn::ui::View* v2 = app.add_view();
 	v2->link_module(&mp);
@@ -111,6 +217,10 @@ int main(int argc, char** argv)
 	MRMesh* mrm = vmrm.create_mrmesh(*m, mp.mesh_name(*m));
 	MRMesh* mrm2 = vmrm.create_mrmesh(*m, mp.mesh_name(*m));
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*mrm, "position");
+
+	interf.mesh_ = mrm;
+	interf.vertex_position_ = position;
+	
 
 	cgogn::index_cells<MRMesh::Volume>(*mrm);
 	cgogn::index_cells<MRMesh::Edge>(*mrm);

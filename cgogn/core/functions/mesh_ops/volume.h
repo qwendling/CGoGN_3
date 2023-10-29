@@ -648,7 +648,8 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 
 		for (auto p : list_pair_vertex)
 		{
-			callback_vertices(p);
+			if (m.dart_is_visible(p.first.dart))
+				callback_vertices(p);
 		}
 		Dart it = f_rep;
 		Dart it3 = f3_rep;
@@ -693,7 +694,10 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 		// phi3
 		do
 		{
-			Dart d3 = phi<2, 3>(m2, phi2(m, it));
+			//Dart d3 = phi<2, 3>(m2, phi2(m, it));
+			Dart d3 = (*((*m.m_.MR_phi2_)[m.current_level_]))[it.index];
+			d3 = (*((*m.m_.MR_phi2_)[m2.current_level_]))[d3.index];
+			d3 = (*((*m.m_.MR_phi3_)[m2.current_level_]))[d3.index];
 			(*((*m.m_.MR_phi3_)[m.current_level_]))[it.index] = d3;
 			(*((*m.m_.MR_phi3_)[m.current_level_]))[d3.index] = it;
 			m.m_.clock_++;
@@ -704,9 +708,11 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 		{
 
 			// Dart tmp = phi<32>(m2, it);
-			Dart tmp = phi3(m2, it);
+			//Dart tmp = phi3(m2, it);
+			Dart tmp = (*((*m.m_.MR_phi3_)[m2.current_level_]))[it.index];
 			tmp = (*((*m.m_.MR_phi2_)[m2.current_level_]))[tmp.index];
-			Dart d3 = phi3(m, it);
+			//Dart d3 = phi3(m, it);
+			Dart d3 = (*((*m.m_.MR_phi3_)[m.current_level_]))[it.index];
 
 			(*((*m.m_.MR_phi2_)[m.current_level_]))[tmp.index] = d3;
 
@@ -714,13 +720,13 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 
 			m.m_.clock_++;
 
-			uint32 e_level = m.edge_level(it);
+			/* uint32 e_level = m.edge_level(it);
 			if (e_level == m2.edge_level(it))
 			{
 				(*((*m.m_.MR_phi2_)[e_level]))[tmp.index] = (*((*m.m_.MR_phi2_)[m.current_level_]))[tmp.index];
 				(*((*m.m_.MR_phi2_)[e_level]))[d3.index] = (*((*m.m_.MR_phi2_)[m.current_level_]))[d3.index];
 				// std::cout << "hello" << std::endl;
-			}
+			}*/
 			m.m_.clock_++;
 
 			/*std::cout << "m lvl = " << m.current_level_ << std::endl;
@@ -733,8 +739,11 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 		// phi1
 		do
 		{
-			Dart d3_1 = phi<1, 3>(m, it);
-			Dart d3 = phi3(m, it);
+			//Dart d3_1 = phi<1, 3>(m, it);
+			Dart d3_1=(*((*m.m_.MR_phi1_)[m.current_level_]))[it.index] ;
+			d3_1=(*((*m.m_.MR_phi3_)[m.current_level_]))[d3_1.index] ;
+			//Dart d3 = phi3(m, it);
+			Dart d3 = (*((*m.m_.MR_phi3_)[m.current_level_]))[it.index];
 			(*((*m.m_.MR_phi1_)[m.current_level_]))[d3_1.index] = d3;
 			(*((*m.m_.MR_phi_1_)[m.current_level_]))[d3.index] = d3_1;
 			m.m_.clock_++;

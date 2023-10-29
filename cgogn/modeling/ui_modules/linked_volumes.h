@@ -202,34 +202,43 @@ protected:
 					}
 					return true;
 				});
-				CellMarkerStore<MESH, Vertex> vm(*selected_mesh_);
-				std::vector<Vertex> CC_0;
-				CC_0.push_back(Vertex(Dart(0)));
-				vm.mark(Vertex(Dart(0)));
-				while (!CC_0.empty())
-				{
-					Vertex v = CC_0.back();
-					CC_0.pop_back();
-					cgogn::foreach_adjacent_vertex_through_edge(*selected_mesh_, v, [&](Vertex w) -> bool { 
-						if (!vm.is_marked(w))
-						{
-							vm.mark(w);
-							CC_0.push_back(w);
-							value<Vec3>(*selected_mesh_, p.vertex_position_.get(), w) += Vec3(3, 0, 0);
-						}
-						return true;
-					});
-				}
+				
 
 				std::cout << "Fin découpe" << std::endl;
 
 				for (auto attr : list_update_attribute)
 				{
 					mesh_provider_->emit_attribute_changed(*selected_mesh_, attr.get());
-					std::cout << "hello" << std::endl;
 				}
 				mesh_provider_->emit_connectivity_changed(*selected_mesh_);
 				selected_mesh_->end_writer();
+			}
+		}
+		if (key_code == GLFW_KEY_Y)
+		{
+			Parameters& p = parameters_[selected_mesh_];
+			CellMarkerStore<MESH, Vertex> vm(*selected_mesh_);
+			std::vector<Vertex> CC_0;
+			CC_0.push_back(Vertex(Dart(0)));
+			vm.mark(Vertex(Dart(0)));
+			 value<Vec3>(*selected_mesh_, p.vertex_position_.get(), Vertex(Dart(0))) += Vec3(3, 0, 0);
+			while (!CC_0.empty())
+			{
+				Vertex v = CC_0.back();
+				CC_0.pop_back();
+				cgogn::foreach_adjacent_vertex_through_edge(*selected_mesh_, v, [&](Vertex w) -> bool {
+					if (!vm.is_marked(w))
+					{
+						vm.mark(w);
+						CC_0.push_back(w);
+						 value<Vec3>(*selected_mesh_, p.vertex_position_.get(), w) += Vec3(3, 0, 0);
+					}
+					return true;
+				});
+			}
+			for (auto attr : list_update_attribute)
+			{
+				mesh_provider_->emit_attribute_changed(*selected_mesh_, attr.get());
 			}
 		}
 	}

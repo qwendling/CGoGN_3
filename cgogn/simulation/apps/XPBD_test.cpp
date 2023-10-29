@@ -168,8 +168,8 @@ int main(int argc, char** argv)
 	}
 
 	MRMesh* mrm = vmrm.create_mrmesh(*m, mp.mesh_name(*m));
-	MRMesh* geometry_mesh = vmrm.create_mrmesh(*m, "geometry");
-	geometry_mesh->parent = mrm;
+	// MRMesh* geometry_mesh = vmrm.create_mrmesh(*m, "geometry");
+	//geometry_mesh->parent = mrm;
 
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*mrm, "position");
 	std::shared_ptr<Attribute<Vec3>> normal = cgogn::add_attribute<Vec3, Vertex>(*m, "normal__anim_multires");
@@ -396,18 +396,18 @@ int main(int argc, char** argv)
 	else
 	{
 		vmrm.subdivide(*mrm, position.get());
-		// vmrm.subdivide(*mrm, position.get());
+		vmrm.subdivide(*mrm, position.get());
 		//     vmrm.subdivide(*mrm, position.get());
 		mrm->current_level_ = 0;
 	}
 
-	cgogn::foreach_cell(*geometry_mesh, [&](Face f) -> bool {
+	/* cgogn::foreach_cell(*geometry_mesh, [&](Face f) -> bool {
 		if (is_incident_to_boundary(*geometry_mesh, f))
 		{
 			geometry_mesh->activate_face_subdivision(f);
 		}
 		return true;
-	});
+	});*/
 
 	/*cgogn::foreach_cell(*m, [&](Vertex v) -> bool {
 		cgogn::value<Vec3>(*m, position, v) +=
@@ -430,7 +430,7 @@ int main(int argc, char** argv)
 	mrm->current_level_ = 0;*/
 
 	vmrm.changed_connectivity(*mrm, position.get());
-	vmrm.changed_connectivity(*geometry_mesh, position.get());
+	//vmrm.changed_connectivity(*geometry_mesh, position.get());
 
 	return app.launch();
 }
