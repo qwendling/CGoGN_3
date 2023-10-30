@@ -8,14 +8,14 @@
 #include <cgogn/geometry/algos/volume.h>
 #include <cgogn/geometry/types/vector_traits.h>
 
-#define POISSON_RATIO 0.45
+#define POISSON_RATIO 0.49
 #define YOUNG_MODULUS 1e7
 
-#define LAME_MU (YOUNG_MODULUS / (2 * (1 + POISSON_RATIO)))
-#define LAME_LAMBDA ((YOUNG_MODULUS * POISSON_RATIO) / ((1 + POISSON_RATIO) * (1 - 2 * POISSON_RATIO)))
+#define LAME_MU (YOUNG_MODULUS / (2.0 * (1.0 + POISSON_RATIO)))
+#define LAME_LAMBDA ((YOUNG_MODULUS * POISSON_RATIO) / ((1.0 + POISSON_RATIO) * (1.0 - 2.0 * POISSON_RATIO)))
 
-#define SHEAR_MODULUS (YOUNG_MODULUS / (2 * (1 + POISSON_RATIO)))
-#define BULK_MODULUS (YOUNG_MODULUS / (3 * (1 - 2 * POISSON_RATIO)))
+#define SHEAR_MODULUS (YOUNG_MODULUS / (2.0 * (1.0 + POISSON_RATIO)))
+#define BULK_MODULUS (YOUNG_MODULUS / (3.0 * (1.0 - 2.0 * POISSON_RATIO)))
 
 #define NUM_SUBSTEP 5
 #define DENSITY 10

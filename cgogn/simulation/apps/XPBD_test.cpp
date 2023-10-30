@@ -167,7 +167,9 @@ int main(int argc, char** argv)
 		}
 	}
 
-	MRMesh* mrm = vmrm.create_mrmesh(*m, mp.mesh_name(*m));
+	MRMesh* mrm = vmrm.create_mrmesh(*m, "mecanique");
+	MRMesh* topo = vmrm.create_mrmesh(*m, "Topology");
+	mrm->topology_ = topo;
 	// MRMesh* geometry_mesh = vmrm.create_mrmesh(*m, "geometry");
 	//geometry_mesh->parent = mrm;
 
@@ -395,8 +397,8 @@ int main(int argc, char** argv)
 	}
 	else
 	{
-		vmrm.subdivide(*mrm, position.get());
-		vmrm.subdivide(*mrm, position.get());
+		//vmrm.subdivide(*mrm, position.get());
+		//vmrm.subdivide(*mrm, position.get());
 		//     vmrm.subdivide(*mrm, position.get());
 		mrm->current_level_ = 0;
 	}

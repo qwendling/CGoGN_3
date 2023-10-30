@@ -161,6 +161,7 @@ void XPBD_Multiresolution::init_solver(MAP& m, std::shared_ptr<Attribute<Vec3>> 
 		});
 		double s = 1.0 / Q.sum();
 		value<double>(m, s_, v) = s;
+		//s = 1.;
 		Q = s * Q;
 		value<Mat3d>(m, inv_Q_, v) = Q.eval().inverse();
 		return true;
@@ -723,6 +724,7 @@ void XPBD_Multiresolution::constraint_Neo_Hookean_H(MAP& m, Volume v, double h)
 		cm += value<double>(m, masse_, w) * value<Vec3>(m, pos_.get(), w);
 	}
 	cm /= masse_vol;
+	value<Vec3>(m, centroid_, v) = cm;
 
 	// Compute P
 	Mat3d P = Mat3d::Zero();
@@ -757,17 +759,19 @@ void XPBD_Multiresolution::constraint_Neo_Hookean_H(MAP& m, Volume v, double h)
 		}
 	}
 
+	value<Mat3d>(m, F_, v) = F;
+
 	// Compute C  = det(F) - (1+MU/LAMBDA)
 	double det_F = F.determinant();
 	// HERE - OR + ?
-	double C = det_F - (1 + LAME_MU / LAME_LAMBDA);
+	double C = det_F - (1. + LAME_MU / LAME_LAMBDA);
 
 	// Compute Volume
 	// double Ve = geometry::volume(m, v, pos_.get());
 	double Ve = fabs(det_F * value<double>(m, init_volume_, v));
 
 	// Compute alpha_H = 1/(LAMBDA*V)
-	double alpha_h = 1.0f / (LAME_LAMBDA * Ve);
+	double alpha_h = 1.0 / (LAME_LAMBDA * Ve);
 
 	// Compute denum
 	double denum = 0;
@@ -785,7 +789,7 @@ void XPBD_Multiresolution::constraint_Neo_Hookean_H(MAP& m, Volume v, double h)
 		Vec3 GC = m_i * tmp * init_r_i;
 		GC = value<double>(m, s_, v) * GC;
 		value<Vec3>(m, Grad_C_i_, w) = GC;
-		denum += 1.0f / m_i * GC.squaredNorm();
+		denum += 1.0 / m_i * GC.squaredNorm();
 	}
 	denum += alpha_h / (h * h);
 	// Compute lambda
@@ -845,6 +849,7 @@ void XPBD_Multiresolution::constraint_Neo_Hookean_D(MAP& m, Volume v, double h)
 			}
 		}
 	}
+	F =value<Mat3d>(m, F_, v);
 
 	// Compute C  = sqrt(tr(F^T*F))
 	double C = sqrt((F.transpose() * F).trace());
@@ -854,7 +859,7 @@ void XPBD_Multiresolution::constraint_Neo_Hookean_D(MAP& m, Volume v, double h)
 	double Ve = fabs(F.determinant() * value<double>(m, init_volume_, v));
 
 	// Compute alpha_D = 1/(MU*V)
-	double alpha_d = 1.0f / (LAME_MU * Ve);
+	double alpha_d = 1.0 / (LAME_MU * Ve);
 
 	// Compute denum
 	double denum = 0;
@@ -869,7 +874,7 @@ void XPBD_Multiresolution::constraint_Neo_Hookean_D(MAP& m, Volume v, double h)
 		Vec3 GC = m_i / r * tmp * init_r_i;
 		GC = value<double>(m, s_, v) * GC;
 		value<Vec3>(m, Grad_C_i_, w) = GC;
-		denum += 1.0f / m_i * GC.squaredNorm();
+		denum += 1.0 / m_i * GC.squaredNorm();
 	}
 	denum += alpha_d / (h * h);
 	// Compute lambda
@@ -882,7 +887,7 @@ void XPBD_Multiresolution::constraint_Neo_Hookean_D(MAP& m, Volume v, double h)
 			continue;
 		}
 		double m_i = value<double>(m, masse_, w);
-		Vec3 delta_x = lambda * (1 / m_i) * value<Vec3>(m, Grad_C_i_, w);
+		Vec3 delta_x = lambda * (1. / m_i) * value<Vec3>(m, Grad_C_i_, w);
 		value<Vec3>(m, pos_.get(), w) += delta_x;
 	}
 }
@@ -930,6 +935,8 @@ void XPBD_Multiresolution::constraint_Zero_Energy(MAP& m, Volume v, double)
 			}
 		}
 	}
+
+	//F = value<Mat3d>(m, F_, v);
 	value<Mat3d>(m, F_, v) = F;
 	value<Vec3>(m, centroid_, v) = cm;
 	// Pour l'erreur et la Visu

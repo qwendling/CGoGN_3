@@ -185,8 +185,10 @@ protected:
 				Parameters& p = parameters_[selected_mesh_];
 				Vec3 pos;
 				p.frame_manipulator_.get_position(pos);
+				//pos = Vec3(3.98, 5.45, -0.31);
 				Vec3 a;
 				p.frame_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, a);
+				//a = Vec3(0.995, -0.042, -0.079);
 				double d = pos.dot(a);
 				selected_mesh_->start_writer();
 				std::cout << "Début découpe" << std::endl;
@@ -211,6 +213,7 @@ protected:
 					mesh_provider_->emit_attribute_changed(*selected_mesh_, attr.get());
 				}
 				mesh_provider_->emit_connectivity_changed(*selected_mesh_);
+				mesh_provider_->emit_connectivity_changed(*selected_mesh_->topology_);
 				selected_mesh_->end_writer();
 			}
 		}

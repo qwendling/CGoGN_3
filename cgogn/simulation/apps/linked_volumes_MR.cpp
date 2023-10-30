@@ -99,7 +99,7 @@ public:
 		{
 			if (!moving_dart_.is_nil())
 				topo_render_->set_dart_color(moving_dart_, moving_color_);
-			moving_dart_ = cgogn::Dart(0);
+			moving_dart_ = cgogn::Dart(60);
 			topo_render_->set_dart_color(moving_dart_, moving_color_);
 			force_update();
 		}
@@ -145,6 +145,8 @@ public:
 			}
 			force_update();
 		}
+		if (!moving_dart_.is_nil())
+			ImGui::Text("Dart index : %d",moving_dart_.index);
 	}
 	MRMesh* mesh_;
 	cgogn::ui::View* view_;
@@ -215,8 +217,10 @@ int main(int argc, char** argv)
 	}
 
 	MRMesh* mrm = vmrm.create_mrmesh(*m, mp.mesh_name(*m));
-	MRMesh* mrm2 = vmrm.create_mrmesh(*m, mp.mesh_name(*m));
+	MRMesh* topo = vmrm.create_mrmesh(*m, "Topology");
+	//MRMesh* mrm2 = vmrm.create_mrmesh(*m, mp.mesh_name(*m));
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*mrm, "position");
+	mrm->topology_ = topo;
 
 	interf.mesh_ = mrm;
 	interf.vertex_position_ = position;
@@ -228,19 +232,19 @@ int main(int argc, char** argv)
 
 	vmrm.subdivide(*mrm, position.get());
 
-	vmrm.subdivide(*mrm, position.get());
+	//vmrm.subdivide(*mrm, position.get());
 
-	mrm2->parent = mrm;
+	//mrm2->parent = mrm;
 
 	mrsr.set_vertex_position(*v1, *mrm, position);
-	mrsr.set_vertex_position(*v1, *mrm2, nullptr);
+	//mrsr.set_vertex_position(*v1, *mrm2, nullptr);
 	v1->scene_bb_locked_ = true;
 
 	/*mrsr.set_vertex_position(*v2, *mrm, nullptr);
 	mrsr.set_vertex_position(*v2, *mrm2, position);
 	v2->scene_bb_locked_ = true;*/
 
-	vmrm.changed_connectivity(*mrm2, position.get());
+	//vmrm.changed_connectivity(*mrm2, position.get());
 	std::vector<Volume> list_cut_volumes;
 
 	std::srand(164512792);
@@ -261,7 +265,7 @@ int main(int argc, char** argv)
 		}
 		list_cut_volumes.clear();
 	}*/
-	vmrm.changed_connectivity(*mrm2, position.get());
+	//vmrm.changed_connectivity(*mrm2, position.get());
 
 	return app.launch();
 }

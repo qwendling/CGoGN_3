@@ -574,12 +574,12 @@ void unsew_volume(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3_Adaptative>
 		fn = [&](Dart d) {
 			if (topo->dart_is_visible(d))
 			{
-				topo->activate_volume_subdivision(Volume(d));
+				return;
 			}
 			else
 			{
 				uint32 cur = topo->current_level_;
-				topo->current_level_ = topo->dart_level(d)-1;
+				topo->current_level_ = topo->dart_level(d);
 				Dart it = topo->volume_oldest_dart(d);
 				topo->current_level_ = cur;
 				fn(it);
@@ -594,6 +594,20 @@ void unsew_volume(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3_Adaptative>
 		{
 			fn(v_old2);
 		}
+		uint32 v_level_topo = topo->volume_level(v_old1);
+		uint32 v_level_topo2 = topo->volume_level(v_old2);
+		uint32 v_level = m.volume_level(v_old1);
+		uint32 v_level2 = m.volume_level(v_old2);
+		while (v_level > v_level_topo)
+		{
+			topo->activate_volume_subdivision(Volume(v_old1));
+			v_level_topo++;
+		}
+		while (v_level2 > v_level_topo2)
+		{
+			topo->activate_volume_subdivision(Volume(v_old2));
+			v_level_topo2++;
+		}
 	}
 		
 
@@ -603,7 +617,7 @@ void unsew_volume(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3_Adaptative>
 	unsew_volume_aux(*topo, Face(m.face_oldest_dart(f.dart)), callback_vertices, set_indices);
 
 	topo->current_level_ = cur;
-
+	cgogn_message_assert(topo->check_integrity(), "check integrity topo fail after cut");
 	cgogn_message_assert(m.check_integrity(), "check integrity fail after cut");
 }
 

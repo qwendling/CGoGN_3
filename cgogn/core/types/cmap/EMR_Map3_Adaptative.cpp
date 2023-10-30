@@ -348,6 +348,10 @@ uint32 EMR_Map3_Adaptative::get_dart_visibility(Dart d) const
 		}
 		else
 		{
+			if (get_parent() != nullptr)
+			{
+				result = std::min(get_parent()->get_dart_visibility(d), result);
+			}
 			/* Dart tmp = (*((*m_.MR_phi3_)[d_level]))[d.index];
 			if (tmp == d)
 			{
