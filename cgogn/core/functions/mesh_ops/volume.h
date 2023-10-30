@@ -550,6 +550,7 @@ void unsew_volume(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3_Adaptative>
 {
 	using Vertex = typename mesh_traits<EMR_Map3_Adaptative>::Vertex;
 	using Face = typename mesh_traits<EMR_Map3_Adaptative>::Face;
+	using Volume = typename mesh_traits<EMR_Map3_Adaptative>::Volume;
 
 	static_assert(is_func_parameter_same<FUNC, std::pair<Vertex, Vertex>>::value,
 				  "Function must have std::pair<Vertex, Vertex> as a parameter");
@@ -565,7 +566,36 @@ void unsew_volume(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3_Adaptative>
 	unsew_volume_aux(m2, Face(m.face_oldest_dart(f.dart)), callback_vertices, set_indices);*/
 	EMR_Map3_Adaptative* topo = &m;
 	if (m.topology_)
+	{
 		topo = m.topology_;
+		Dart v_old1 = m.volume_oldest_dart(f.dart);
+		Dart v_old2 = m.volume_oldest_dart(phi3(m,f.dart));
+		std::function<void(Dart)> fn;
+		fn = [&](Dart d) {
+			if (topo->dart_is_visible(d))
+			{
+				topo->activate_volume_subdivision(Volume(d));
+			}
+			else
+			{
+				uint32 cur = topo->current_level_;
+				topo->current_level_ = topo->dart_level(d)-1;
+				Dart it = topo->volume_oldest_dart(d);
+				topo->current_level_ = cur;
+				fn(it);
+				topo->activate_volume_subdivision(Volume(d));
+			}
+		};
+		if (!topo->dart_is_visible(v_old1))
+		{
+			fn(v_old1);
+		}
+		if (!topo->dart_is_visible(v_old2))
+		{
+			fn(v_old2);
+		}
+	}
+		
 
 	uint32 cur = topo->current_level_;
 	topo->current_level_ = f_level;
