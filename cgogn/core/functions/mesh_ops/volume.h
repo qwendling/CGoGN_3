@@ -583,7 +583,7 @@ void unsew_volume(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3_Adaptative>
 				Dart it = topo->volume_oldest_dart(d);
 				topo->current_level_ = cur;
 				fn(it);
-				topo->activate_volume_subdivision(Volume(d));
+				topo->activate_volume_subdivision(Volume(it));
 			}
 		};
 		if (!topo->dart_is_visible(v_old1))

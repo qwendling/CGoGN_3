@@ -8,7 +8,7 @@
 #include <cgogn/geometry/algos/volume.h>
 #include <cgogn/geometry/types/vector_traits.h>
 
-#define POISSON_RATIO 0.49
+#define POISSON_RATIO 0.45
 #define YOUNG_MODULUS 1e7
 
 #define LAME_MU (YOUNG_MODULUS / (2.0 * (1.0 + POISSON_RATIO)))

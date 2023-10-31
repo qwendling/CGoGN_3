@@ -397,8 +397,8 @@ int main(int argc, char** argv)
 	}
 	else
 	{
-		//vmrm.subdivide(*mrm, position.get());
-		//vmrm.subdivide(*mrm, position.get());
+		vmrm.subdivide(*mrm, position.get());
+		vmrm.subdivide(*mrm, position.get());
 		//     vmrm.subdivide(*mrm, position.get());
 		mrm->current_level_ = 0;
 	}

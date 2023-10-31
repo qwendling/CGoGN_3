@@ -654,9 +654,6 @@ protected:
 							},true);
 						}
 						simu_solver.update_topo(*selected_mesh_);
-						running_ = false;
-						need_update_ = true;
-						selected_mesh_->end_writer();
 					}
 				}
 
@@ -694,7 +691,7 @@ protected:
 				}
 				if (draw_sphere2)
 				{
-					/* simu_solver.compute_contact(*selected_mesh_, *geom_mesh_, [&](Vertex v) -> bool {
+					 simu_solver.compute_contact(*selected_mesh_, *geom_mesh_, [&](Vertex v) -> bool {
 						Vec3& pos = value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v);
 
 						Vec3 pos2 = pos - pos_sphere2.cast<double>();
@@ -706,7 +703,7 @@ protected:
 							return true;
 						}
 						return false;
-					});*/
+					});
 					parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
 						Vec3& pos = value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v);
 						Vec3& speed = value<Vec3>(*selected_mesh_, simu_solver.speed_.get(), v);
