@@ -40,9 +40,98 @@ template <typename T>
 using Attribute = typename cgogn::mesh_traits<Mesh>::Attribute<T>;
 using Vertex = typename cgogn::mesh_traits<Mesh>::Vertex;
 using Face = typename cgogn::mesh_traits<Mesh>::Face;
+using Edge = typename cgogn::mesh_traits<Mesh>::Edge;
 
 using Vec3 = cgogn::geometry::Vec3;
 using Scalar = cgogn::geometry::Scalar;
+
+class LocalInterface : public cgogn::ui::ViewModule
+{
+
+public:
+	LocalInterface(const cgogn::ui::App& app)
+		: cgogn::ui::ViewModule(app, "LocalInterface"), mesh_(nullptr), vertex_position_(nullptr),
+		  mesh_provider_(nullptr), surface_render_(nullptr), topo_render_(nullptr),
+		  moving_color_(1.0f, 0.0f, 1.0f, 1.0f)
+	{
+		view_ = app.current_view();
+	}
+
+	~LocalInterface()
+	{
+	}
+	void force_update()
+	{
+		for (cgogn::ui::View* v : linked_views_)
+			v->request_update();
+	}
+
+	void init() override
+	{
+		mesh_provider_ = static_cast<cgogn::ui::MeshProvider<Mesh>*>(
+			app_.module("MeshProvider (" + std::string{cgogn::mesh_traits<Mesh>::name} + ")"));
+
+		surface_render_ = static_cast<cgogn::ui::SurfaceRender<Mesh>*>(
+			app_.module("SurfaceRender (" + std::string{cgogn::mesh_traits<Mesh>::name} + ")"));
+		topo_render_ = static_cast<cgogn::ui::TopoRender<Mesh>*>(
+			app_.module("TopoRender (" + std::string{cgogn::mesh_traits<Mesh>::name} + ")"));
+	}
+
+	void left_panel() override
+	{
+
+		if (ImGui::Button("init moving"))
+		{
+			if (!moving_dart_.is_nil())
+				topo_render_->set_dart_color(moving_dart_, moving_color_);
+			srand(time(NULL));
+			moving_dart_ = cgogn::Dart(933);
+			/*cgogn::foreach_cell(*mesh_, [&](Face f) -> bool {
+				int r = rand() % 1000;
+				if (r < 10)
+				{
+					moving_dart_ = f.dart;
+					return false;
+				}
+				return true;
+			});*/
+			cgogn::foreach_incident_edge(*mesh_, Vertex(moving_dart_), [&](Edge e) -> bool { return true; });
+			topo_render_->set_dart_color(moving_dart_, moving_color_);
+			force_update();
+		}
+
+		if (ImGui::Button("ph1"))
+		{
+			cgogn::Dart new_moving_dart_ = cgogn::phi1(*mesh_, moving_dart_);
+			topo_render_->set_dart_color(new_moving_dart_, moving_color_);
+			topo_render_->reset_dart_color(moving_dart_);
+			moving_dart_ = new_moving_dart_;
+			force_update();
+		}
+
+		if (ImGui::Button("phi2"))
+		{
+			cgogn::Dart new_moving_dart_ = cgogn::phi2(*mesh_, moving_dart_);
+			topo_render_->set_dart_color(new_moving_dart_, moving_color_);
+			topo_render_->reset_dart_color(moving_dart_);
+			moving_dart_ = new_moving_dart_;
+			force_update();
+		}
+		if (!moving_dart_.is_nil())
+			ImGui::Text("Dart index : %d", moving_dart_.index);
+	}
+	Mesh* mesh_;
+	cgogn::ui::View* view_;
+	std::shared_ptr<Attribute<Vec3>> vertex_position_;
+	cgogn::ui::MeshProvider<Mesh>* mesh_provider_;
+	cgogn::ui::SurfaceRender<Mesh>* surface_render_;
+	cgogn::ui::TopoRender<Mesh>* topo_render_;
+	cgogn::Dart d_hexa_;
+	cgogn::Dart d_pyra_;
+	cgogn::Dart moving_dart_;
+	Eigen::Vector4f moving_color_;
+	float expl_vol_;
+};
 
 int main(int argc, char** argv)
 {
@@ -62,6 +151,7 @@ int main(int argc, char** argv)
 	cgogn::ui::SurfaceRender<Mesh> sr(app);
 	cgogn::ui::SurfaceDifferentialProperties<Mesh> sdp(app);
 	cgogn::ui::TopoRender<Mesh> tpr(app);
+	LocalInterface interf(app);
 
 	app.init_modules();
 
@@ -69,6 +159,7 @@ int main(int argc, char** argv)
 	v1->link_module(&mp);
 	v1->link_module(&sr);
 	v1->link_module(&tpr);
+	v1->link_module(&interf);
 
 	if (filename.length() > 0)
 	{
@@ -81,6 +172,15 @@ int main(int argc, char** argv)
 
 		std::shared_ptr<Attribute<Vec3>> vertex_position = cgogn::get_attribute<Vec3, Vertex>(*m, "position");
 		std::shared_ptr<Attribute<Vec3>> vertex_normal = cgogn::add_attribute<Vec3, Vertex>(*m, "normal");
+
+		cgogn::foreach_cell(*m, [&](Vertex v) -> bool {
+			cgogn::value<Vec3>(*m, vertex_position, v) += Vec3(1, 0, 0);
+			return true;
+		});
+		cgogn::value<Vec3>(*m, vertex_position, Vertex(cgogn::Dart(0)));
+
+		interf.mesh_ = m;
+		interf.vertex_position_ = vertex_position;
 
 		// std::shared_ptr<Attribute<Vec3>> face_color = cgogn::add_attribute<Vec3, Face>(*m, "color");
 		// std::shared_ptr<Attribute<Scalar>> face_weight = cgogn::add_attribute<Scalar, Face>(*m, "weight");

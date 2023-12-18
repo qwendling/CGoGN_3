@@ -368,8 +368,8 @@ void unsew_volume_aux(EMR_Map3& m, const mesh_traits<EMR_Map3>::Face f, const FU
 		{
 			m.set_dart_level(phi3(m, it), m.dart_level(it3));
 			m.set_dart_level(phi3(m, it3), m.dart_level(it));
-			m.set_dart_visibility(phi3(m, it), 0);
-			m.set_dart_visibility(phi3(m, it3), 0);
+			// m.set_dart_visibility(phi3(m, it), 0);
+			// m.set_dart_visibility(phi3(m, it3), 0);
 			m.m_.clock_++;
 			it = phi1(m, it);
 			it3 = phi_1(m, it3);
@@ -392,7 +392,7 @@ void unsew_volume_aux(EMR_Map3& m, const mesh_traits<EMR_Map3>::Face f, const FU
 						(*((*m.m_.MR_phi3_)[i]))[it.index] = d3;
 						(*((*m.m_.MR_phi3_)[i]))[d3.index] = it;
 					}
-					
+
 					it = phi1(m, it);
 				} while (it != tmp);
 				// phi2
@@ -569,7 +569,7 @@ void unsew_volume(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3_Adaptative>
 	{
 		topo = m.topology_;
 		Dart v_old1 = m.volume_oldest_dart(f.dart);
-		Dart v_old2 = m.volume_oldest_dart(phi3(m,f.dart));
+		Dart v_old2 = m.volume_oldest_dart(phi3(m, f.dart));
 		std::function<void(Dart)> fn;
 		fn = [&](Dart d) {
 			if (topo->dart_is_visible(d))
@@ -609,7 +609,6 @@ void unsew_volume(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3_Adaptative>
 			v_level_topo2++;
 		}
 	}
-		
 
 	uint32 cur = topo->current_level_;
 	topo->current_level_ = f_level;
@@ -701,8 +700,12 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 		{
 			m.set_dart_level(phi3(m, it), m.dart_level(it3));
 			m.set_dart_level(phi3(m, it3), m.dart_level(it));
-			 m.set_dart_visibility(phi3(m, it),m.get_dart_visibility_fast(it3));
-			m.set_dart_visibility(phi3(m, it3), m.get_dart_visibility_fast(it));
+
+			for (auto v : m.list_view_)
+			{
+				v->set_dart_visibility(phi3(m, it), v->get_dart_visibility_fast(it3));
+				v->set_dart_visibility(phi3(m, it3), v->get_dart_visibility_fast(it));
+			}
 			m.m_.clock_++;
 			it = phi1(m, it);
 			it3 = phi_1(m, it3);
@@ -738,7 +741,7 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 		// phi3
 		do
 		{
-			//Dart d3 = phi<2, 3>(m2, phi2(m, it));
+			// Dart d3 = phi<2, 3>(m2, phi2(m, it));
 			Dart d3 = (*((*m.m_.MR_phi2_)[m.current_level_]))[it.index];
 			d3 = (*((*m.m_.MR_phi2_)[m2.current_level_]))[d3.index];
 			d3 = (*((*m.m_.MR_phi3_)[m2.current_level_]))[d3.index];
@@ -752,10 +755,10 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 		{
 
 			// Dart tmp = phi<32>(m2, it);
-			//Dart tmp = phi3(m2, it);
+			// Dart tmp = phi3(m2, it);
 			Dart tmp = (*((*m.m_.MR_phi3_)[m2.current_level_]))[it.index];
 			tmp = (*((*m.m_.MR_phi2_)[m2.current_level_]))[tmp.index];
-			//Dart d3 = phi3(m, it);
+			// Dart d3 = phi3(m, it);
 			Dart d3 = (*((*m.m_.MR_phi3_)[m.current_level_]))[it.index];
 
 			(*((*m.m_.MR_phi2_)[m.current_level_]))[tmp.index] = d3;
@@ -783,10 +786,10 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 		// phi1
 		do
 		{
-			//Dart d3_1 = phi<1, 3>(m, it);
-			Dart d3_1=(*((*m.m_.MR_phi1_)[m.current_level_]))[it.index] ;
-			d3_1=(*((*m.m_.MR_phi3_)[m.current_level_]))[d3_1.index] ;
-			//Dart d3 = phi3(m, it);
+			// Dart d3_1 = phi<1, 3>(m, it);
+			Dart d3_1 = (*((*m.m_.MR_phi1_)[m.current_level_]))[it.index];
+			d3_1 = (*((*m.m_.MR_phi3_)[m.current_level_]))[d3_1.index];
+			// Dart d3 = phi3(m, it);
 			Dart d3 = (*((*m.m_.MR_phi3_)[m.current_level_]))[it.index];
 			(*((*m.m_.MR_phi1_)[m.current_level_]))[d3_1.index] = d3;
 			(*((*m.m_.MR_phi_1_)[m.current_level_]))[d3.index] = d3_1;

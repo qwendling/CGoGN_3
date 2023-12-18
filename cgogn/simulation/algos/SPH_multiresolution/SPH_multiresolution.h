@@ -956,7 +956,7 @@ public:
 	void solve_constraint(const MRMAP& m, Attribute<Vec3>* pos, Attribute<Vec3>* , double time_step) override
 	{
 		particule_integration(time_step);
-		//SPH_skinning(m, pos);
+		SPH_skinning(m, pos);
 	}
 };
 } // namespace simulation
