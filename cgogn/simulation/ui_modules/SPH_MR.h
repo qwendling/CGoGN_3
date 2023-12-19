@@ -25,9 +25,9 @@
 #define CGOGN_MODULE_SPH_MR_H_
 
 #include <GLFW/glfw3.h>
+#include <cgogn/core/ui_modules/mesh_provider.h>
 #include <cgogn/ui/app.h>
 #include <cgogn/ui/module.h>
-#include <cgogn/core/ui_modules/mesh_provider.h>
 #include <cgogn/ui/view.h>
 
 #include <cgogn/core/types/mesh_traits.h>
@@ -319,17 +319,28 @@ protected:
 				MR_MESH* m2 = mecanical_mesh_->get_copy();
 				CellMarker<MR_MESH, Volume> marker(*mecanical_mesh_);
 				std::vector<Volume> test_vec;
+				std::vector<Volume> vol_subdiv;
 				foreach_cell(*m2, [&](Volume v) -> bool {
-					mecanical_mesh_->activate_volume_subdivision(v);
-					foreach_dart_of_orbit(*m2, v, [&](Dart d) -> bool {
-						if (marker.is_marked(Volume(d)))
-							return true;
-						marker.mark(Volume(d));
-						test_vec.push_back(Volume(d));
-						return true;
-					});
+					if (rand() % 100 < 5)
+					{
+						vol_subdiv.push_back(v);
+					}
+
 					return true;
 				});
+				for (auto v : vol_subdiv)
+				{
+					if (mecanical_mesh_->activate_volume_subdivision(v))
+					{
+						foreach_dart_of_orbit(*m2, v, [&](Dart d) -> bool {
+							if (marker.is_marked(Volume(d)))
+								return true;
+							marker.mark(Volume(d));
+							test_vec.push_back(Volume(d));
+							return true;
+						});
+					}
+				}
 				sph_solver_.update_topo(*m2, *mecanical_mesh_, {}, test_vec);
 				std::vector<Vec3> vertices_position;
 

@@ -563,6 +563,9 @@ public:
 				p2->neighborhood_.push_front(p);
 				p2->neighborhood_.remove(p_old);
 				need_upate_particules.insert(p2);
+				for(auto p3:p2->neighborhood_){
+					std::cout << p3 << std::endl;
+				}
 			}
 			for(Particule_SPH_MR* p2 : p_old->child_){
 				p->neighborhood_.push_front(p2);
@@ -956,7 +959,7 @@ public:
 	void solve_constraint(const MRMAP& m, Attribute<Vec3>* pos, Attribute<Vec3>* , double time_step) override
 	{
 		particule_integration(time_step);
-		SPH_skinning(m, pos);
+		//SPH_skinning(m, pos);
 	}
 };
 } // namespace simulation
