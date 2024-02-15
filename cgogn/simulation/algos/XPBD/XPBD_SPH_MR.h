@@ -36,6 +36,7 @@ class XPBD_SPH_Multiresolution
 
 		Vec3 initial_position_;
 		Vec3 current_position_;
+		Vec3 previous_position_;
 		double initial_volume_;
 		std::forward_list<Particule_SPH_MR*> neighborhood_;
 		Mat3d corrected_matrix_;
@@ -52,6 +53,7 @@ class XPBD_SPH_Multiresolution
 		std::forward_list<Particule_SPH_MR*> child_;
 		double CH;
 		double CD;
+		Vec3 dFdX;
 
 		Particule_SPH_MR(Vec3 pos, double masse)
 			: initial_position_(pos), current_position_(pos), force_(0, 0, 0), speed_(0, 0, 0), masse_(masse),

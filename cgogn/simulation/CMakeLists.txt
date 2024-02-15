@@ -43,6 +43,8 @@ target_sources(${PROJECT_NAME}
 	"${CMAKE_CURRENT_LIST_DIR}/algos/XPBD/XPBD.h"
 	"${CMAKE_CURRENT_LIST_DIR}/algos/XPBD/XPBD_multiresolution.cpp"
 	"${CMAKE_CURRENT_LIST_DIR}/algos/XPBD/XPBD_multiresolution.h"
+	"${CMAKE_CURRENT_LIST_DIR}/algos/XPBD/XPBD_SPH_MR.cpp"
+	"${CMAKE_CURRENT_LIST_DIR}/algos/XPBD/XPBD_SPH_MR.h"
 	"${CMAKE_CURRENT_LIST_DIR}/ui_modules/shallow_water.h"
 	"${CMAKE_CURRENT_LIST_DIR}/ui_modules/animation_multiresolution.h"
 	"${CMAKE_CURRENT_LIST_DIR}/ui_modules/shape_matching.h"

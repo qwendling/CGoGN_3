@@ -203,532 +203,18 @@ XPBD_SPH_Multiresolution::Vec3 XPBD_SPH_Multiresolution::Corrected_gradient(Part
 void XPBD_SPH_Multiresolution::activate_remove_volume(MAP& m, std::vector<Volume>& list_activate,
 													  std::vector<Volume>& list_remove)
 {
-
-	std::vector<Volume> new_volumes;
-	for (Volume v : list_activate)
-	{
-		tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
-		t->F_ = value<Mat3d>(m, F_, v);
-		t->init_cm_ = value<Vec3>(m, init_cm_, v);
-		double masse_vol = 0;
-		t->cm_ = Vec3(0, 0, 0);
-		t->v_cm_ = Vec3(0, 0, 0);
-		std::vector<Vertex>& inc_vertices = value<std::vector<Vertex>>(m, inc_vertices_.get(), v);
-		for (Vertex w : inc_vertices)
-		{
-			masse_vol += value<double>(m, masse_, w);
-			t->cm_ += value<double>(m, masse_, w) * value<Vec3>(m, pos_.get(), w);
-			t->v_cm_ += value<double>(m, masse_, w) * value<Vec3>(m, speed_.get(), w);
-		}
-		t->cm_ /= masse_vol;
-		t->v_cm_ /= masse_vol;
-		t->for_each_child([&](tree_volume* c) -> bool {
-			new_volumes.push_back(Volume(c->volume_dart));
-			return true;
-		});
-	}
-	for (Volume v : list_remove)
-	{
-		m.disable_volume_subdivision(v, true);
-	}
-	CellMarkerStore<MAP, Volume> marked_Volumes(m);
-	CellMarkerStore<MAP, Vertex> marked_Vertices(m);
-	for (Volume v : list_remove)
-	{
-		marked_Volumes.mark(v);
-	}
-	for (Volume v : list_activate)
-	{
-		marked_Volumes.mark(v);
-	}
-	std::vector<Volume> impacted_volumes;
-	for (Volume v : list_activate)
-	{
-		foreach_adjacent_volume_through_edge(m, v, [&](Volume w) -> bool {
-			if (!marked_Volumes.is_marked(w))
-			{
-				impacted_volumes.push_back(w);
-				marked_Volumes.mark(w);
-			}
-			return true;
-		});
-	}
-	for (Volume v : list_remove)
-	{
-		foreach_adjacent_volume_through_edge(m, v, [&](Volume w) -> bool {
-			if (!marked_Volumes.is_marked(w))
-			{
-				impacted_volumes.push_back(w);
-				marked_Volumes.mark(w);
-			}
-			return true;
-		});
-	}
-
-	std::vector<Volume> volume_need_update;
-	for (Volume v : impacted_volumes)
-	{
-		foreach_incident_vertex(m, v, [&](Vertex inc_vert) -> bool {
-			marked_Vertices.mark(inc_vert);
-			value<double>(m, masse_, inc_vert) = 0;
-			bool res_nested_lambda = true;
-			foreach_incident_volume(m, inc_vert, [&](Volume inc_vol) -> bool {
-				if (!is_boundary(m, inc_vol.dart))
-				{
-					if (!marked_Volumes.is_marked(inc_vol))
-					{
-						volume_need_update.push_back(inc_vol);
-						marked_Volumes.mark(inc_vol);
-					}
-					res_nested_lambda = true;
-				}
-				return res_nested_lambda;
-			});
-			return res_nested_lambda;
-		});
-	}
-	for (Volume v : impacted_volumes)
-	{
-		foreach_adjacent_volume_through_vertex(m, v, [&](Volume w) -> bool {
-			if (!marked_Volumes.is_marked(w))
-			{
-				volume_need_update.push_back(w);
-				marked_Volumes.mark(w);
-			}
-			return true;
-		});
-	}
-
-	for (Volume v : list_activate)
-	{
-		m.activate_volume_subdivision(v);
-	}
-
-	for (Volume v : list_remove)
-	{
-		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-			value<double>(m, masse_, w) = 0;
-			return true;
-		});
-	}
-	for (Volume v : new_volumes)
-	{
-		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-			value<double>(m, masse_, w) = 0;
-			return true;
-		});
-	}
-
-	auto compute_masse = [&](std::vector<Volume> list_volumes) {
-		for (Volume v : list_volumes)
-		{
-			std::vector<Vertex> vertices;
-			foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-				vertices.push_back(w);
-				return true;
-			});
-			double masse = value<double>(m, init_volume_, v) * DENSITY / vertices.size();
-			for (auto w : vertices)
-			{
-				value<double>(m, masse_, w) += masse;
-			}
-		}
-	};
-
-	compute_masse(new_volumes);
-	compute_masse(list_remove);
-	compute_masse(impacted_volumes);
-	for (Volume v : volume_need_update)
-	{
-		std::vector<Vertex> vertices;
-		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-			vertices.push_back(w);
-			return true;
-		});
-		double masse = value<double>(m, init_volume_, v) * DENSITY / vertices.size();
-		for (auto w : vertices)
-		{
-			if (marked_Vertices.is_marked(w))
-				value<double>(m, masse_, w) += masse;
-		}
-	}
-	auto fn = [&](const std::vector<Volume>& l_vol) {
-		for (Volume v : l_vol)
-		{
-			double masse = 0;
-			Vec3 cm = Vec3(0, 0, 0);
-			std::vector<Vertex> inc_vertices;
-			foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-				masse += value<double>(m, masse_, w);
-				cm += value<double>(m, masse_, w) * value<Vec3>(m, init_pos_, w);
-				inc_vertices.push_back(w);
-				return true;
-			});
-			value<Vec3>(m, init_cm_, v) = cm / masse;
-			Mat3d Q = Mat3d::Zero();
-			for (Vertex w : inc_vertices)
-			{
-				Vec3 init_r_i = value<Vec3>(m, init_pos_, w) - value<Vec3>(m, init_cm_, v);
-				double masse = value<double>(m, masse_, w);
-				Q += masse * init_r_i * init_r_i.transpose();
-			}
-			double s = 1.0 / Q.sum();
-			value<double>(m, s_, v) = s;
-			value<Mat3d>(m, inv_Q_, v) = (s * Q).eval().inverse();
-		};
-	};
-
-	fn(list_remove);
-	fn(new_volumes);
-	fn(impacted_volumes);
-	fn(volume_need_update);
-	for (Volume v : new_volumes)
-	{
-		tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
-		t = t->pere;
-		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-			value<Vec3>(m, speed_, w) = t->v_cm_;
-			Vec3 init_r_i = value<Vec3>(m, init_pos_, w) - t->init_cm_;
-			value<Vec3>(m, pos_, w) = t->cm_ + t->F_ * init_r_i;
-			return true;
-		});
-	}
 }
 
 void XPBD_SPH_Multiresolution::activate_volume(MAP& m, std::vector<Volume>& list_Volumes)
 {
-	CellMarkerStore<MAP, Volume> marked_Volumes(m);
-	for (Volume v : list_Volumes)
-	{
-		marked_Volumes.mark(v);
-	}
-	std::vector<Volume> impacted_volumes;
-	for (Volume v : list_Volumes)
-	{
-		foreach_adjacent_volume_through_edge(m, v, [&](Volume w) -> bool {
-			if (!marked_Volumes.is_marked(w))
-			{
-				impacted_volumes.push_back(w);
-				marked_Volumes.mark(w);
-			}
-			return true;
-		});
-	}
-
-	std::vector<Volume> new_volumes;
-	for (Volume v : list_Volumes)
-	{
-		tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
-		t->F_ = value<Mat3d>(m, F_, v);
-		t->init_cm_ = value<Vec3>(m, init_cm_, v);
-		double masse_vol = 0;
-		t->cm_ = Vec3(0, 0, 0);
-		t->v_cm_ = Vec3(0, 0, 0);
-		std::vector<Vertex>& inc_vertices = value<std::vector<Vertex>>(m, inc_vertices_.get(), v);
-		for (Vertex w : inc_vertices)
-		{
-			masse_vol += value<double>(m, masse_, w);
-			t->cm_ += value<double>(m, masse_, w) * value<Vec3>(m, pos_.get(), w);
-			t->v_cm_ += value<double>(m, masse_, w) * value<Vec3>(m, speed_.get(), w);
-		}
-		t->cm_ /= masse_vol;
-		t->v_cm_ /= masse_vol;
-		t->for_each_child([&](tree_volume* c) -> bool {
-			new_volumes.push_back(Volume(c->volume_dart));
-			return true;
-		});
-	}
-
-	for (Volume v : impacted_volumes)
-	{
-		std::vector<Vertex> vertices;
-		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-			vertices.push_back(w);
-			return true;
-		});
-		double masse = value<double>(m, init_volume_, v) * DENSITY / vertices.size();
-		for (auto w : vertices)
-		{
-			value<double>(m, masse_, w) -= masse;
-		}
-	}
-	for (Volume v : list_Volumes)
-	{
-		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-			value<double>(m, masse_, w) = 0;
-			return true;
-		});
-	}
-	std::vector<Volume> volume_need_update;
-	for (Volume v : impacted_volumes)
-	{
-		foreach_adjacent_volume_through_vertex(m, v, [&](Volume w) -> bool {
-			if (!marked_Volumes.is_marked(w))
-			{
-				volume_need_update.push_back(w);
-				marked_Volumes.mark(w);
-			}
-			return true;
-		});
-	}
-	for (Volume v : list_Volumes)
-	{
-		m.activate_volume_subdivision(v);
-	}
-	for (Volume v : new_volumes)
-	{
-		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-			value<double>(m, masse_, w) = 0;
-			return true;
-		});
-	}
-
-	for (Volume v : new_volumes)
-	{
-		std::vector<Vertex> vertices;
-		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-			vertices.push_back(w);
-			return true;
-		});
-		double masse = value<double>(m, init_volume_, v) * DENSITY / vertices.size();
-		for (auto w : vertices)
-		{
-			value<double>(m, masse_, w) += masse;
-		}
-	}
-	for (Volume v : impacted_volumes)
-	{
-		std::vector<Vertex> vertices;
-		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-			vertices.push_back(w);
-			return true;
-		});
-		double masse = value<double>(m, init_volume_, v) * DENSITY / vertices.size();
-		for (auto w : vertices)
-		{
-			value<double>(m, masse_, w) += masse;
-		}
-	}
-
-	auto fn = [&](const std::vector<Volume>& l_vol) {
-		for (Volume v : l_vol)
-		{
-			double masse = 0;
-			Vec3 cm = Vec3(0, 0, 0);
-			std::vector<Vertex> inc_vertices;
-			foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-				masse += value<double>(m, masse_, w);
-				cm += value<double>(m, masse_, w) * value<Vec3>(m, init_pos_, w);
-				inc_vertices.push_back(w);
-				return true;
-			});
-			value<Vec3>(m, init_cm_, v) = cm / masse;
-			Mat3d Q = Mat3d::Zero();
-			for (Vertex w : inc_vertices)
-			{
-				Vec3 init_r_i = value<Vec3>(m, init_pos_, w) - value<Vec3>(m, init_cm_, v);
-				double masse = value<double>(m, masse_, w);
-				Q += masse * init_r_i * init_r_i.transpose();
-			}
-			double s = 1.0 / Q.sum();
-			value<double>(m, s_, v) = s;
-			value<Mat3d>(m, inv_Q_, v) = (s * Q).eval().inverse();
-		};
-	};
-
-	fn(new_volumes);
-	fn(impacted_volumes);
-	fn(volume_need_update);
-
-	for (Volume v : new_volumes)
-	{
-		tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
-		t = t->pere;
-		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-			value<Vec3>(m, speed_, w) = t->v_cm_;
-			Vec3 init_r_i = value<Vec3>(m, init_pos_, w) - t->init_cm_;
-			value<Vec3>(m, pos_, w) = t->cm_ + t->F_ * init_r_i;
-			return true;
-		});
-	}
 }
 
 void XPBD_SPH_Multiresolution::remove_volume(MAP& m, std::vector<Volume>& list_Volumes)
 {
-	for (Volume v : list_Volumes)
-	{
-		m.disable_volume_subdivision(v, true);
-	}
-	CellMarkerStore<MAP, Volume> marked_Volumes(m);
-	CellMarkerStore<MAP, Vertex> marked_Vertices(m);
-	for (Volume v : list_Volumes)
-	{
-		marked_Volumes.mark(v);
-	}
-	std::vector<Volume> impacted_volumes;
-	for (Volume v : list_Volumes)
-	{
-		foreach_adjacent_volume_through_edge(m, v, [&](Volume w) -> bool {
-			if (!marked_Volumes.is_marked(w))
-			{
-				impacted_volumes.push_back(w);
-				marked_Volumes.mark(w);
-			}
-			return true;
-		});
-	}
-
-	for (Volume v : impacted_volumes)
-	{
-		std::vector<Vertex> vertices;
-		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-			marked_Vertices.mark(w);
-			value<double>(m, masse_, w) = 0;
-			return true;
-		});
-	}
-	for (Volume v : list_Volumes)
-	{
-		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-			value<double>(m, masse_, w) = 0;
-			return true;
-		});
-	}
-	std::vector<Volume> volume_need_update;
-	for (Volume v : impacted_volumes)
-	{
-		foreach_adjacent_volume_through_vertex(m, v, [&](Volume w) -> bool {
-			if (!marked_Volumes.is_marked(w))
-			{
-				volume_need_update.push_back(w);
-				marked_Volumes.mark(w);
-			}
-			return true;
-		});
-	}
-
-	for (Volume v : list_Volumes)
-	{
-		std::vector<Vertex> vertices;
-		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-			vertices.push_back(w);
-			return true;
-		});
-		double masse = value<double>(m, init_volume_, v) * DENSITY / vertices.size();
-		for (auto w : vertices)
-		{
-			value<double>(m, masse_, w) += masse;
-		}
-	}
-	for (Volume v : impacted_volumes)
-	{
-		std::vector<Vertex> vertices;
-		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-			vertices.push_back(w);
-			return true;
-		});
-		double masse = value<double>(m, init_volume_, v) * DENSITY / vertices.size();
-		for (auto w : vertices)
-		{
-			value<double>(m, masse_, w) += masse;
-		}
-	}
-
-	for (Volume v : volume_need_update)
-	{
-		std::vector<Vertex> vertices;
-		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-			vertices.push_back(w);
-			return true;
-		});
-		double masse = value<double>(m, init_volume_, v) * DENSITY / vertices.size();
-		for (auto w : vertices)
-		{
-			if (marked_Vertices.is_marked(w))
-				value<double>(m, masse_, w) += masse;
-		}
-	}
-
-	auto fn = [&](const std::vector<Volume>& l_vol) {
-		for (Volume v : l_vol)
-		{
-			double masse = 0;
-			Vec3 cm = Vec3(0, 0, 0);
-			std::vector<Vertex> inc_vertices;
-			foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-				masse += value<double>(m, masse_, w);
-				cm += value<double>(m, masse_, w) * value<Vec3>(m, init_pos_, w);
-				inc_vertices.push_back(w);
-				return true;
-			});
-			value<Vec3>(m, init_cm_, v) = cm / masse;
-			Mat3d Q = Mat3d::Zero();
-			for (Vertex w : inc_vertices)
-			{
-				Vec3 init_r_i = value<Vec3>(m, init_pos_, w) - value<Vec3>(m, init_cm_, v);
-				double masse = value<double>(m, masse_, w);
-				Q += masse * init_r_i * init_r_i.transpose();
-			}
-			double s = 1.0 / Q.sum();
-			value<double>(m, s_, v) = s;
-			value<Mat3d>(m, inv_Q_, v) = (s * Q).eval().inverse();
-		};
-	};
-
-	fn(list_Volumes);
-	fn(impacted_volumes);
-	fn(volume_need_update);
 }
 
 void XPBD_SPH_Multiresolution::update_topo(MAP& m)
 {
-	parallel_foreach_cell(m, [&](Vertex v) -> bool {
-		value<double>(m, masse_, v) = 0;
-		return true;
-	});
-	foreach_cell(m, [&](Volume v) -> bool {
-		std::vector<Vertex>& vertices = value<std::vector<Vertex>>(m, inc_vertices_.get(), v);
-		vertices.clear();
-		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-			value<std::vector<Vertex>>(m, inc_vertices_.get(), v).push_back(w);
-			return true;
-		});
-
-		double masse = value<double>(m, init_volume_, v) * DENSITY / vertices.size();
-		for (auto w : vertices)
-		{
-			value<double>(m, masse_, w) += masse;
-		}
-		return true;
-	});
-
-	foreach_cell(m, [&](Volume v) -> bool {
-		double masse = 0;
-		Vec3 cm = Vec3(0, 0, 0);
-		std::vector<Vertex>& vertices = value<std::vector<Vertex>>(m, inc_vertices_.get(), v);
-		for (Vertex w : vertices)
-		{
-			masse += value<double>(m, masse_, w);
-			cm += value<double>(m, masse_, w) * value<Vec3>(m, init_pos_, w);
-		}
-		value<Vec3>(m, init_cm_, v) = cm / masse;
-		return true;
-	});
-
-	foreach_cell(m, [&](Volume v) -> bool {
-		Mat3d Q = Mat3d::Zero();
-		std::vector<Vertex>& vertices = value<std::vector<Vertex>>(m, inc_vertices_.get(), v);
-		for (Vertex w : vertices)
-		{
-			Vec3 init_r_i = value<Vec3>(m, init_pos_, w) - value<Vec3>(m, init_cm_, v);
-			double masse = value<double>(m, masse_, w);
-			Q += masse * init_r_i * init_r_i.transpose();
-		}
-		double s = 1.0 / Q.sum();
-		value<double>(m, s_, v) = s;
-		value<Mat3d>(m, inv_Q_, v) = (s * Q).eval().inverse();
-		return true;
-	});
 }
 
 void XPBD_SPH_Multiresolution::compute_deformation_gradient_particule(Particule_SPH_MR* p)
@@ -761,18 +247,12 @@ void XPBD_SPH_Multiresolution::constraint_Neo_Hookean_H(MAP& m, Particule_SPH_MR
 {
 	double h_smooth = p.h_;
 	std::forward_list<Particule_SPH_MR*>& n = p.neighborhood_;
-	for (Particule_SPH_MR* w : n)
-	{
-		compute_deformation_gradient_particule(w);
-	}
+	compute_deformation_gradient_particule(&p);
 
 	Mat3d F = p.deformation_gradient_;
 
-	for (Particule_SPH_MR* w : n)
-	{
-		double det_F = w->deformation_gradient_.determinant();
-		w->CH = det_F - (1. + LAME_MU / LAME_LAMBDA);
-	}
+	p.CH = F.determinant() - (1. + LAME_MU / LAME_LAMBDA);
+
 	// Compute Volume
 	// double Ve = geometry::volume(m, v, pos_.get());
 	double Ve = fabs(p.deformation_gradient_.determinant() * p.initial_volume_);
@@ -782,534 +262,114 @@ void XPBD_SPH_Multiresolution::constraint_Neo_Hookean_H(MAP& m, Particule_SPH_MR
 
 	// Compute denum
 	double denum = 0;
-	const Mat3d T_inv_Q = inv_Q.transpose();
-	Mat3d tmp;
-	tmp.col(0) = F.col(1).cross(F.col(2));
-	tmp.col(1) = F.col(2).cross(F.col(0));
-	tmp.col(2) = F.col(0).cross(F.col(1));
-	tmp = tmp * T_inv_Q;
+	Mat3d dCHdF;
+	dCHdF.col(0) = F.col(1).cross(F.col(2));
+	dCHdF.col(1) = F.col(2).cross(F.col(0));
+	dCHdF.col(2) = F.col(0).cross(F.col(1));
+
+	denum = 1. / p.masse_ * (-dCHdF * p.dFdX).squaredNorm();
+
 	Vec3 GC;
+
 	for (Particule_SPH_MR* w : n)
 	{
-		double V_j = w->masse_;
+		double m_j = w->masse_;
+		double V_j = w->initial_volume_;
 		Vec3 xi0 = p.initial_position_;
 		Vec3 xj0 = w->initial_position_;
-		GC += V_j * w->CH * gradient((xi0 - xj0), (xi0 - xj0).norm(), h_smooth);
+
+		denum += 1. / m_j * (dCHdF * V_j * Corrected_gradient(p, *w, p.h_)).squaredNorm();
 	}
-	for (Vertex w : inc_vertices)
-	{
-		// Compute Grad_C_i
-		double m_i = value<double>(m, masse_, w);
-		Vec3 init_r_i = value<Vec3>(m, init_pos_.get(), w) - value<Vec3>(m, init_cm_, v);
-		Vec3 GC = m_i * tmp * init_r_i;
-		GC = value<double>(m, s_, v) * GC;
-		value<Vec3>(m, Grad_C_i_, w) = GC;
-		denum += 1.0 / m_i * GC.squaredNorm();
-	}
-	denum += alpha_h / (h * h);
+
+	denum += alpha_h / h / h;
+
 	// Compute lambda
-	double lambda = -C / denum;
-	for (Vertex w : inc_vertices)
+	double lambda = -p.CH / denum;
+
+	if (!p.is_fixed)
 	{
-		if (this->fixed_vertex && value<bool>(m, this->fixed_vertex.get(), w))
-		{
+		Vec3 deltaX = lambda * (1. / p.masse_) * (-dCHdF * p.dFdX);
+		p.current_position_ += deltaX;
+	}
+
+	for (Particule_SPH_MR* w : n)
+	{
+		if (w->is_fixed)
 			continue;
-		}
-		double m_i = value<double>(m, masse_, w);
-		Vec3 delta_x = lambda * (1 / m_i) * value<Vec3>(m, Grad_C_i_, w);
-		value<Vec3>(m, pos_.get(), w) += delta_x;
+		Vec3 deltaX = lambda * (1. / w->masse_) * (dCHdF * w->initial_volume_ * Corrected_gradient(p, *w, h_smooth));
+		w->current_position_ += deltaX;
 	}
 }
 void XPBD_SPH_Multiresolution::constraint_Neo_Hookean_D(MAP& m, Particule_SPH_MR& p, double h)
 {
-	// Compute center of mass
-	double masse_vol = 0;
-	Vec3 cm = Vec3(0, 0, 0);
-	std::vector<Vertex>& inc_vertices = value<std::vector<Vertex>>(m, inc_vertices_.get(), v);
-	for (Vertex w : inc_vertices)
-	{
-		masse_vol += value<double>(m, masse_, w);
-		cm += value<double>(m, masse_, w) * value<Vec3>(m, pos_.get(), w);
-	}
-	cm /= masse_vol;
+	double h_smooth = p.h_;
+	std::forward_list<Particule_SPH_MR*>& n = p.neighborhood_;
+	compute_deformation_gradient_particule(&p);
 
-	// Compute P
-	Mat3d P = Mat3d::Zero();
-	for (Vertex w : inc_vertices)
-	{
-		double m_i = value<double>(m, masse_, w);
-		Vec3 r_i = value<Vec3>(m, pos_.get(), w) - cm;
-		Vec3 init_r_i = value<Vec3>(m, init_pos_.get(), w) - value<Vec3>(m, init_cm_, v);
-		P.noalias() += m_i * r_i * init_r_i.transpose();
-	}
+	Mat3d F = p.deformation_gradient_;
 
-	Mat3d inv_Q = value<Mat3d>(m, inv_Q_, v);
-	P = (value<double>(m, s_, v) * P).eval();
-	// compute F = P*Q^-1
-	Mat3d F = P * inv_Q;
-
-	for (int i = 0; i < 3; i++)
-	{
-		for (int j = 0; j < 3; j++)
-		{
-			if (i == j)
-			{
-				if (fabs(F(i, j) - 1) < EPS)
-					F(i, j) = 1;
-			}
-			else
-			{
-				if (fabs(F(i, j)) < EPS)
-					F(i, j) = 0;
-			}
-		}
-	}
-	F = value<Mat3d>(m, F_, v);
-
-	// Compute C  = sqrt(tr(F^T*F))
-	double C = sqrt((F.transpose() * F).trace());
+	p.CD = sqrt((F.transpose() * F).trace());
 
 	// Compute Volume
 	// double Ve = geometry::volume(m, v, pos_.get());
-	double Ve = fabs(F.determinant() * value<double>(m, init_volume_, v));
+	double Ve = fabs(p.deformation_gradient_.determinant() * p.initial_volume_);
 
-	// Compute alpha_D = 1/(MU*V)
+	// Compute alpha_H = 1/(LAMBDA*V)
 	double alpha_d = 1.0 / (LAME_MU * Ve);
 
 	// Compute denum
 	double denum = 0;
-	const Mat3d T_inv_Q = inv_Q.transpose();
-	double r = sqrt(F.col(0).squaredNorm() + F.col(1).squaredNorm() + F.col(2).squaredNorm());
-	const Mat3d tmp = F * T_inv_Q;
-	for (Vertex w : inc_vertices)
-	{
-		// Compute Grad_C_i
-		double m_i = value<double>(m, masse_, w);
-		Vec3 init_r_i = value<Vec3>(m, init_pos_.get(), w) - value<Vec3>(m, init_cm_, v);
-		Vec3 GC = m_i / r * tmp * init_r_i;
-		GC = value<double>(m, s_, v) * GC;
-		value<Vec3>(m, Grad_C_i_, w) = GC;
-		denum += 1.0 / m_i * GC.squaredNorm();
-	}
-	denum += alpha_d / (h * h);
-	// Compute lambda
-	double lambda = -C / denum;
+	Mat3d dCDdF = F / p.CD;
 
-	for (Vertex w : inc_vertices)
+	denum = 1. / p.masse_ * (-dCDdF * p.dFdX).squaredNorm();
+
+	for (Particule_SPH_MR* w : n)
 	{
-		if (this->fixed_vertex && value<bool>(m, this->fixed_vertex.get(), w))
-		{
+		double m_j = w->masse_;
+		double V_j = w->initial_volume_;
+		Vec3 xi0 = p.initial_position_;
+		Vec3 xj0 = w->initial_position_;
+
+		denum += 1. / m_j * (dCDdF * V_j * Corrected_gradient(p, *w, p.h_)).squaredNorm();
+	}
+
+	denum += alpha_d / h / h;
+
+	// Compute lambda
+	double lambda = -p.CH / denum;
+
+	if (!p.is_fixed)
+	{
+		Vec3 deltaX = lambda * (1. / p.masse_) * (-dCDdF * p.dFdX);
+		p.current_position_ += deltaX;
+	}
+
+	for (Particule_SPH_MR* w : n)
+	{
+		if (w->is_fixed)
 			continue;
-		}
-		double m_i = value<double>(m, masse_, w);
-		Vec3 delta_x = lambda * (1. / m_i) * value<Vec3>(m, Grad_C_i_, w);
-		value<Vec3>(m, pos_.get(), w) += delta_x;
+		Vec3 deltaX = lambda * (1. / w->masse_) * (dCDdF * w->initial_volume_ * Corrected_gradient(p, *w, h_smooth));
+		w->current_position_ += deltaX;
 	}
 }
 void XPBD_SPH_Multiresolution::constraint_Zero_Energy(MAP& m, Particule_SPH_MR& p, double)
 {
-	// Compute center of mass
-	double masse_vol = 0;
-	Vec3 cm = Vec3(0, 0, 0);
-	std::vector<Vertex>& inc_vertices = value<std::vector<Vertex>>(m, inc_vertices_.get(), v);
-	for (Vertex w : inc_vertices)
-	{
-		masse_vol += value<double>(m, masse_, w);
-		cm += value<double>(m, masse_, w) * value<Vec3>(m, pos_.get(), w);
-	}
-	cm /= masse_vol;
-
-	// Compute P
-	Mat3d P = Mat3d::Zero();
-	for (Vertex w : inc_vertices)
-	{
-		double m_i = value<double>(m, masse_, w);
-		Vec3 r_i = value<Vec3>(m, pos_.get(), w) - cm;
-		Vec3 init_r_i = value<Vec3>(m, init_pos_.get(), w) - value<Vec3>(m, init_cm_, v);
-		P.noalias() += m_i * r_i * init_r_i.transpose();
-	}
-
-	Mat3d inv_Q = value<Mat3d>(m, inv_Q_, v);
-	P = (value<double>(m, s_, v) * P).eval();
-	// compute F = P*Q^-1
-	Mat3d F = P * inv_Q;
-
-	for (int i = 0; i < 3; i++)
-	{
-		for (int j = 0; j < 3; j++)
-		{
-			if (i == j)
-			{
-				if (fabs(F(i, j) - 1) < EPS)
-					F(i, j) = 1;
-			}
-			else
-			{
-				if (fabs(F(i, j)) < EPS)
-					F(i, j) = 0;
-			}
-		}
-	}
-
-	// F = value<Mat3d>(m, F_, v);
-	value<Mat3d>(m, F_, v) = F;
-	value<Vec3>(m, centroid_, v) = cm;
-	// Pour l'erreur et la Visu
-	// double det_F = F.determinant();
-	/*double energy = (det_F - (1 + LAME_MU / LAME_LAMBDA));
-	energy *= energy;
-	energy = LAME_LAMBDA / 2.0 * energy + LAME_MU / 2.0 * ((F.transpose() * F).trace() - 3);
-	double vol = value<double>(m, init_volume_, v) * det_F;
-	value<double>(m, Det_F_Volume_, v) = log(1 + fabs(vol * energy));*/
-
-	for (Vertex w : inc_vertices)
-	{
-		if (this->fixed_vertex && value<bool>(m, this->fixed_vertex.get(), w))
-		{
-			continue;
-		}
-		Vec3 init_r_i = value<Vec3>(m, init_pos_.get(), w) - value<Vec3>(m, init_cm_, v);
-		value<Vec3>(m, pos_.get(), w) = cm + F * init_r_i;
-	}
 }
 void XPBD_SPH_Multiresolution::applyDamping(MAP& m, Volume v, double damping_coeff, double time_step)
 {
-	Vec3 x_cm = Vec3::Zero();
-	Vec3 v_cm = Vec3::Zero();
-	Vec3 L = Vec3::Zero();
-	Mat3d I = Mat3d::Zero();
-	double sm_i = 0;
-	foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-		double m_i = value<double>(m, masse_, w);
-		x_cm += m_i * value<Vec3>(m, pos_.get(), w);
-		v_cm += m_i * value<Vec3>(m, speed_, w);
-		sm_i += m_i;
-		return true;
-	});
-	x_cm /= sm_i;
-	v_cm /= sm_i;
-	foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-		Vec3 r_i = value<Vec3>(m, pos_.get(), w) - x_cm;
-		double m_i = value<double>(m, masse_, w);
-		L += r_i.cross(m_i * value<Vec3>(m, speed_, w));
-		Mat3d Ri;
-		Ri << 0, -r_i(2), r_i(1), r_i(2), 0, -r_i(0), -r_i(1), r_i(0), 0;
-		I += Ri * Ri.transpose() * m_i;
-		return true;
-	});
-	Vec3 omega = I.inverse() * L;
-	foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-		Vec3 r_i = value<Vec3>(m, pos_.get(), w) - x_cm;
-		Vec3 new_v_i = v_cm + omega.cross(r_i);
-		value<Vec3>(m, speed_, w) += std::min(damping_coeff * time_step, 1.0) * (new_v_i - value<Vec3>(m, speed_, w));
-		return true;
-	});
 }
 
 void XPBD_SPH_Multiresolution::solve_surface(MAP& m, MAP& geom, Volume v)
 {
-	bool result = false;
-	foreach_dart_of_orbit(m, v, [&m, &result](Dart d) -> bool {
-		if (is_boundary(m, phi3(m, d)))
-		{
-			result = true;
-			return false;
-		}
-		return true;
-	});
-	if (!result)
-		return;
-	// Compute center of mass
-	/*double masse_vol = 0;
-	Vec3 cm = Vec3(0, 0, 0);
-	std::vector<Vertex>& inc_vertices = value<std::vector<Vertex>>(m, inc_vertices_.get(), v);
-	for (Vertex w : inc_vertices)
-	{
-		masse_vol += value<double>(m, masse_, w);
-		cm += value<double>(m, masse_, w) * value<Vec3>(m, pos_.get(), w);
-	}
-	cm /= masse_vol;*/
-	Vec3 cm = value<Vec3>(m, centroid_, v);
-	Mat3d F = value<Mat3d>(m, F_, v);
-
-	foreach_incident_vertex(geom, v, [&](Vertex w) -> bool {
-		if (!m.vertex_is_visible(w.dart))
-		{
-			Vec3 init_r_i = value<Vec3>(geom, init_pos_.get(), w) - value<Vec3>(m, init_cm_, v);
-			value<Vec3>(geom, pos_.get(), w) = cm + F * init_r_i;
-		}
-		return true;
-	});
 }
 
-#define TEST_ERROR 1
 void XPBD_SPH_Multiresolution::compute_error(MAP& m, std::vector<Volume>& volume_activate,
 											 std::vector<Volume>& volume_disable)
 {
-#if TEST_ERROR
-	std::forward_list<tree_volume*> list_volume_coarse;
-	std::forward_list<tree_volume*> list_volume_fine;
-	uint32 nb_fine = 0, nb_coarse = 0;
-	static uint32 clock_error = 0;
-	clock_error++;
-
-	foreach_cell(m, [&](Volume v) -> bool {
-		tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
-		if (t->type == CURRENT && t->fils != nullptr)
-		{
-			list_volume_fine.push_front(t);
-			double detF = value<double>(m, this->Det_F_Volume_, Volume(t->volume_dart));
-			double error = fabs((detF - 1) * value<double>(m, this->init_volume_, Volume(t->volume_dart)));
-			error = fabs(log2(detF));
-			value<double>(m, error_volume_, Volume(t->volume_dart)) = error;
-			t->error = error;
-			nb_fine++;
-		}
-		if (!t->is_topo && t->pere != nullptr && t->pere->type == COARSE)
-		{
-			if (t->pere->clock == clock_error)
-				return true;
-			t->pere->clock = clock_error;
-			list_volume_coarse.push_front(t);
-			t->pere->error = 0;
-			t->pere->for_each_child([&](tree_volume* c) -> bool {
-				double detF = value<double>(m, this->Det_F_Volume_, Volume(c->volume_dart));
-				double error = fabs((detF - 1) * value<double>(m, this->init_volume_, Volume(c->volume_dart)));
-				error = fabs(log2(detF));
-				t->pere->error += error;
-				return true;
-			});
-			t->pere->error /= 8;
-			nb_coarse++;
-		}
-		return true;
-	});
-	list_volume_fine.sort([&](tree_volume* t1, tree_volume* t2) { return t1->error > t2->error; });
-	list_volume_coarse.sort([&](tree_volume* t1, tree_volume* t2) { return t1->pere->error < t2->pere->error; });
-
-	for (uint32 i = 0; i < nb_fine / 10; i++)
-	{
-		tree_volume* t = list_volume_fine.front();
-		list_volume_fine.pop_front();
-		double error = t->error;
-		if (error < 0.25)
-			break;
-
-		volume_activate.push_back(Volume(t->volume_dart));
-		if (t->pere && t->pere->type != ROOT)
-		{
-			t->pere->type = NONE;
-		}
-		t->type = COARSE;
-		t->for_each_child([&](tree_volume* c) -> bool {
-			c->type = CURRENT;
-			return true;
-		});
-	}
-
-	for (uint32 i = 0; i < nb_coarse / 10; i++)
-	{
-		tree_volume* t = list_volume_coarse.front();
-		list_volume_coarse.pop_front();
-		if (t->pere->type != COARSE)
-			continue;
-		double error = t->error;
-		if (error > 1.5)
-			break;
-		volume_disable.push_back(Volume(t->pere->volume_dart));
-		t->pere->type = CURRENT;
-		t->pere->for_each_child([&](tree_volume* c) -> bool {
-			c->type = NONE;
-			return true;
-		});
-		if (t->pere->pere != nullptr)
-		{
-			bool result = true;
-			t->pere->pere->for_each_child([&](tree_volume* c) -> bool {
-				if (c->type != CURRENT)
-				{
-					result = false;
-				}
-				return result;
-			});
-			if (result)
-			{
-				t->pere->pere->type = COARSE;
-			}
-		}
-	}
-#else
-	foreach_cell(m, [&](Volume v) -> bool {
-		tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
-		if (t->type == CURRENT && t->fils != nullptr)
-		{
-			if (std::rand() / double(RAND_MAX + 1u) < 0.1)
-			{
-				volume_activate.push_back(Volume(t->volume_dart));
-				if (t->pere && t->pere->type != ROOT)
-				{
-					t->pere->type = NONE;
-				}
-				t->type = COARSE;
-				t->for_each_child([&](tree_volume* c) -> bool {
-					c->type = CURRENT;
-					return true;
-				});
-				return true;
-			}
-		}
-		if (!t->is_topo && t->pere != nullptr && t->pere->type == COARSE)
-		{
-			if (std::rand() / double(RAND_MAX + 1u) < 0.1)
-			{
-				volume_disable.push_back(Volume(t->pere->volume_dart));
-				t->pere->type = CURRENT;
-				t->pere->for_each_child([&](tree_volume* c) -> bool {
-					c->type = NONE;
-					return true;
-				});
-			}
-		}
-
-		return true;
-	});
-
-	for (Volume v : volume_disable)
-	{
-		tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
-		if (t->pere->pere != nullptr)
-		{
-			bool result = true;
-			t->pere->pere->for_each_child([&](tree_volume* c) -> bool {
-				if (c->type != CURRENT)
-				{
-					result = false;
-				}
-				return result;
-			});
-			if (result)
-			{
-				t->pere->pere->type = COARSE;
-			}
-		}
-	}
-#endif
 }
 
 void XPBD_SPH_Multiresolution::compute_error_point(MAP& m, const Vec3& p, double quotat)
 {
-	std::vector<Volume> volume_activate;
-	std::vector<Volume> volume_disable;
-	std::forward_list<tree_volume*> list_volume_coarse;
-	std::forward_list<tree_volume*> list_volume_fine;
-	uint32 nb_fine = 0, nb_coarse = 0;
-	static uint32 clock_error = 0;
-	clock_error++;
-
-	foreach_cell(m, [&](Volume v) -> bool {
-		tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
-		if (t->type == CURRENT && t->fils != nullptr)
-		{
-			list_volume_fine.push_front(t);
-			double error = (geometry::centroid<Vec3>(m, Volume(t->volume_dart), pos_.get()) - p).squaredNorm();
-			value<double>(m, error_volume_, Volume(t->volume_dart)) = error;
-			t->error = error;
-			nb_fine++;
-		}
-		if (!t->is_topo && t->pere != nullptr && t->pere->type == COARSE)
-		{
-			if (t->pere->clock == clock_error)
-				return true;
-			t->pere->clock = clock_error;
-			list_volume_coarse.push_front(t);
-			t->pere->error = 0;
-			t->pere->for_each_child([&](tree_volume* c) -> bool {
-				double error = (geometry::centroid<Vec3>(m, Volume(c->volume_dart), pos_.get()) - p).squaredNorm();
-				t->pere->error += error;
-				return true;
-			});
-			t->pere->error /= 8;
-			nb_coarse++;
-		}
-		return true;
-	});
-	list_volume_fine.sort([&](tree_volume* t1, tree_volume* t2) { return t1->error < t2->error; });
-	list_volume_coarse.sort([&](tree_volume* t1, tree_volume* t2) { return t1->pere->error > t2->pere->error; });
-
-	auto it = list_volume_coarse.begin();
-	double e_max = 0;
-	if (!list_volume_coarse.empty())
-	{
-		e_max = list_volume_coarse.front()->pere->error;
-	}
-
-	while (1)
-	{
-		if (list_volume_fine.empty())
-			break;
-
-		tree_volume* t = list_volume_fine.front();
-		list_volume_fine.pop_front();
-		double e = t->error;
-		if (e > e_max && nb_volume_current > quotat * nb_volume_init)
-		{
-			break;
-		}
-		if (e < e_max)
-		{
-			it++;
-			e_max = 0;
-			if (it != list_volume_coarse.end())
-			{
-				e_max = (*it)->pere->error;
-			}
-		}
-
-		nb_volume_current += 7;
-		volume_activate.push_back(Volume(t->volume_dart));
-		if (t->pere && t->pere->type != ROOT)
-		{
-			t->pere->type = NONE;
-		}
-		t->type = COARSE;
-		t->for_each_child([&](tree_volume* c) -> bool {
-			c->type = CURRENT;
-			return true;
-		});
-	}
-
-	while (nb_volume_current > quotat * nb_volume_init)
-	{
-		if (list_volume_coarse.empty())
-			break;
-		tree_volume* t = list_volume_coarse.front();
-		list_volume_coarse.pop_front();
-		if (t->pere->type != COARSE)
-			continue;
-		nb_volume_current -= 7;
-		volume_disable.push_back(Volume(t->pere->volume_dart));
-		t->pere->type = CURRENT;
-		t->pere->for_each_child([&](tree_volume* c) -> bool {
-			c->type = NONE;
-			return true;
-		});
-		if (t->pere->pere != nullptr)
-		{
-			bool result = true;
-			t->pere->pere->for_each_child([&](tree_volume* c) -> bool {
-				if (c->type != CURRENT)
-				{
-					result = false;
-				}
-				return result;
-			});
-			if (result)
-			{
-				t->pere->pere->type = COARSE;
-			}
-		}
-	}
-	activate_remove_volume(m, volume_activate, volume_disable);
 }
 
 #define SHOW_PERFORMANCE_LOG 1
@@ -1319,86 +379,63 @@ void XPBD_SPH_Multiresolution::solver(MAP& m, MAP* geom, double timestep, bool a
 	double duration;
 	start = std::clock();
 	double h = timestep / NUM_SUBSTEP;
-	std::vector<Volume> vec_volume;
-	std::vector<Vertex> vec_vertices;
-	foreach_cell(m, [&](Vertex v) -> bool {
-		vec_vertices.push_back(v);
-		return true;
-	});
-	foreach_cell(m, [&](Volume v) -> bool {
-		vec_volume.push_back(v);
-		std::vector<Vertex>& vector_inc_vertices = value<std::vector<Vertex>>(m, inc_vertices_.get(), v);
-		vector_inc_vertices.clear();
-		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
-			vector_inc_vertices.push_back(w);
-			return true;
-		});
-		return true;
-	});
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 #if SHOW_PERFORMANCE_LOG
-	std::cout << "\033[1;32mtime init XPBD : \033[0m" << duration << std::endl;
-	std::cout << "\033[1;32mnb DOFs : \033[0m" << vec_vertices.size() << std::endl;
+	std::cout << "\033[1;32mtime init XPBD SPH : \033[0m" << duration << std::endl;
+	std::cout << "\033[1;32mnb DOFs : \033[0m" << particules_.size() << std::endl;
 #endif
 
 	start = std::clock();
 	for (int i = 0; i < NUM_SUBSTEP; i++)
 	{
 		// Initialisation sub step
-		for (Vertex v : vec_vertices)
+		for (Particule_SPH_MR* p : particules_)
 		{
-			if (this->fixed_vertex && value<bool>(m, this->fixed_vertex.get(), v))
+			if (p->is_fixed)
 			{
 				continue;
 			}
-			value<Vec3>(m, pos_prev_, v) = value<Vec3>(m, pos_, v);
-			value<Vec3>(m, speed_, v) += h * value<Vec3>(m, f_ext_, v) / value<double>(m, masse_, v);
-			value<Vec3>(m, pos_, v) += h * value<Vec3>(m, speed_, v);
+			p->previous_position_ = p->current_position_;
+			p->speed_ += h * p->force_ / p->masse_;
+			p->current_position_ += h * p->speed_;
 		}
 		// Constraint solver
-		for (Volume v : vec_volume)
+		for (Particule_SPH_MR* p : particules_)
 		{
-			constraint_Neo_Hookean_H(m, v, h);
-			constraint_Neo_Hookean_D(m, v, h);
-			constraint_Zero_Energy(m, v, h);
+			constraint_Neo_Hookean_H(m, *p, h);
+			constraint_Neo_Hookean_D(m, *p, h);
 		}
 		// Speed Solver
-		for (Vertex v : vec_vertices)
+		for (Particule_SPH_MR* p : particules_)
 		{
-			if (this->fixed_vertex && value<bool>(m, this->fixed_vertex.get(), v))
+			if (p->is_fixed)
 			{
 				continue;
 			}
-			Vec3 new_v = (value<Vec3>(m, pos_, v) - value<Vec3>(m, pos_prev_, v)) / h;
+			Vec3 new_v = (p->current_position_ - p->previous_position_) / h;
 			for (int i = 0; i < 3; i++)
 				if (fabs(new_v[i]) < EPS)
 					new_v[i] = 0;
-			// value<Vec3>(m, speed_, v) = (1 - (0.005 * h)) * new_v;
-			value<Vec3>(m, speed_, v) = new_v;
+			p->speed_ = new_v;
 		}
-		// Damping
-		foreach_cell(m, [&](Volume v) -> bool {
-			applyDamping(m, v, 0.1, timestep);
-			return true;
-		});
 	}
 
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 #if SHOW_PERFORMANCE_LOG
-	std::cout << "\033[1;36mtime resolve XPBD : \033[0m" << duration << std::endl;
+	std::cout << "\033[1;36mtime resolve XPBD SPH : \033[0m" << duration << std::endl;
 #endif
 	start = std::clock();
 	if (geom != nullptr)
 	{
-		for (Volume v : vec_volume)
+		/*for (Volume v : vec_volume)
 		{
 			solve_surface(m, *geom, v);
-		}
+		}*/
 	}
 
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 #if SHOW_PERFORMANCE_LOG
-	std::cout << "\033[1;36mtime update surface XPBD : \033[0m" << duration << std::endl;
+	std::cout << "\033[1;36mtime update surface XPBD SPH : \033[0m" << duration << std::endl;
 #endif
 	std::vector<Volume> vol_activate;
 	std::vector<Volume> vol_disable;
@@ -1414,7 +451,7 @@ void XPBD_SPH_Multiresolution::solver(MAP& m, MAP* geom, double timestep, bool a
 
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 #if SHOW_PERFORMANCE_LOG
-		std::cout << "\033[1;36mtime update topo XPBD : \033[0m" << duration << std::endl;
+		std::cout << "\033[1;36mtime update topo XPBD SPH : \033[0m" << duration << std::endl;
 #endif
 	}
 }

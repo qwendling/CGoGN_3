@@ -675,7 +675,7 @@ protected:
 					{
 						parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
 							value<Vec3>(*selected_mesh_, p.vertex_forces_, v) +=
-								value<double>(*selected_mesh_, simu_solver.masse_, v) * Vec3(0, -98.1, 0) *
+								value<double>(*selected_mesh_, simu_solver.masse_, v) * Vec3(0, 0, -98.1) *
 								gravity_intensity_;
 							return true;
 						});
@@ -826,6 +826,7 @@ protected:
 						{
 							return true;
 						}
+						return false;
 						axis_z = Zaxis_cylinder2;
 
 						pos2 = pos - pos_cylinder2.cast<double>();
@@ -871,6 +872,7 @@ protected:
 							}
 							return true;
 						}
+						return false;
 						axis_z = Zaxis_cylinder2;
 
 						pos2 = pos - pos_cylinder2.cast<double>();
@@ -915,7 +917,7 @@ protected:
 					pos_cylinder1 =
 						Eigen::Vector3f(260, 370 + (cos(2 * M_PI / 1000 * nb_iter) + 1) / 2.0 * 200.0 - 200.0, 0);
 					nb_iter++;*/
-					pos_cylinder1 += Eigen::Vector3f(0, 1., 0);
+					// pos_cylinder1 += Eigen::Vector3f(0, 1., 0);
 				}
 				if (ground_)
 				{
