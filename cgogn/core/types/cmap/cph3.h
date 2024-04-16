@@ -101,11 +101,31 @@ struct CPH3
 		return m_;
 	}
 
+	void start_reader() const
+	{
+		m_.start_reader();
+	}
+
+	void end_reader() const
+	{
+		m_.end_reader();
+	}
+
+	void start_writer()
+	{
+		m_.start_writer();
+	}
+
+	void end_writer()
+	{
+		m_.end_writer();
+	}
+
 	bool check_integrity() const;
 
 	inline Dart begin() const
 	{
-		if(current_level_ == maximum_level_)
+		if (current_level_ == maximum_level_)
 			return m_.begin();
 		Dart d(m_.darts_->first_index());
 		uint32 lastidx = m_.darts_->last_index();
@@ -121,7 +141,7 @@ struct CPH3
 
 	inline Dart next(Dart d) const
 	{
-		if(current_level_ == maximum_level_)
+		if (current_level_ == maximum_level_)
 			return m_.next(d);
 		uint32 lastidx = m_.darts_->last_index();
 		do

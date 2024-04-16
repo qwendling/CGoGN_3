@@ -403,7 +403,9 @@ int main(int argc, char** argv)
 		mrm->current_level_ = 0;
 	}
 
+
 	 cgogn::foreach_cell(*geometry_mesh, [&](Face f) -> bool {
+
 		if (is_incident_to_boundary(*geometry_mesh, f))
 		{
 			geometry_mesh->activate_face_subdivision(f);
@@ -426,13 +428,13 @@ int main(int argc, char** argv)
 	std::cout << "temps solve xpbd : " << duration / 100.0f << std::endl;*/
 
 	// mp.emit_attribute_changed(*m, position.get());
-	/*fvs.set_current_volume(geometry_mesh);
+	fvs.set_current_volume(geometry_mesh);
 	fvs.update_topo();
 	fvs.refresh_volume_skin();
-	mrm->current_level_ = 0;*/
+	mrm->current_level_ = 0;
 
 	vmrm.changed_connectivity(*mrm, position.get());
-	//vmrm.changed_connectivity(*geometry_mesh, position.get());
+	vmrm.changed_connectivity(*geometry_mesh, position.get());
 
 	return app.launch();
 }

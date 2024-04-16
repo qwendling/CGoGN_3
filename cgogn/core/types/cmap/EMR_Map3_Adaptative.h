@@ -37,10 +37,12 @@ struct EMR_Map3_Adaptative : EMR_Map3
 	mutable uint32 clock_views_;
 	mutable uint32 clock_parent_;
 	EMR_Map3_Adaptative*& topology_;
+	std::vector<EMR_Map3_Adaptative*>& list_view_;
 
 	EMR_Map3_Adaptative(EMR_Map3_T<CMap3>& m)
 		: EMR_Map3(m), parent(nullptr), clock_views_(0), clock_parent_(0),
-		  topology_(m.template get_attribute<EMR_Map3_Adaptative*>("emr_topology"))
+		  topology_(m.template get_attribute<EMR_Map3_Adaptative*>("emr_topology")),
+		  list_view_(m.template get_attribute<std::vector<EMR_Map3_Adaptative*>>("list_view"))
 	{
 		nb_views++;
 		dart_visibility_ =
@@ -91,6 +93,7 @@ struct EMR_Map3_Adaptative : EMR_Map3
 			dart_visibility_buffer_ = m_.darts_->add_attribute<std::tuple<uint32, uint32, uint32, uint32>>(
 				"dart_visibility_buffer" + std::to_string(nb_views));
 		}
+		list_view_.push_back(this);
 	}
 
 	virtual ~EMR_Map3_Adaptative()
@@ -100,6 +103,15 @@ struct EMR_Map3_Adaptative : EMR_Map3
 		m_.darts_->remove_attribute(phi2_buffer_);
 		m_.darts_->remove_attribute(phi3_buffer_);
 		m_.darts_->remove_attribute(volume_dart_buffer_);
+		for (uint i = 0; i < list_view_.size(); i++)
+		{
+			if (list_view_[i] == this)
+			{
+				std::swap(list_view_[i], list_view_[list_view_.size() - 1]);
+				list_view_.pop_back();
+				break;
+			}
+		}
 	}
 
 	virtual bool check_integrity() const;

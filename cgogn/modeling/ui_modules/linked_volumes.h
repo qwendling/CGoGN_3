@@ -25,9 +25,9 @@
 #define CGOGN_MODULE_LINKED_VOLUMES_H_
 
 #include <GLFW/glfw3.h>
+#include <cgogn/core/ui_modules/mesh_provider.h>
 #include <cgogn/ui/app.h>
 #include <cgogn/ui/module.h>
-#include <cgogn/core/ui_modules/mesh_provider.h>
 #include <cgogn/ui/view.h>
 
 #include <cgogn/core/types/mesh_traits.h>
@@ -185,10 +185,10 @@ protected:
 				Parameters& p = parameters_[selected_mesh_];
 				Vec3 pos;
 				p.frame_manipulator_.get_position(pos);
-				//pos = Vec3(3.98, 5.45, -0.31);
+				// pos = Vec3(3.98, 5.45, -0.31);
 				Vec3 a;
 				p.frame_manipulator_.get_axis(cgogn::rendering::FrameManipulator::Zt, a);
-				//a = Vec3(0.995, -0.042, -0.079);
+				// a = Vec3(0.995, -0.042, -0.079);
 				double d = pos.dot(a);
 				selected_mesh_->start_writer();
 				std::cout << "Début découpe" << std::endl;
@@ -204,7 +204,6 @@ protected:
 					}
 					return true;
 				});
-				
 
 				std::cout << "Fin découpe" << std::endl;
 
@@ -213,7 +212,7 @@ protected:
 					mesh_provider_->emit_attribute_changed(*selected_mesh_, attr.get());
 				}
 				mesh_provider_->emit_connectivity_changed(*selected_mesh_);
-				mesh_provider_->emit_connectivity_changed(*selected_mesh_->topology_);
+				// mesh_provider_->emit_connectivity_changed(*selected_mesh_->topology_);
 				selected_mesh_->end_writer();
 			}
 		}
@@ -224,7 +223,7 @@ protected:
 			std::vector<Vertex> CC_0;
 			CC_0.push_back(Vertex(Dart(0)));
 			vm.mark(Vertex(Dart(0)));
-			 value<Vec3>(*selected_mesh_, p.vertex_position_.get(), Vertex(Dart(0))) += Vec3(3, 0, 0);
+			value<Vec3>(*selected_mesh_, p.vertex_position_.get(), Vertex(Dart(0))) += Vec3(3, 0, 0);
 			while (!CC_0.empty())
 			{
 				Vertex v = CC_0.back();
@@ -234,7 +233,7 @@ protected:
 					{
 						vm.mark(w);
 						CC_0.push_back(w);
-						 value<Vec3>(*selected_mesh_, p.vertex_position_.get(), w) += Vec3(3, 0, 0);
+						value<Vec3>(*selected_mesh_, p.vertex_position_.get(), w) += Vec3(3, 0, 0);
 					}
 					return true;
 				});

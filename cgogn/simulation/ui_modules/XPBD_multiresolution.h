@@ -25,9 +25,9 @@
 #define CGOGN_MODULE_XPBD_MULTIRESOLUTION_H_
 
 #include <GLFW/glfw3.h>
+#include <cgogn/core/ui_modules/mesh_provider.h>
 #include <cgogn/ui/app.h>
 #include <cgogn/ui/module.h>
-#include <cgogn/core/ui_modules/mesh_provider.h>
 #include <cgogn/ui/view.h>
 
 #include <cgogn/core/types/mesh_traits.h>
@@ -146,10 +146,10 @@ public:
 		: ViewModule(app, "XPBD (" + std::string{mesh_traits<MESH>::name} + ")"), selected_mesh_(nullptr),
 		  geom_mesh_(nullptr), selected_view_(app.current_view()), running_(false), apply_gravity(false),
 		  take_screenshot_(false), ground_(false), inverse_control_(nullptr), draw_cylinder(false),
-		  radius_cylinder(200.0f), pos_cylinder1(170, -700, 5), Zaxis_cylinder1(0, 0, 1), pos_cylinder2(-800, -1400, 5),
-		  Zaxis_cylinder2(0, 0, 1), pos_cylinder3(170, -2100, 5), Zaxis_cylinder3(0, 0, 1), pos_sphere(700, 0, 100),
-		  pos_sphere2(600, 400, 400),
-		  shape_(nullptr), show_sphere_(false), sphere_radius_(100.0f), gravity_intensity_(1.)
+		  radius_cylinder(50.0f), pos_cylinder1(-272, 31, -79), Zaxis_cylinder1(1. / sqrt(2.), 1. / sqrt(2.), 0),
+		  pos_cylinder2(-800, -1400, 5), Zaxis_cylinder2(0, 0, 1), pos_cylinder3(170, -2100, 5),
+		  Zaxis_cylinder3(0, 0, 1), pos_sphere(700, 0, 100), pos_sphere2(600, 400, 400), shape_(nullptr),
+		  show_sphere_(false), sphere_radius_(100.0f), gravity_intensity_(1.)
 	{
 		f_keypress = [](View*, MESH*, int32, CellsSet<MESH, Vertex>*, CellsSet<MESH, Edge>*) {};
 	}
@@ -702,13 +702,40 @@ protected:
 
 				if (show_sphere_)
 				{
+
+					static Vec3 cm = geometry::centroid<Vec3>(*selected_mesh_, p.vertex_position_.get());
+					Eigen::Affine3f transfo = Eigen::Translation3f(cm.cast<float>()) *
+											  Eigen::AngleAxisf(0.01, Eigen::Vector3f::UnitZ()) *
+											  Eigen::Translation3f(-cm.cast<float>());
+					pos_sphere = transfo * pos_sphere;
+				}
+				for (int i = 0; i < 1; i++)
+				{
+
+					if (apply_gravity)
+					{
+						parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
+							value<Vec3>(*selected_mesh_, p.vertex_forces_, v) +=
+								value<double>(*selected_mesh_, simu_solver.masse_, v) * Vec3(0, 0, -98.1) *
+								gravity_intensity_;
+							return true;
+						});
+					}
+					simu_solver.solver(*selected_mesh_, geom_mesh_, TIME_STEP, false);
+					parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
+						value<Vec3>(*selected_mesh_, p.vertex_forces_, v) = Vec3(0, 0, 0);
+						return true;
+					});
+				}
+				if (show_sphere_)
+				{
 					static double it_sphere = 0;
 					it_sphere += 0.1;
 					simu_solver.compute_error_point(*selected_mesh_, pos_sphere.cast<double>(), 4 + 2 * cos(it_sphere));
 				}
 				if (draw_sphere2)
 				{
-					 simu_solver.compute_contact(*selected_mesh_, *geom_mesh_, [&](Vertex v) -> bool {
+					simu_solver.compute_contact(*selected_mesh_, *geom_mesh_, [&](Vertex v) -> bool {
 						Vec3& pos = value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v);
 
 						Vec3 pos2 = pos - pos_sphere2.cast<double>();
@@ -788,15 +815,15 @@ protected:
 							value<Vec3>(*selected_mesh_, vol_eigen_vector, Volume(phi3(*selected_mesh_, f.dart)));
 						Vec3 face_normale = geometry::normal(*selected_mesh_, f, p.vertex_position_.get());
 						double tension = (evalue_1 - 1.) * abs(evector_1.normalized().dot(face_normale)) +
-											(evalue_2 - 1.) * abs(evector_2.normalized().dot(face_normale));
+										 (evalue_2 - 1.) * abs(evector_2.normalized().dot(face_normale));
 						value<double>(*selected_mesh_, face_tensor, f) = tension;
 						if (tension > 0.5f)
 						{
 							std::shared_ptr<Attribute<double>> separation_volume =
 								get_attribute<double, Volume>(*selected_mesh_, "Separation_volume");
 							value<double>(*selected_mesh_, separation_volume, Volume(f.dart)) += 1;
-							value<double>(*selected_mesh_, separation_volume,
-											Volume(phi3(*selected_mesh_, f.dart))) += 1;
+							value<double>(*selected_mesh_, separation_volume, Volume(phi3(*selected_mesh_, f.dart))) +=
+								1;
 							face_unsew.push_back(f);
 						}
 						return true;
@@ -840,6 +867,7 @@ protected:
 						{
 							return true;
 						}
+						return false;
 						axis_z = Zaxis_cylinder2;
 
 						pos2 = pos - pos_cylinder2.cast<double>();
@@ -885,6 +913,7 @@ protected:
 							}
 							return true;
 						}
+						return false;
 						axis_z = Zaxis_cylinder2;
 
 						pos2 = pos - pos_cylinder2.cast<double>();
@@ -929,6 +958,7 @@ protected:
 					pos_cylinder1 =
 						Eigen::Vector3f(260, 370 + (cos(2 * M_PI / 1000 * nb_iter) + 1) / 2.0 * 200.0 - 200.0, 0);
 					nb_iter++;*/
+					// pos_cylinder1 += Eigen::Vector3f(0, 1., 0);
 				}
 				if (ground_)
 				{
@@ -991,7 +1021,7 @@ protected:
 					return true;
 				});
 			}
-			simu_solver.solver(*selected_mesh_, geom_mesh_, TIME_STEP,false);
+			simu_solver.solver(*selected_mesh_, geom_mesh_, TIME_STEP, false);
 			parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
 				value<Vec3>(*selected_mesh_, p.vertex_forces_, v) = Vec3(0, 0, 0);
 				return true;
@@ -1070,12 +1100,12 @@ protected:
 					  Eigen::AngleAxisf(std::acos(Zaxis_cylinder2.x()), Eigen::Vector3f::UnitZ()) *
 					  Eigen::AngleAxisf(std::acos(Zaxis_cylinder2.z()), Eigen::Vector3f::UnitY()) *
 					  Eigen::Scaling(radius_cylinder, radius_cylinder, 1000.0f);
-			shape_->draw(rendering::ShapeDrawer::CYLINDER, proj_matrix, view_matrix * transfo.matrix());
+			// shape_->draw(rendering::ShapeDrawer::CYLINDER, proj_matrix, view_matrix * transfo.matrix());
 			transfo = Eigen::Translation3f(pos_cylinder3) *
 					  Eigen::AngleAxisf(std::acos(Zaxis_cylinder3.x()), Eigen::Vector3f::UnitZ()) *
 					  Eigen::AngleAxisf(std::acos(Zaxis_cylinder3.z()), Eigen::Vector3f::UnitY()) *
 					  Eigen::Scaling(radius_cylinder, radius_cylinder, 1000.0f);
-			shape_->draw(rendering::ShapeDrawer::CYLINDER, proj_matrix, view_matrix * transfo.matrix());
+			// shape_->draw(rendering::ShapeDrawer::CYLINDER, proj_matrix, view_matrix * transfo.matrix());
 		}
 		if (show_sphere_)
 		{
@@ -1163,7 +1193,7 @@ protected:
 													bool is_selected = attribute == p.vertex_position_;
 													if (ImGui::Selectable(attribute->name().c_str(), is_selected))
 														attr = attribute;
-														
+
 													if (is_selected)
 														ImGui::SetItemDefaultFocus();
 												});
@@ -1263,8 +1293,8 @@ public:
 	bool inverse_control_;
 	bool draw_cylinder;
 	Eigen::Vector3f pos_sphere2;
-	bool draw_sphere2=false;
-	float sphere_radius2_=150.0f;
+	bool draw_sphere2 = false;
+	float sphere_radius2_ = 150.0f;
 	float radius_cylinder;
 	Eigen::Vector3f pos_cylinder1;
 	Vec3 Zaxis_cylinder1;

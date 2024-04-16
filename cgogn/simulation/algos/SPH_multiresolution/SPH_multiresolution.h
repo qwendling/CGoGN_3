@@ -10,8 +10,8 @@
 
 #define NORMALIZE_TERM (21 / (2 * M_PI))
 
-#define POISSON_RATIO 0.33
-#define YOUNG_MODULUS 5e4
+#define POISSON_RATIO 0.49
+#define YOUNG_MODULUS 5e5
 #define LAME_MU 2e4
 #define LAME_LAMBDA (LAME_MU / 3.0)
 
@@ -37,7 +37,8 @@ struct Particule_SPH_MR
 	Mat3d rotation_;
 	double h_;
 	Mat3d stress_tensor_;
-	Mat3d deformation_gradient_;
+	Mat3d deformation_gradient_; 
+	Mat3d dFdX;
 	Vec3 force_;
 	Vec3 speed_;
 	double masse_;
@@ -563,6 +564,9 @@ public:
 				p2->neighborhood_.push_front(p);
 				p2->neighborhood_.remove(p_old);
 				need_upate_particules.insert(p2);
+				for(auto p3:p2->neighborhood_){
+					std::cout << p3 << std::endl;
+				}
 			}
 			for(Particule_SPH_MR* p2 : p_old->child_){
 				p->neighborhood_.push_front(p2);
