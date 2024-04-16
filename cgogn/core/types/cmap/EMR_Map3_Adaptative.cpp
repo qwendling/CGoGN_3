@@ -34,7 +34,7 @@ bool EMR_Map3_Adaptative::check_integrity() const
 		}
 		if (phi2(*this, phi2(*this, d)) != d)
 		{
-			std::cerr << "phi2 must be an involution" << std::endl;
+			std::cerr << d.index << " phi2 must be an involution" << std::endl;
 			return false;
 		}
 		if (phi2(*this, d) == d)
@@ -348,10 +348,30 @@ uint32 EMR_Map3_Adaptative::get_dart_visibility(Dart d) const
 		}
 		else
 		{
+			
 			if (get_parent() != nullptr)
 			{
 				result = std::min(get_parent()->get_dart_visibility(d), result);
 			}
+			/* Dart tmp = (*((*m_.MR_phi3_)[d_level]))[d.index];
+			if (tmp == d)
+			{
+				int d_level2 = d_level + 1;
+				while (tmp == d)
+				{
+					tmp = (*((*m_.MR_phi3_)[d_level2]))[d.index];
+				}
+			}
+			else
+			{
+				if (dart_level(tmp) != d_level)
+				{
+					tmp = (*((*m_.MR_phi3_)[d_level - 1]))[tmp.index];
+					tmp = (*((*m_.MR_phi3_)[d_level]))[tmp.index];
+				}
+			}
+			result = std::min(get_dart_visibility(tmp),result);*/
+
 			/* Dart tmp = (*((*m_.MR_phi3_)[d_level]))[d.index];
 			if (tmp == d)
 			{

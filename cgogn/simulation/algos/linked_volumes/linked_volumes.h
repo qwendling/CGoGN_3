@@ -172,7 +172,7 @@ inline void Linked_volumes<EMR_Map3_Adaptative>::compute_cut_plan(Vec3 dir_plan,
 				vect_new_volume.push_back(Volume(w.dart));
 				return true;
 			});
-			m_->activate_volume_subdivision(v);
+			//m_->activate_volume_subdivision(v);
 		}
 		geometry::compute_centroid<Vec3, Volume>(*m_, pos, centroid_.get());
 		parallel_foreach_cell(*m_, [&](Volume v) -> bool {

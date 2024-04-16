@@ -22,6 +22,16 @@ target_link_libraries(shallow_water
 	${CMAKE_DL_LIBS}
 )
 
+add_executable(Cut_Load Cut_Load.cpp)
+target_link_libraries(Cut_Load
+	cgogn::core
+	cgogn::ui
+	cgogn::io
+	cgogn::rendering
+	cgogn::simulation
+	${CMAKE_DL_LIBS}
+)
+
 add_executable(XPBD_test XPBD_test.cpp)
 target_link_libraries(XPBD_test
 	cgogn::core

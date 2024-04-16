@@ -99,7 +99,7 @@ public:
 		{
 			if (!moving_dart_.is_nil())
 				topo_render_->set_dart_color(moving_dart_, moving_color_);
-			moving_dart_ = cgogn::Dart(60);
+			moving_dart_ = cgogn::Dart(613);
 			topo_render_->set_dart_color(moving_dart_, moving_color_);
 			force_update();
 		}
@@ -145,10 +145,47 @@ public:
 			}
 			force_update();
 		}
+		if (ImGui::Button("move mesh"))
+		{
+			cgogn::CellMarkerStore<MRMesh, Vertex> vm(*mesh_);
+			std::vector<Vertex> CC_0;
+			CC_0.push_back(Vertex(cgogn::Dart(0)));
+			vm.mark(Vertex(cgogn::Dart(0)));
+			cgogn::value<Vec3>(*mesh_, vertex_position_.get(), Vertex(cgogn::Dart(0))) += Vec3(3, 0, 0);
+			int cur = mesh_->current_level_;
+			mesh_->current_level_ = mesh_->maximum_level_;
+			while (!CC_0.empty())
+			{
+				Vertex v = CC_0.back();
+				CC_0.pop_back();
+				cgogn::foreach_adjacent_vertex_through_edge(*mesh_, v, [&](Vertex w) -> bool {
+					if (!vm.is_marked(w))
+					{
+						vm.mark(w);
+						CC_0.push_back(w);
+						cgogn::value<Vec3>(*mesh_, vertex_position_.get(), w) += Vec3(3, 0, 0);
+					}
+					return true;
+				});
+			}
+			mesh_->current_level_ = cur;
+
+			mesh_provider_->emit_attribute_changed(*mesh_, vertex_position_.get());
+			mesh_provider_->emit_connectivity_changed(*geom_);
+	
+			force_update();
+		}
+		if (ImGui::Button("check geom"))
+		{
+			std::cout << "check geom : " << geom_->check_integrity() << std::endl;
+
+			force_update();
+		}
 		if (!moving_dart_.is_nil())
 			ImGui::Text("Dart index : %d",moving_dart_.index);
 	}
 	MRMesh* mesh_;
+	MRMesh* geom_;
 	cgogn::ui::View* view_;
 	std::shared_ptr<Attribute<Vec3>> vertex_position_;
 	cgogn::ui::MeshProvider<MRMesh>* mesh_provider_;
@@ -218,12 +255,16 @@ int main(int argc, char** argv)
 
 	MRMesh* mrm = vmrm.create_mrmesh(*m, mp.mesh_name(*m));
 	MRMesh* topo = vmrm.create_mrmesh(*m, "Topology");
+	MRMesh* geom = vmrm.create_mrmesh(*m, "Geometry");
 	//MRMesh* mrm2 = vmrm.create_mrmesh(*m, mp.mesh_name(*m));
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*mrm, "position");
 	mrm->topology_ = topo;
+	geom->parent = mrm;
 
 	interf.mesh_ = mrm;
+	interf.mesh_ = geom;
 	interf.vertex_position_ = position;
+	interf.geom_ = geom;
 	
 
 	cgogn::index_cells<MRMesh::Volume>(*mrm);
@@ -232,7 +273,7 @@ int main(int argc, char** argv)
 
 	vmrm.subdivide(*mrm, position.get());
 
-	//vmrm.subdivide(*mrm, position.get());
+	vmrm.subdivide(*mrm, position.get());
 
 	//mrm2->parent = mrm;
 
@@ -266,6 +307,17 @@ int main(int argc, char** argv)
 		list_cut_volumes.clear();
 	}*/
 	//vmrm.changed_connectivity(*mrm2, position.get());
+
+	cgogn::foreach_cell(*geom, [&](Face f) -> bool {
+		if (is_incident_to_boundary(*geom, f))
+		{
+			geom->activate_face_subdivision(f);
+		}
+		return true;
+	});
+	vmrm.changed_connectivity(*mrm, position.get());
+	vmrm.changed_connectivity(*geom, position.get());
+	vmrm.changed_connectivity(*topo, position.get());
 
 	return app.launch();
 }

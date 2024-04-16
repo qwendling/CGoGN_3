@@ -103,7 +103,7 @@ struct EMR_Map3_Adaptative : EMR_Map3
 		m_.darts_->remove_attribute(phi2_buffer_);
 		m_.darts_->remove_attribute(phi3_buffer_);
 		m_.darts_->remove_attribute(volume_dart_buffer_);
-		for (uint i = 0; i < list_view_.size(); i++)
+		for (uint32 i = 0; i < list_view_.size(); i++)
 		{
 			if (list_view_[i] == this)
 			{
