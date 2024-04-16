@@ -576,6 +576,33 @@ protected:
 					value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v) += Vec3(0.1, 0, 0);
 				}
 				selected_mesh_->start_writer();
+				
+				if (show_sphere_)
+				{
+					static Vec3 cm = geometry::centroid<Vec3>(*selected_mesh_, p.vertex_position_.get());
+					Eigen::Affine3f transfo = Eigen::Translation3f(cm.cast<float>()) *
+											  Eigen::AngleAxisf(0.01, Eigen::Vector3f::UnitZ()) *
+											  Eigen::Translation3f(-cm.cast<float>());
+					pos_sphere = transfo * pos_sphere;
+				}
+				for (int i = 0; i < 1; i++)
+				{
+
+					if (apply_gravity)
+					{
+						parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
+							value<Vec3>(*selected_mesh_, p.vertex_forces_, v) +=
+								value<double>(*selected_mesh_, simu_solver.masse_, v) * Vec3(0, -98.1, 0) *
+								gravity_intensity_;
+							return true;
+						});
+					}
+					simu_solver.solver(*selected_mesh_, geom_mesh_, TIME_STEP, false);
+					parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
+						value<Vec3>(*selected_mesh_, p.vertex_forces_, v) = Vec3(0, 0, 0);
+						return true;
+					});
+				}
 				if (!moving_vertices.empty())
 				{
 					parallel_foreach_cell(*selected_mesh_, [&](Volume v) -> bool {
@@ -639,50 +666,40 @@ protected:
 
 						for (Face f : face_unsew)
 						{
-							unsew_volume(*selected_mesh_, f, [&](std::pair<Vertex, Vertex> pv) -> bool {
-								std::vector<std::shared_ptr<Attribute<Vec3>>> list_update_attribute;
-								list_update_attribute.push_back(simu_solver.pos_);
-								list_update_attribute.push_back(simu_solver.init_pos_);
-								list_update_attribute.push_back(simu_solver.speed_);
-								list_update_attribute.push_back(simu_solver.f_ext_);
-								for (auto attr : list_update_attribute)
-								{
-									value<Vec3>(*selected_mesh_, attr, pv.second) =
-										value<Vec3>(*selected_mesh_, attr, pv.first);
-								}
-								return true;
-							},true);
+							unsew_volume(
+								*selected_mesh_, f,
+								[&](std::pair<Vertex, Vertex> pv) -> bool {
+									std::vector<std::shared_ptr<Attribute<Vec3>>> list_update_attribute;
+									list_update_attribute.push_back(simu_solver.pos_);
+									list_update_attribute.push_back(simu_solver.init_pos_);
+									list_update_attribute.push_back(simu_solver.speed_);
+									list_update_attribute.push_back(simu_solver.f_ext_);
+									for (auto attr : list_update_attribute)
+									{
+										value<Vec3>(*selected_mesh_, attr, pv.second) =
+											value<Vec3>(*selected_mesh_, attr, pv.first);
+									}
+									return true;
+								},
+								true);
 						}
+						
+						foreach_cell(*selected_mesh_, [&](Volume vol) -> bool {
+							Vec3 cm = value<Vec3>(*selected_mesh_, simu_solver.centroid_, vol);
+							geometry::Mat3d F = value<geometry::Mat3d>(*selected_mesh_, simu_solver.F_, vol);
+
+							foreach_incident_vertex(*selected_mesh_, vol, [&](Vertex w) -> bool {
+								Vec3 init_r_i = value<Vec3>(*selected_mesh_, simu_solver.init_pos_.get(), w) -
+												value<Vec3>(*selected_mesh_, simu_solver.init_cm_, vol);
+								value<Vec3>(*selected_mesh_, simu_solver.pos_.get(), w) = cm + F * init_r_i;
+								return true;
+							});
+							return true;
+						});
 						simu_solver.update_topo(*selected_mesh_);
 					}
 				}
 
-				if (show_sphere_)
-				{
-					static Vec3 cm = geometry::centroid<Vec3>(*selected_mesh_, p.vertex_position_.get());
-					Eigen::Affine3f transfo = Eigen::Translation3f(cm.cast<float>()) *
-											  Eigen::AngleAxisf(0.01, Eigen::Vector3f::UnitZ()) *
-											  Eigen::Translation3f(-cm.cast<float>());
-					pos_sphere = transfo * pos_sphere;
-				}
-				for (int i = 0; i < 1; i++)
-				{
-
-					if (apply_gravity)
-					{
-						parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
-							value<Vec3>(*selected_mesh_, p.vertex_forces_, v) +=
-								value<double>(*selected_mesh_, simu_solver.masse_, v) * Vec3(0, -98.1, 0) *
-								gravity_intensity_;
-							return true;
-						});
-					}
-					simu_solver.solver(*selected_mesh_, geom_mesh_, TIME_STEP, false);
-					parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
-						value<Vec3>(*selected_mesh_, p.vertex_forces_, v) = Vec3(0, 0, 0);
-						return true;
-					});
-				}
 				if (show_sphere_)
 				{
 					static double it_sphere = 0;

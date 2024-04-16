@@ -608,6 +608,30 @@ void unsew_volume(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3_Adaptative>
 			topo->activate_volume_subdivision(Volume(v_old2));
 			v_level_topo2++;
 		}
+
+		std::function<void(Dart)> fn2;
+		fn2 = [&](Dart d) {
+			if (topo->face_level(d) == topo->maximum_level_)
+			{
+				return;
+			}
+			else
+			{
+				std::vector<Dart> vect_dart_unsew;
+				Dart it = d;
+				do
+				{
+					vect_dart_unsew.push_back(it);
+					it = phi1(*topo, it);
+				} while (it != d);
+				topo->activate_face_subdivision(Face(d));
+				for (auto it : vect_dart_unsew)
+				{
+					fn2(it);
+				}
+			}
+		};
+		fn2(f.dart);
 	}
 		
 
@@ -717,6 +741,7 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 			vect_dart_unsew.push_back(it);
 			it = phi1(m, it);
 		} while (it != f_rep);
+		//m.activate_face_subdivision(Face(f_rep));
 		uint32 cur = m.current_level_;
 		m.current_level_ = std::min(cur + 1, m.maximum_level_);
 		for (auto it : vect_dart_unsew)
