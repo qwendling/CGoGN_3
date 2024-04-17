@@ -34,6 +34,7 @@
 #include <cgogn/core/functions/traversals/volume.h>
 #include <cgogn/core/types/cmap/EMR3_compact.h>
 #include <cgogn/core/ui_modules/mesh_provider.h>
+#include <cgogn/geometry/algos/centroid.h>
 #include <cgogn/geometry/ui_modules/surface_differential_properties.h>
 #include <cgogn/geometry/ui_modules/volume_selection.h>
 #include <cgogn/modeling/algos/subdivision.h>
@@ -69,22 +70,135 @@ using Vertex2 = typename cgogn::mesh_traits<Surface>::Vertex;
 using Vec3 = cgogn::geometry::Vec3;
 using uint32 = cgogn::uint32;
 
+class LocalInterface : public cgogn::ui::ViewModule
+{
+
+public:
+	LocalInterface(const cgogn::ui::App& app)
+		: cgogn::ui::ViewModule(app, "LocalInterface"), mesh_(nullptr), vertex_position_(nullptr),
+		  mesh_provider_(nullptr), vol_render_(nullptr), moving_color_(1.0f, 0.0f, 1.0f, 1.0f)
+	{
+		view_ = app.current_view();
+	}
+
+	~LocalInterface()
+	{
+	}
+	void force_update()
+	{
+		for (cgogn::ui::View* v : linked_views_)
+			v->request_update();
+	}
+
+	void init() override
+	{
+		mesh_provider_ = static_cast<cgogn::ui::MeshProvider<MRMesh>*>(
+			app_.module("MeshProvider (" + std::string{cgogn::mesh_traits<MRMesh>::name} + ")"));
+
+		vol_render_ = static_cast<cgogn::ui::VolumeRender<MRMesh>*>(
+			app_.module("VolumeRender (" + std::string{cgogn::mesh_traits<MRMesh>::name} + ")"));
+	}
+
+	void left_panel() override
+	{
+
+		if (ImGui::Button("Fix border"))
+		{
+			double x_min = DBL_MAX, x_max = -DBL_MAX, y_min = DBL_MAX, y_max = -DBL_MAX;
+			cgogn::foreach_cell(*mesh_, [&](Vertex v) -> bool {
+				const Vec3& p = cgogn::value<Vec3>(*mesh_, vertex_position_.get(), v);
+				if (p.x() < x_min)
+					x_min = p.x();
+				if (p.y() < y_min)
+					y_min = p.y();
+
+				if (p.x() > x_max)
+					x_max = p.x();
+				if (p.y() > y_max)
+					y_max = p.y();
+				return true;
+			});
+
+			auto fixed_vertex = cgogn::get_attribute<bool, Vertex>(*mesh_, "fixed_vertex");
+			double delta = 0.1;
+			cgogn::foreach_cell(*mesh_, [&](Vertex v) -> bool {
+				const Vec3& p = cgogn::value<Vec3>(*mesh_, vertex_position_.get(), v);
+				if (p.x() < x_min + delta || p.y() < y_min + delta || p.x() > x_max - delta || p.y() > y_max - delta)
+					cgogn::value<bool>(*mesh_, fixed_vertex.get(), v) = true;
+				return true;
+			});
+		}
+
+		if (ImGui::Button("Load mesh"))
+		{
+			Vec3 cm = cgogn::geometry::centroid<Vec3>(*mesh_, vertex_position_.get());
+			cgogn::foreach_cell(*mesh_, [&](Vertex v) -> bool {
+				Vec3& p = cgogn::value<Vec3>(*mesh_, vertex_position_.get(), v);
+				p = (p - cm) * 1.1 + cm;
+				return true;
+			});
+		}
+
+		if (ImGui::Button("move mesh"))
+		{
+			cgogn::CellMarkerStore<MRMesh, Vertex> vm(*mesh_);
+			std::vector<Vertex> CC_0;
+			CC_0.push_back(Vertex(cgogn::Dart(0)));
+			vm.mark(Vertex(cgogn::Dart(0)));
+			cgogn::value<Vec3>(*mesh_, vertex_position_.get(), Vertex(cgogn::Dart(0))) += Vec3(3, 0, 0);
+			int cur = mesh_->current_level_;
+			mesh_->current_level_ = mesh_->maximum_level_;
+			while (!CC_0.empty())
+			{
+				Vertex v = CC_0.back();
+				CC_0.pop_back();
+				cgogn::foreach_adjacent_vertex_through_edge(*mesh_, v, [&](Vertex w) -> bool {
+					if (!vm.is_marked(w))
+					{
+						vm.mark(w);
+						CC_0.push_back(w);
+						cgogn::value<Vec3>(*mesh_, vertex_position_.get(), w) += Vec3(3, 0, 0);
+					}
+					return true;
+				});
+			}
+			mesh_->current_level_ = cur;
+
+			mesh_provider_->emit_attribute_changed(*mesh_, vertex_position_.get());
+			mesh_provider_->emit_connectivity_changed(*geom_);
+
+			force_update();
+		}
+		if (!moving_dart_.is_nil())
+			ImGui::Text("Dart index : %d", moving_dart_.index);
+	}
+	MRMesh* mesh_;
+	MRMesh* geom_;
+	cgogn::ui::View* view_;
+	std::shared_ptr<Attribute<Vec3>> vertex_position_;
+	cgogn::ui::MeshProvider<MRMesh>* mesh_provider_;
+	cgogn::ui::VolumeRender<MRMesh>* vol_render_;
+	cgogn::Dart d_hexa_;
+	cgogn::Dart d_pyra_;
+	cgogn::Dart moving_dart_;
+	Eigen::Vector4f moving_color_;
+	float expl_vol_;
+};
 
 int main(int argc, char** argv)
 {
 
-	if (argc > 2)
+	if (argc < 2)
 	{
-		std::cout << "Usage: " << argv[0] << " [nb_subdiv]" << std::endl;
+		std::cout << "Usage: " << argv[0] << " mesh [nb_subdiv]" << std::endl;
 		return 1;
 	}
-
-
+	std::string filename = argv[1];
 
 	int nb_subdivision = 2;
-	if (argc == 2)
+	if (argc == 3)
 	{
-		nb_subdivision = std::atoi(argv[1]);
+		nb_subdivision = std::atoi(argv[2]);
 	}
 
 	cgogn::thread_start();
@@ -103,6 +217,7 @@ int main(int argc, char** argv)
 	cgogn::ui::VolumeEMRModeling<MRMesh> vmrm(app);
 	cgogn::ui::Multiresolution_editing<MRMesh> mre(app);
 	cgogn::ui::SurfaceDifferentialProperties<cgogn::CMap2> sdp(app);
+	LocalInterface interf(app);
 
 	cgogn::ui::View* v1 = app.current_view();
 	v1->link_module(&mp);
@@ -111,14 +226,11 @@ int main(int argc, char** argv)
 	v1->link_module(&xp_v);
 	v1->link_module(&sr);
 	v1->link_module(&mre);
+	v1->link_module(&interf);
 
 	app.init_modules();
 
-	Mesh* m ;
-
-	Volume vol = cgogn::add_prism(static_cast<cgogn::CMap2&>(*m), 4u, false);
-
-
+	Mesh* m = mp.load_volume_from_file(filename);
 
 	MRMesh* mrm = vmrm.create_mrmesh(*m, "mecanique");
 	MRMesh* topo = vmrm.create_mrmesh(*m, "Topology");
@@ -129,7 +241,6 @@ int main(int argc, char** argv)
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*mrm, "position");
 	std::shared_ptr<Attribute<Vec3>> normal = cgogn::add_attribute<Vec3, Vertex>(*m, "normal__anim_multires");
 
-
 	cgogn::foreach_cell(*mrm, [&](Vertex v) -> bool {
 		cgogn::value<Vec3>(*mrm, position, v) *= 100;
 		return true;
@@ -139,7 +250,9 @@ int main(int argc, char** argv)
 	cgogn::index_cells<Mesh::Edge>(*mrm);
 	cgogn::index_cells<Mesh::Face>(*mrm);
 
-
+	interf.mesh_ = mrm;
+	interf.vertex_position_ = position;
+	interf.geom_ = geometry_mesh;
 
 	mrsr.set_vertex_position(*v1, *mrm, position);
 
@@ -151,9 +264,7 @@ int main(int argc, char** argv)
 	}
 	mrm->current_level_ = 0;
 
-
-	 cgogn::foreach_cell(*geometry_mesh, [&](Face f) -> bool {
-
+	cgogn::foreach_cell(*geometry_mesh, [&](Face f) -> bool {
 		if (is_incident_to_boundary(*geometry_mesh, f))
 		{
 			geometry_mesh->activate_face_subdivision(f);
