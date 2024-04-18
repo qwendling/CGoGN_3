@@ -161,7 +161,7 @@ void XPBD_Multiresolution::init_solver(MAP& m, std::shared_ptr<Attribute<Vec3>> 
 		});
 		double s = 1.0 / Q.sum();
 		value<double>(m, s_, v) = s;
-		//s = 1.;
+		// s = 1.;
 		Q = s * Q;
 		value<Mat3d>(m, inv_Q_, v) = Q.eval().inverse();
 		return true;
@@ -416,6 +416,8 @@ void XPBD_Multiresolution::activate_volume(MAP& m, std::vector<Volume>& list_Vol
 		t->v_cm_ /= masse_vol;
 		t->for_each_child([&](tree_volume* c) -> bool {
 			new_volumes.push_back(Volume(c->volume_dart));
+			c->F_ = t->F_;
+
 			return true;
 		});
 	}
@@ -524,11 +526,15 @@ void XPBD_Multiresolution::activate_volume(MAP& m, std::vector<Volume>& list_Vol
 	for (Volume v : new_volumes)
 	{
 		tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
+		std::vector<Vertex>& inc_vertices = value<std::vector<Vertex>>(m, inc_vertices_.get(), v);
+		inc_vertices.clear();
 		t = t->pere;
+		value<Mat3d>(m, F_, v) = t->F_;
 		foreach_incident_vertex(m, v, [&](Vertex w) -> bool {
 			value<Vec3>(m, speed_, w) = t->v_cm_;
 			Vec3 init_r_i = value<Vec3>(m, init_pos_, w) - t->init_cm_;
 			value<Vec3>(m, pos_, w) = t->cm_ + t->F_ * init_r_i;
+			inc_vertices.push_back(w);
 			return true;
 		});
 	}
@@ -849,7 +855,7 @@ void XPBD_Multiresolution::constraint_Neo_Hookean_D(MAP& m, Volume v, double h)
 			}
 		}
 	}
-	F =value<Mat3d>(m, F_, v);
+	F = value<Mat3d>(m, F_, v);
 
 	// Compute C  = sqrt(tr(F^T*F))
 	double C = sqrt((F.transpose() * F).trace());
@@ -936,7 +942,7 @@ void XPBD_Multiresolution::constraint_Zero_Energy(MAP& m, Volume v, double)
 		}
 	}
 
-	//F = value<Mat3d>(m, F_, v);
+	// F = value<Mat3d>(m, F_, v);
 	value<Mat3d>(m, F_, v) = F;
 	value<Vec3>(m, centroid_, v) = cm;
 	// Pour l'erreur et la Visu

@@ -152,6 +152,8 @@ struct CGOGN_CORE_EXPORT CMapBase
 	void start_writer()
 	{
 		std::unique_lock<std::mutex> lk(m_);
+
+		cv.wait(lk, [&] { return nb_writer_wait <= 1; });
 		nb_writer_wait++;
 		cv.wait(lk, [&] { return nb_reader <= 0 && !is_modify; });
 		nb_writer_wait--;

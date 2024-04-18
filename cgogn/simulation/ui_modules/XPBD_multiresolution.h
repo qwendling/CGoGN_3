@@ -553,6 +553,7 @@ protected:
 		}
 	}
 
+public:
 #define TIME_STEP 0.001666f
 	void start()
 	{
@@ -576,7 +577,7 @@ protected:
 					value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v) += Vec3(0.1, 0, 0);
 				}
 				selected_mesh_->start_writer();
-				
+
 				if (show_sphere_)
 				{
 					static Vec3 cm = geometry::centroid<Vec3>(*selected_mesh_, p.vertex_position_.get());
@@ -683,7 +684,7 @@ protected:
 								},
 								true);
 						}
-						
+
 						foreach_cell(*selected_mesh_, [&](Volume vol) -> bool {
 							Vec3 cm = value<Vec3>(*selected_mesh_, simu_solver.centroid_, vol);
 							geometry::Mat3d F = value<geometry::Mat3d>(*selected_mesh_, simu_solver.F_, vol);
@@ -1030,6 +1031,7 @@ protected:
 		need_update_ = true;
 	}
 
+protected:
 	void refresh_volume_skin()
 	{
 		if (!geom_mesh_)
