@@ -32,6 +32,7 @@
 #include <GLFW/glfw3.h>
 #include <cgogn/core/functions/traversals/edge.h>
 #include <cgogn/core/functions/traversals/volume.h>
+#include <cgogn/core/functions/traversals/vertex.h>
 #include <cgogn/core/types/cmap/EMR3_compact.h>
 #include <cgogn/core/ui_modules/mesh_provider.h>
 #include <cgogn/geometry/algos/centroid.h>
@@ -76,7 +77,7 @@ class LocalInterface : public cgogn::ui::ViewModule
 public:
 	LocalInterface(const cgogn::ui::App& app)
 		: cgogn::ui::ViewModule(app, "LocalInterface"), mesh_(nullptr), vertex_position_(nullptr),
-		  mesh_provider_(nullptr), vol_render_(nullptr), moving_color_(1.0f, 0.0f, 1.0f, 1.0f)
+		  mesh_provider_(nullptr), vol_render_(nullptr), moving_color_(1.0f, 0.0f, 1.0f, 1.0f), cm_not_cut(nullptr)
 	{
 		view_ = app.current_view();
 	}
@@ -101,6 +102,10 @@ public:
 
 	void left_panel() override
 	{
+		if (ImGui::Button("Perform random cut"))
+		{
+			
+		}
 
 		if (ImGui::Button("Fix border"))
 		{
@@ -124,7 +129,14 @@ public:
 			cgogn::foreach_cell(*mesh_, [&](Vertex v) -> bool {
 				const Vec3& p = cgogn::value<Vec3>(*mesh_, vertex_position_.get(), v);
 				if (p.x() < x_min + delta || p.y() < y_min + delta || p.x() > x_max - delta || p.y() > y_max - delta)
+				{
 					cgogn::value<bool>(*mesh_, fixed_vertex.get(), v) = true;
+					cgogn::foreach_adjacent_vertex_through_edge(*mesh_, v, [&](Vertex w) -> bool { 
+						cm_not_cut->mark(w);
+						return true;
+					});
+				}
+					
 				return true;
 			});
 		}
@@ -182,6 +194,8 @@ public:
 	cgogn::Dart d_pyra_;
 	cgogn::Dart moving_dart_;
 	Eigen::Vector4f moving_color_;
+	cgogn::CellMarker<MRMesh, Vertex>* cm_not_cut;
+	cgogn::simulation::XPBD_Multiresolution* simu_solver;
 	float expl_vol_;
 };
 
@@ -253,6 +267,8 @@ int main(int argc, char** argv)
 	interf.mesh_ = mrm;
 	interf.vertex_position_ = position;
 	interf.geom_ = geometry_mesh;
+	interf.cm_not_cut = new cgogn::CellMarker<MRMesh, Vertex>(*mrm);
+	interf.simu_solver = &xp_v.simu_solver;
 
 	mrsr.set_vertex_position(*v1, *mrm, position);
 
