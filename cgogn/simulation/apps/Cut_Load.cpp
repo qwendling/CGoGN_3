@@ -131,10 +131,13 @@ public:
 			std::vector<std::shared_ptr<Attribute<Vec3>>> list_update_attribute;
 			std::cout << "Début découpe" << std::endl;
 
+			cgogn::CellMarker<MRMesh, Volume> cm_cut(*mesh_);
+
 			std::vector<Volume> list_volume;
 
 			cgogn::foreach_incident_volume(*mesh_, v_select, [&](Volume v) -> bool {
 				list_volume.push_back(v);
+				cm_cut.mark(v);
 				return true;
 			});
 			for (Volume v : list_volume)
@@ -150,6 +153,7 @@ public:
 				list_volume_activate.clear();
 				for (Volume v : list_volume)
 				{
+					cm_cut.mark(v);
 					if (mesh_->volume_level(v.dart) == mesh_->maximum_level_)
 						continue;
 					Vec3 cm = cgogn::geometry::centroid<Vec3>(*mesh_, v, vertex_position_.get());
@@ -175,74 +179,59 @@ public:
 				simu_solver->activate_volume(*mesh_, list_volume_activate);
 			} while (!list_volume_activate.empty());
 
-			/*lv_.compute_cut_plan(a, d, p.vertex_position_.get(), [&](std::pair<Vertex, Vertex> p) -> bool {
-				for (auto attr : list_update_attribute)
-				{
-					value<Vec3>(*selected_mesh_, attr, p.second) = value<Vec3>(*selected_mesh_, attr, p.first);
-				}
-				for (auto attr : list_update_attribute2)
-				{
-					value<std::array<Vertex, 3>>(*selected_mesh_, attr, p.second) =
-						value<std::array<Vertex, 3>>(*selected_mesh_, attr, p.first);
-				}
-				return true;
-			});*/
+			std::vector<Volume>  list_volume_cut;
 
-			std::vector<Face> face_unsew;
-			/*
-			parallel_foreach_cell(*selected_mesh_, [&](Face f) -> bool {
-				if (is_incident_to_boundary(*selected_mesh_, f))
-					return true;
-				std::shared_ptr<Attribute<double>> vol_eigen =
-					get_attribute<double, Volume>(*selected_mesh_, "Volume_eigen_value");
-				std::shared_ptr<Attribute<Vec3>> vol_eigen_vector =
-					get_attribute<Vec3, Volume>(*selected_mesh_, "Volume_eigen_vector");
-				std::shared_ptr<Attribute<double>> face_tensor =
-					get_or_add_attribute<double, Face>(*selected_mesh_, "Face_tensor");
-				double evalue_1 = value<double>(*selected_mesh_, vol_eigen, Volume(f.dart));
-				double evalue_2 =
-					value<double>(*selected_mesh_, vol_eigen, Volume(phi3(*selected_mesh_, f.dart)));
-				Vec3 evector_1 = value<Vec3>(*selected_mesh_, vol_eigen_vector, Volume(f.dart));
-				Vec3 evector_2 =
-					value<Vec3>(*selected_mesh_, vol_eigen_vector, Volume(phi3(*selected_mesh_, f.dart)));
-				Vec3 face_normale = geometry::normal(*selected_mesh_, f, p.vertex_position_.get());
-				double tension = (evalue_1 - 1.) * abs(evector_1.normalized().dot(face_normale)) +
-								 (evalue_2 - 1.) * abs(evector_2.normalized().dot(face_normale));
-				value<double>(*selected_mesh_, face_tensor, f) = tension;
-				if (tension > 0.5f)
-				{
-					std::shared_ptr<Attribute<double>> separation_volume =
-						get_attribute<double, Volume>(*selected_mesh_, "Separation_volume");
-					value<double>(*selected_mesh_, separation_volume, Volume(f.dart)) += 1;
-					value<double>(*selected_mesh_, separation_volume, Volume(phi3(*selected_mesh_, f.dart))) +=
-						1;
-					face_unsew.push_back(f);
-				}
+			cgogn::foreach_cell(*mesh_, [&](Volume v) -> bool {
+				if (cm_cut.is_marked(v))
+					list_volume_cut.push_back(v);
 				return true;
 			});
+
+			std::vector<Face> face_unsew;
+			
+			parallel_foreach_cell(*mesh_, [&](Face f) -> bool {
+				if (cgogn::is_incident_to_boundary(*mesh_,f) || !cm_cut.is_marked(Volume(f.dart)) || !cm_cut.is_marked(Volume(cgogn::phi3(*mesh_, f.dart))))
+					return true;
+
+				Volume v1(f.dart),v2(cgogn::phi3(*mesh_,f.dart));
+
+				Vec3 cm1 = cgogn::geometry::centroid<Vec3>(*mesh_,v1, vertex_position_.get());
+				Vec3 cm2 = cgogn::geometry::centroid<Vec3>(*mesh_, v2, vertex_position_.get());
+
+				double d1 = cm1.dot(a)-d;
+				double d2 = cm2.dot(a)-d;
+
+				if (d1 * d2 < 0)
+					face_unsew.push_back(f);
+
+
+				return true;
+			});
+
+			
 			if (!face_unsew.empty())
 			{
 
 				for (Face f : face_unsew)
 				{
+					std::cout << "cut" << std::endl;
 					unsew_volume(
-						*selected_mesh_, f,
+						*mesh_, f,
 						[&](std::pair<Vertex, Vertex> p) -> bool {
-							std::vector<std::shared_ptr<Attribute<Vec3>>> list_update_attribute;
-							list_update_attribute.push_back(simu_solver.pos_);
-							list_update_attribute.push_back(simu_solver.init_pos_);
-							list_update_attribute.push_back(simu_solver.speed_);
+							list_update_attribute.push_back(simu_solver->pos_);
+							list_update_attribute.push_back(simu_solver->init_pos_);
+							list_update_attribute.push_back(simu_solver->speed_);
 							for (auto attr : list_update_attribute)
 							{
-								value<Vec3>(*selected_mesh_, attr, p.second) =
-									value<Vec3>(*selected_mesh_, attr, p.first);
+								cgogn::value<Vec3>(*mesh_, attr, p.second) =
+									cgogn::value<Vec3>(*mesh_, attr, p.first);
 							}
 							return true;
 						},
 						true);
 				}
-				simu_solver.update_topo(*selected_mesh_);
-			}*/
+				simu_solver->update_topo(*mesh_);
+			}
 
 			std::cout << "Fin découpe" << std::endl;
 
@@ -423,7 +412,7 @@ int main(int argc, char** argv)
 	cgogn::index_cells<Mesh::Edge>(*mrm);
 	cgogn::index_cells<Mesh::Face>(*mrm);
 
-	interf.mesh_ = mrm->topology_;
+	interf.mesh_ = mrm;
 	interf.mesh_meca_ = mrm;
 	interf.vertex_position_ = position;
 	interf.geom_ = geometry_mesh;
