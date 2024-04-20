@@ -78,6 +78,15 @@ public:
 		mesh_provider_->emit_attribute_changed(m, vertex_normal);
 	}
 
+	void update_normal()
+	{
+		if (this->selected_vertex_position_ && this->selected_vertex_normal_)
+		{
+			compute_normal(*selected_mesh_, selected_vertex_position_.get(), selected_vertex_normal_.get());
+		}
+		
+	}
+
 	void compute_curvature(const MESH& m, Scalar radius, const Attribute<Vec3>* vertex_position,
 						   const Attribute<Vec3>* vertex_normal, const Attribute<Scalar>* edge_angle,
 						   Attribute<Scalar>* vertex_kmax, Attribute<Scalar>* vertex_kmin,

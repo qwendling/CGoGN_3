@@ -123,8 +123,8 @@ public:
 			}
 
 			Vec3 pos = cgogn::value<Vec3>(*mesh_, vertex_position_.get(), v_select);
-			Vec3 a(double(rand()) / double(RAND_MAX), double(rand()) / double(RAND_MAX),
-				   double(rand()) / double(RAND_MAX));
+			Vec3 a(double(rand()) / double(RAND_MAX)-0.5, double(rand()) / double(RAND_MAX)-0.5,
+				   0.);
 			a.normalize();
 			double d = pos.dot(a);
 			mesh_->start_writer();
@@ -142,10 +142,14 @@ public:
 			});
 			for (Volume v : list_volume)
 			{
-				cgogn::foreach_incident_vertex(*mesh_, v, [&](Vertex w) -> bool {
-					cm_not_cut->mark(w);
+				cgogn::foreach_adjacent_volume_through_vertex(*mesh_, v, [&](Volume w) -> bool { 
+					cgogn::foreach_incident_vertex(*mesh_, w, [&](Vertex v2) -> bool {
+						cm_not_cut->mark(v2);
+						return true;
+					});
 					return true;
 				});
+				
 			}
 			std::vector<Volume> list_volume_activate;
 			do
@@ -248,7 +252,9 @@ public:
 			}
 			mesh_provider_->emit_connectivity_changed(*mesh_meca_);
 			// mesh_provider_->emit_connectivity_changed(*selected_mesh_->topology_);
+			sdp->update_normal();
 			mesh_->end_writer();
+
 			if (is_running)
 				xmv->start();
 		}
@@ -344,6 +350,7 @@ public:
 	cgogn::CellMarker<MRMesh, Vertex>* cm_not_cut;
 	cgogn::simulation::XPBD_Multiresolution* simu_solver;
 	cgogn::ui::XPBD_Multiresolution_View<MRMesh>* xmv;
+	cgogn::ui::SurfaceDifferentialProperties<cgogn::CMap2>* sdp;
 	float expl_vol_;
 };
 
@@ -379,6 +386,7 @@ int main(int argc, char** argv)
 	cgogn::ui::VolumeEMRModeling<MRMesh> vmrm(app);
 	cgogn::ui::Multiresolution_editing<MRMesh> mre(app);
 	cgogn::ui::SurfaceDifferentialProperties<cgogn::CMap2> sdp(app);
+	cgogn::ui::FitVolumeSurface<Surface, MRMesh> fvs(app);
 	LocalInterface interf(app);
 
 	cgogn::ui::View* v1 = app.current_view();
@@ -389,6 +397,7 @@ int main(int argc, char** argv)
 	v1->link_module(&sr);
 	v1->link_module(&mre);
 	v1->link_module(&interf);
+	v1->link_module(&fvs);
 
 	app.init_modules();
 
@@ -419,10 +428,11 @@ int main(int argc, char** argv)
 	interf.cm_not_cut = new cgogn::CellMarker<MRMesh, Vertex>(*mrm);
 	interf.simu_solver = &xp_v.simu_solver;
 	interf.xmv = &xp_v;
+	interf.sdp = &sdp;
 
 	mrsr.set_vertex_position(*v1, *mrm, position);
 
-	std::srand(148651);
+	std::srand(time(NULL));
 
 	for (int i = 0; i < nb_subdivision; i++)
 	{
@@ -441,6 +451,10 @@ int main(int argc, char** argv)
 
 	vmrm.changed_connectivity(*mrm, position.get());
 	vmrm.changed_connectivity(*geometry_mesh, position.get());
+
+	fvs.set_current_volume(geometry_mesh);
+	fvs.update_topo();
+	fvs.refresh_volume_skin();
 
 	return app.launch();
 }
