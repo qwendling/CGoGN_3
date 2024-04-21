@@ -1031,7 +1031,6 @@ public:
 		need_update_ = true;
 	}
 
-protected:
 	void refresh_volume_skin()
 	{
 		if (!geom_mesh_)
@@ -1058,6 +1057,7 @@ protected:
 		surface_provider_->emit_connectivity_changed(*volume_skin_);
 	}
 
+protected:
 	void draw(View* view) override
 	{
 		const rendering::GLMat4& proj_matrix = view->projection_matrix();

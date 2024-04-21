@@ -91,6 +91,11 @@ public:
 			v->request_update();
 	}
 
+	double dist_plan(Vec3 n, Vec3 p)
+	{
+		return n.dot(p);
+	}
+
 	void init() override
 	{
 		mesh_provider_ = static_cast<cgogn::ui::MeshProvider<MRMesh>*>(
@@ -107,7 +112,8 @@ public:
 			bool is_running = xmv->running_;
 			xmv->stop();
 			Vertex v_select;
-			while (v_select.dart.is_nil())
+			int nb_boucle = 0;
+			while (v_select.dart.is_nil() && nb_boucle < 100)
 			{
 				cgogn::foreach_cell(*mesh_, [&](Vertex v) -> bool {
 					if (mesh_->dart_level(v.dart) != 0)
@@ -120,148 +126,185 @@ public:
 					}
 					return true;
 				});
+				nb_boucle++;
 			}
-
-			Vec3 pos = cgogn::value<Vec3>(*mesh_, vertex_position_.get(), v_select);
-			Vec3 a(double(rand()) / double(RAND_MAX)-0.5, double(rand()) / double(RAND_MAX)-0.5,
-				   0.);
-			a.normalize();
-			double d = pos.dot(a);
-			mesh_->start_writer();
-			std::vector<std::shared_ptr<Attribute<Vec3>>> list_update_attribute;
-			std::cout << "Début découpe" << std::endl;
-
-			cgogn::CellMarker<MRMesh, Volume> cm_cut(*mesh_);
-
-			std::vector<Volume> list_volume;
-
-			cgogn::foreach_incident_volume(*mesh_, v_select, [&](Volume v) -> bool {
-				list_volume.push_back(v);
-				cm_cut.mark(v);
-				return true;
-			});
-			for (Volume v : list_volume)
+			if (!v_select.dart.is_nil())
 			{
-				cgogn::foreach_adjacent_volume_through_vertex(*mesh_, v, [&](Volume w) -> bool { 
-					cgogn::foreach_incident_vertex(*mesh_, w, [&](Vertex v2) -> bool {
+
+				Vec3 pos = cgogn::value<Vec3>(*mesh_, vertex_position_.get(), v_select);
+				Vec3 pos_voisin =
+					cgogn::value<Vec3>(*mesh_, vertex_position_.get(), Vertex(phi2(*mesh_, v_select.dart)));
+
+				/*double taille_sphere = (pos - pos_voisin).norm() * 2.;
+				Vec3 centre_sphere =
+					Vec3(double(rand()) / double(RAND_MAX) - 0.5, double(rand()) / double(RAND_MAX) - 0.5,
+						 double(rand()) / double(RAND_MAX) - 0.5)
+							.normalized() *
+						taille_sphere +
+					pos;*/
+
+				Vec3 a(double(rand()) / double(RAND_MAX) - 0.5, double(rand()) / double(RAND_MAX) - 0.5, 0.);
+				a.normalize();
+				double d = pos.dot(a);
+				mesh_->start_writer();
+				std::vector<std::shared_ptr<Attribute<Vec3>>> list_update_attribute;
+				std::cout << "Début découpe" << std::endl;
+
+				cgogn::CellMarker<MRMesh, Volume> cm_cut(*mesh_);
+
+				std::vector<Volume> list_volume;
+				std::vector<Volume> list_volume_not_cut;
+
+				cgogn::foreach_incident_volume(*mesh_, v_select, [&](Volume v) -> bool {
+					list_volume.push_back(v);
+					cm_cut.mark(v);
+					return true;
+				});
+				for (Volume v : list_volume)
+				{
+					cgogn::foreach_adjacent_volume_through_vertex(*mesh_, v, [&](Volume w) -> bool {
+						list_volume_not_cut.push_back(w);
+						return true;
+					});
+				}
+				std::vector<Volume> list_volume_activate;
+				do
+				{
+					list_volume_activate.clear();
+					for (Volume v : list_volume)
+					{
+						cm_cut.mark(v);
+						if (mesh_->volume_level(v.dart) == mesh_->maximum_level_)
+							continue;
+						Vec3 cm = cgogn::geometry::centroid<Vec3>(*mesh_, v, vertex_position_.get());
+						double dist_plan_volume = cm.dot(a) - d;
+						// double dist_sphere_volume = (centre_sphere - cm).norm() - taille_sphere;
+						cgogn::foreach_incident_vertex(*mesh_, v, [&](Vertex w) -> bool {
+							if ((cgogn::value<Vec3>(*mesh_, vertex_position_.get(), w).dot(a) - d) * dist_plan_volume <
+								0)
+							{
+								list_volume_activate.push_back(v);
+								return false;
+							}
+							/*if (((cgogn::value<Vec3>(*mesh_, vertex_position_.get(), w) - centre_sphere).norm() -
+								 taille_sphere) *
+									dist_sphere_volume <
+								0)
+							{
+								list_volume_activate.push_back(v);
+								return false;
+							}*/
+							return true;
+						});
+					}
+
+					list_volume.clear();
+					for (Volume v : list_volume_activate)
+					{
+						cgogn::foreach_incident_vertex(*mesh_, v, [&](Vertex w) -> bool {
+							list_volume.push_back(Volume(w.dart));
+							return true;
+						});
+					}
+					simu_solver->activate_volume(*mesh_, list_volume_activate);
+				} while (!list_volume_activate.empty());
+
+				std::vector<Volume> list_volume_cut;
+
+				cgogn::foreach_cell(*mesh_, [&](Volume v) -> bool {
+					if (cm_cut.is_marked(v))
+						list_volume_cut.push_back(v);
+					return true;
+				});
+
+				std::vector<Face> face_unsew;
+
+				parallel_foreach_cell(*mesh_, [&](Face f) -> bool {
+					if (cgogn::is_incident_to_boundary(*mesh_, f) || !cm_cut.is_marked(Volume(f.dart)) ||
+						!cm_cut.is_marked(Volume(cgogn::phi3(*mesh_, f.dart))))
+						return true;
+
+					Volume v1(f.dart), v2(cgogn::phi3(*mesh_, f.dart));
+
+					Vec3 cm1 = cgogn::geometry::centroid<Vec3>(*mesh_, v1, vertex_position_.get());
+					Vec3 cm2 = cgogn::geometry::centroid<Vec3>(*mesh_, v2, vertex_position_.get());
+
+					double d1 = cm1.dot(a) - d;
+					double d2 = cm2.dot(a) - d;
+
+					/*double d1_sphere = (centre_sphere - cm1).norm() - taille_sphere;
+					double d2_sphere = (centre_sphere - cm2).norm() - taille_sphere;*/
+
+					if (d1 * d2 < 0)
+						face_unsew.push_back(f);
+					/*if (d1_sphere * d2_sphere < 0)
+						face_unsew.push_back(f);*/
+
+					return true;
+				});
+
+				if (!face_unsew.empty())
+				{
+
+					for (Face f : face_unsew)
+					{
+						std::cout << "cut" << std::endl;
+						unsew_volume(
+							*mesh_, f,
+							[&](std::pair<Vertex, Vertex> p) -> bool {
+								list_update_attribute.push_back(simu_solver->pos_);
+								list_update_attribute.push_back(simu_solver->init_pos_);
+								list_update_attribute.push_back(simu_solver->speed_);
+								for (auto attr : list_update_attribute)
+								{
+									cgogn::value<Vec3>(*mesh_, attr, p.second) =
+										cgogn::value<Vec3>(*mesh_, attr, p.first);
+								}
+								return true;
+							},
+							true);
+					}
+					simu_solver->update_topo(*mesh_);
+				}
+
+				std::cout << "Fin découpe" << std::endl;
+
+				for (Volume v : list_volume_not_cut)
+				{
+
+					cgogn::foreach_incident_vertex(*mesh_, v, [&](Vertex v2) -> bool {
 						cm_not_cut->mark(v2);
 						return true;
 					});
-					return true;
-				});
-				
-			}
-			std::vector<Volume> list_volume_activate;
-			do
-			{
-				list_volume_activate.clear();
-				for (Volume v : list_volume)
-				{
-					cm_cut.mark(v);
-					if (mesh_->volume_level(v.dart) == mesh_->maximum_level_)
-						continue;
-					Vec3 cm = cgogn::geometry::centroid<Vec3>(*mesh_, v, vertex_position_.get());
-					double dist_plan_volume = cm.dot(a) - d;
-					cgogn::foreach_incident_vertex(*mesh_, v, [&](Vertex w) -> bool {
-						if ((cgogn::value<Vec3>(*mesh_, vertex_position_.get(), w).dot(a) - d) * dist_plan_volume < 0)
-						{
-							list_volume_activate.push_back(v);
-							return false;
-						}
-						return true;
-					});
 				}
 
-				list_volume.clear();
-				for (Volume v : list_volume_activate)
+				list_update_attribute.push_back(vertex_position_);
+
+				for (auto attr : list_update_attribute)
 				{
-					cgogn::foreach_incident_vertex(*mesh_, v, [&](Vertex w) -> bool {
-						list_volume.push_back(Volume(w.dart));
-						return true;
-					});
+					mesh_provider_->emit_attribute_changed(*mesh_, attr.get());
 				}
-				simu_solver->activate_volume(*mesh_, list_volume_activate);
-			} while (!list_volume_activate.empty());
-
-			std::vector<Volume>  list_volume_cut;
-
-			cgogn::foreach_cell(*mesh_, [&](Volume v) -> bool {
-				if (cm_cut.is_marked(v))
-					list_volume_cut.push_back(v);
-				return true;
-			});
-
-			std::vector<Face> face_unsew;
-			
-			parallel_foreach_cell(*mesh_, [&](Face f) -> bool {
-				if (cgogn::is_incident_to_boundary(*mesh_,f) || !cm_cut.is_marked(Volume(f.dart)) || !cm_cut.is_marked(Volume(cgogn::phi3(*mesh_, f.dart))))
-					return true;
-
-				Volume v1(f.dart),v2(cgogn::phi3(*mesh_,f.dart));
-
-				Vec3 cm1 = cgogn::geometry::centroid<Vec3>(*mesh_,v1, vertex_position_.get());
-				Vec3 cm2 = cgogn::geometry::centroid<Vec3>(*mesh_, v2, vertex_position_.get());
-
-				double d1 = cm1.dot(a)-d;
-				double d2 = cm2.dot(a)-d;
-
-				if (d1 * d2 < 0)
-					face_unsew.push_back(f);
-
-
-				return true;
-			});
-
-			
-			if (!face_unsew.empty())
-			{
-
-				for (Face f : face_unsew)
+				mesh_provider_->emit_connectivity_changed(*mesh_);
+				for (auto attr : list_update_attribute)
 				{
-					std::cout << "cut" << std::endl;
-					unsew_volume(
-						*mesh_, f,
-						[&](std::pair<Vertex, Vertex> p) -> bool {
-							list_update_attribute.push_back(simu_solver->pos_);
-							list_update_attribute.push_back(simu_solver->init_pos_);
-							list_update_attribute.push_back(simu_solver->speed_);
-							for (auto attr : list_update_attribute)
-							{
-								cgogn::value<Vec3>(*mesh_, attr, p.second) =
-									cgogn::value<Vec3>(*mesh_, attr, p.first);
-							}
-							return true;
-						},
-						true);
+					mesh_provider_->emit_attribute_changed(*mesh_meca_, attr.get());
 				}
-				simu_solver->update_topo(*mesh_);
+				mesh_provider_->emit_connectivity_changed(*mesh_meca_);
+				// mesh_provider_->emit_connectivity_changed(*selected_mesh_->topology_);
+				xmv->refresh_volume_skin();
+				xmv->surface_provider_->emit_attribute_changed(*xmv->volume_skin_,
+															   xmv->volume_skin_vertex_position_.get());
+				sdp->update_normal();
+				mesh_->end_writer();
+
+				if (is_running)
+					xmv->start();
 			}
-
-			std::cout << "Fin découpe" << std::endl;
-
-			list_update_attribute.push_back(vertex_position_);
-
-			for (auto attr : list_update_attribute)
-			{
-				mesh_provider_->emit_attribute_changed(*mesh_, attr.get());
-			}
-			mesh_provider_->emit_connectivity_changed(*mesh_);
-			for (auto attr : list_update_attribute)
-			{
-				mesh_provider_->emit_attribute_changed(*mesh_meca_, attr.get());
-			}
-			mesh_provider_->emit_connectivity_changed(*mesh_meca_);
-			// mesh_provider_->emit_connectivity_changed(*selected_mesh_->topology_);
-			sdp->update_normal();
-			mesh_->end_writer();
-
-			if (is_running)
-				xmv->start();
 		}
 
 		if (ImGui::Button("Fix border"))
 		{
-			double x_min = DBL_MAX, x_max = -DBL_MAX, y_min = DBL_MAX, y_max = -DBL_MAX;
+			double x_min = DBL_MAX, x_max = -1e10, y_min = DBL_MAX, y_max = -1e10;
 			cgogn::foreach_cell(*mesh_, [&](Vertex v) -> bool {
 				const Vec3& p = cgogn::value<Vec3>(*mesh_, vertex_position_.get(), v);
 				if (p.x() < x_min)
@@ -277,7 +320,7 @@ public:
 			});
 
 			auto fixed_vertex = cgogn::get_attribute<bool, Vertex>(*mesh_, "fixed_vertex");
-			double delta = 0.1;
+			double delta = 10.1;
 			cgogn::foreach_cell(*mesh_, [&](Vertex v) -> bool {
 				const Vec3& p = cgogn::value<Vec3>(*mesh_, vertex_position_.get(), v);
 				if (p.x() < x_min + delta || p.y() < y_min + delta || p.x() > x_max - delta || p.y() > y_max - delta)
@@ -432,7 +475,7 @@ int main(int argc, char** argv)
 
 	mrsr.set_vertex_position(*v1, *mrm, position);
 
-	std::srand(time(NULL));
+	std::srand(17101995);
 
 	for (int i = 0; i < nb_subdivision; i++)
 	{

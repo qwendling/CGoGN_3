@@ -1338,11 +1338,12 @@ void XPBD_Multiresolution::solver(MAP& m, MAP* geom, double timestep, bool allow
 		// Initialisation sub step
 		for (Vertex v : vec_vertices)
 		{
+			value<Vec3>(m, pos_prev_, v) = value<Vec3>(m, pos_, v);
 			if (this->fixed_vertex && value<bool>(m, this->fixed_vertex.get(), v))
 			{
 				continue;
 			}
-			value<Vec3>(m, pos_prev_, v) = value<Vec3>(m, pos_, v);
+
 			value<Vec3>(m, speed_, v) += h * value<Vec3>(m, f_ext_, v) / value<double>(m, masse_, v);
 			value<Vec3>(m, pos_, v) += h * value<Vec3>(m, speed_, v);
 		}

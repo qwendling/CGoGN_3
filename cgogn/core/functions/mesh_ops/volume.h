@@ -744,7 +744,7 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 			vect_dart_unsew.push_back(it);
 			it = phi1(m, it);
 		} while (it != f_rep);
-		//m.activate_face_subdivision(Face(f_rep));
+		// m.activate_face_subdivision(Face(f_rep));
 		uint32 cur = m.current_level_;
 		m.current_level_ = std::min(cur + 1, m.maximum_level_);
 		for (auto it : vect_dart_unsew)
@@ -882,6 +882,42 @@ void unsew_volume_aux(EMR_Map3_Adaptative& m, const mesh_traits<EMR_Map3>::Face 
 		} while (it != d);
 	}
 	m.m_.clock_++;
+}
+
+/*****************************************************************************/
+
+// template <typename MESH>
+// void
+// sew_volume(MESH& m,Dart v1,Dart v2);
+
+/*****************************************************************************/
+
+template <typename MESH>
+void sew_volumes(MESH& m, Dart v1, Dart v2)
+{
+	using Face = typename mesh_traits<EMR_Map3>::Face;
+	cgogn_message_assert(codegree(m, Face(v2)) == codegree(m, Face(v1)),
+						 "The faces to sew do not have the same codegree");
+	Dart it0 = v1;
+	Dart it1 = v2;
+	do
+	{
+		Dart it0_d3 = phi3(m, it0);
+		Dart it1_d3 = phi3(m, it1);
+		Dart it0_d32 = phi2(m, it0_d3);
+		Dart it1_d32 = phi2(m, it1_d3);
+		phi2_unsew(m, it0_d3);
+		phi2_unsew(m, it1_d3);
+		phi2_sew(m, it0_d32, it1_d32);
+		phi3_unsew(m, it0);
+		phi3_unsew(m, it1);
+		cgogn_message_assert(phi3(m, it0) == it0 && phi3(m, it1) == it1, "The faces to sew are already sewn");
+		phi3_sew(m, it0, it1);
+		remove_dart(m, it0_d3);
+		remove_dart(m, it1_d3);
+		it0 = phi1(m, it0);
+		it1 = phi_1(m, it1);
+	} while (it0 != v1);
 }
 
 } // namespace cgogn

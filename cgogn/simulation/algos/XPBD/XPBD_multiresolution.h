@@ -9,7 +9,7 @@
 #include <cgogn/geometry/types/vector_traits.h>
 
 #define POISSON_RATIO 0.45
-#define YOUNG_MODULUS 1e7
+#define YOUNG_MODULUS 1e8
 
 #define LAME_MU (YOUNG_MODULUS / (2.0 * (1.0 + POISSON_RATIO)))
 #define LAME_LAMBDA ((YOUNG_MODULUS * POISSON_RATIO) / ((1.0 + POISSON_RATIO) * (1.0 - 2.0 * POISSON_RATIO)))
@@ -18,7 +18,7 @@
 #define BULK_MODULUS (YOUNG_MODULUS / (3.0 * (1.0 - 2.0 * POISSON_RATIO)))
 
 #define NUM_SUBSTEP 5
-#define DENSITY 10
+#define DENSITY 100
 
 #define EPS 1e-12
 

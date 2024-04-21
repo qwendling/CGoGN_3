@@ -83,8 +83,8 @@ public:
 		if (this->selected_vertex_position_ && this->selected_vertex_normal_)
 		{
 			compute_normal(*selected_mesh_, selected_vertex_position_.get(), selected_vertex_normal_.get());
+			std::cout << "ok compute normale " << std::endl;
 		}
-		
 	}
 
 	void compute_curvature(const MESH& m, Scalar radius, const Attribute<Vec3>* vertex_position,
