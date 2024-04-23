@@ -1332,6 +1332,7 @@ void XPBD_Multiresolution::solver(MAP& m, MAP* geom, double timestep, bool allow
 	std::cout << "\033[1;32mnb DOFs : \033[0m" << vec_vertices.size() << std::endl;
 #endif
 
+	std::random_shuffle(vec_volume.begin(), vec_volume.end());
 	start = std::clock();
 	for (int i = 0; i < NUM_SUBSTEP; i++)
 	{
