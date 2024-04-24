@@ -1390,11 +1390,12 @@ void XPBD_Multiresolution::solver(MAP& m, MAP* geom, double timestep, bool allow
 			// value<Vec3>(m, speed_, v) = (1 - (0.005 * h)) * new_v;
 			value<Vec3>(m, speed_, v) = new_v;
 		}
+
 		// Damping
-		foreach_cell(m, [&](Volume v) -> bool {
+		for (Volume v : vec_volume)
+		{
 			applyDamping(m, v, 0.1, timestep);
-			return true;
-		});
+		}
 	}
 
 	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;

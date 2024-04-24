@@ -562,6 +562,8 @@ public:
 		launch_thread([this]() {
 			while (this->running_)
 			{
+				if (take_screenshot_ && need_update_)
+					continue;
 				Parameters& p = parameters_[selected_mesh_];
 				if (p.have_selected_vertex_)
 				{
@@ -578,7 +580,7 @@ public:
 				}
 				selected_mesh_->start_writer();
 
-				if (show_sphere_)
+				/*if (show_sphere_)
 				{
 					static Vec3 cm = geometry::centroid<Vec3>(*selected_mesh_, p.vertex_position_.get());
 					Eigen::Affine3f transfo = Eigen::Translation3f(cm.cast<float>()) *
@@ -603,7 +605,7 @@ public:
 						value<Vec3>(*selected_mesh_, p.vertex_forces_, v) = Vec3(0, 0, 0);
 						return true;
 					});
-				}
+				}*/
 				if (!moving_vertices.empty())
 				{
 					parallel_foreach_cell(*selected_mesh_, [&](Volume v) -> bool {
