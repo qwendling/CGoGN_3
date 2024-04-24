@@ -215,6 +215,33 @@ public:
 
 	void compute_error_point(MAP& m, const Vec3& p, double quotat);
 
+	std::vector<Volume> get_all_current_child(MAP& m, Volume v)
+	{
+		std::vector<Volume> result;
+
+		tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
+
+		std::function<void(tree_volume*)> fn;
+
+		fn = [&](tree_volume* t1) {
+			if (t1->type == CURRENT)
+				result.push_back(v);
+			else
+			{
+				if (t1->fils == nullptr)
+					return;
+				t1->for_each_child([&](tree_volume* c) -> bool {
+					fn(c);
+					return true;
+				});
+			}
+		};
+
+		fn(t);
+
+		return result;
+	}
+
 	template <typename FUNC>
 	void Update_error_quotat(MAP& m, double quotat, const FUNC& f_error)
 	{

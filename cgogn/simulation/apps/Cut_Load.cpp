@@ -107,21 +107,26 @@ public:
 		xmv->stop();
 		Vertex v_select;
 		int nb_boucle = 0;
-		while (v_select.dart.is_nil() && nb_boucle < 100)
-		{
-			cgogn::foreach_cell(*mesh_, [&](Vertex v) -> bool {
-				if (mesh_->dart_level(v.dart) != 0)
-					return true;
-				if (cm_not_cut->is_marked(v))
-					return true;
-				if (rand() % 1000 < 10)
-				{
-					v_select = v;
-				}
+
+		std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
+
+		std::vector<Vertex> shuffle_vertices;
+		cgogn::foreach_cell(*mesh_, [&](Vertex v) -> bool {
+			if (mesh_->dart_level(v.dart) != 0)
 				return true;
-			});
-			nb_boucle++;
+			if (cm_not_cut->is_marked(v))
+				return true;
+			shuffle_vertices.push_back(v);
+
+			return true;
+		});
+
+		if (!shuffle_vertices.empty())
+		{
+			std::shuffle(shuffle_vertices.begin(), shuffle_vertices.end(), gen);
+			v_select = shuffle_vertices.front();
 		}
+
 		if (!v_select.dart.is_nil())
 		{
 
@@ -148,18 +153,19 @@ public:
 			std::vector<Volume> list_volume;
 			std::vector<Volume> list_volume_not_cut;
 
-			cgogn::foreach_incident_volume(*mesh_, v_select, [&](Volume v) -> bool {
-				list_volume.push_back(v);
-				cm_cut.mark(v);
-				return true;
-			});
-			for (Volume v : list_volume)
-			{
-				cgogn::foreach_adjacent_volume_through_vertex(*mesh_, v, [&](Volume w) -> bool {
+			cgogn::foreach_incident_volume(*mesh_->topology_, v_select, [&](Volume v) -> bool {
+				std::vector<Volume> tmp = simu_solver->get_all_current_child(*mesh_->topology_, v);
+				for (Volume w : tmp)
+				{
+					list_volume.push_back(w);
+					cm_cut.mark(w);
+				}
+				cgogn::foreach_adjacent_volume_through_vertex(*mesh_->topology_, v, [&](Volume w) -> bool {
 					list_volume_not_cut.push_back(w);
 					return true;
 				});
-			}
+				return true;
+			});
 			std::vector<Volume> list_volume_activate;
 			do
 			{
@@ -262,13 +268,13 @@ public:
 			for (Volume v : list_volume_not_cut)
 			{
 
-				cgogn::foreach_incident_vertex(*mesh_, v, [&](Vertex v2) -> bool {
+				cgogn::foreach_incident_vertex(*mesh_->topology_, v, [&](Vertex v2) -> bool {
 					cm_not_cut->mark(v2);
 					return true;
 				});
 			}
 
-			list_update_attribute.push_back(vertex_position_);
+			/*list_update_attribute.push_back(vertex_position_);
 
 			for (auto attr : list_update_attribute)
 			{
@@ -277,8 +283,9 @@ public:
 			mesh_provider_->emit_connectivity_changed(*mesh_);
 			// mesh_provider_->emit_connectivity_changed(*selected_mesh_->topology_);
 			xmv->refresh_volume_skin();
-			xmv->surface_provider_->emit_attribute_changed(*xmv->volume_skin_, xmv->volume_skin_vertex_position_.get());
-			sdp->update_normal();
+			xmv->surface_provider_->emit_attribute_changed(*xmv->volume_skin_,
+			xmv->volume_skin_vertex_position_.get());*/
+			// sdp->update_normal();
 			mesh_->end_writer();
 
 			if (is_running)
@@ -337,7 +344,7 @@ public:
 				xmv->frame_number_ = 0;
 				for (int i = 0; i < 50; i++)
 				{
-					for (int j = 0; j < 30; j++)
+					for (int j = 0; j < 45; j++)
 					{
 						while (xmv->need_update_)
 						{
@@ -346,15 +353,18 @@ public:
 						mesh_->start_writer();
 						xmv->step();
 						mesh_->end_writer();
-						xmv->selected_view_->request_update();
+						// xmv->selected_view_->request_update();
 					}
+
+					apply_random_cut();
 					mesh_->start_writer();
+					xmv->step();
 
 					std::vector<std::shared_ptr<Attribute<Vec3>>> list_update_attribute;
 					std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
 					std::uniform_real_distribution<> dis(0.0, 1.0);
 
-					xmv->simu_solver.Update_error_quotat(*mesh_, 2.,
+					xmv->simu_solver.Update_error_quotat(*mesh_, 7.,
 														 [&](MRMesh&, Volume) -> double { return dis(gen); });
 					mesh_->end_writer();
 					// adapt_random();
@@ -364,6 +374,9 @@ public:
 
 		if (ImGui::Button("Fix border"))
 		{
+			uint32 cur = mesh_->current_level_;
+			mesh_->current_level_ = mesh_->maximum_level_;
+
 			double x_min = DBL_MAX, x_max = -1e10, y_min = DBL_MAX, y_max = -1e10;
 			cgogn::foreach_cell(*mesh_, [&](Vertex v) -> bool {
 				const Vec3& p = cgogn::value<Vec3>(*mesh_, vertex_position_.get(), v);
@@ -386,6 +399,20 @@ public:
 				if (p.x() < x_min + delta || p.y() < y_min + delta || p.x() > x_max - delta || p.y() > y_max - delta)
 				{
 					cgogn::value<bool>(*mesh_, fixed_vertex.get(), v) = true;
+					cgogn::foreach_adjacent_vertex_through_edge(*mesh_, v, [&](Vertex w) -> bool {
+						cm_not_cut->mark(w);
+						return true;
+					});
+				}
+
+				return true;
+			});
+			mesh_->current_level_ = cur;
+
+			cgogn::foreach_cell(*mesh_, [&](Vertex v) -> bool {
+				const Vec3& p = cgogn::value<Vec3>(*mesh_, vertex_position_.get(), v);
+				if (p.x() < x_min + delta || p.y() < y_min + delta || p.x() > x_max - delta || p.y() > y_max - delta)
+				{
 					cgogn::foreach_adjacent_vertex_through_edge(*mesh_, v, [&](Vertex w) -> bool {
 						cm_not_cut->mark(w);
 						return true;
@@ -491,6 +518,8 @@ int main(int argc, char** argv)
 	cgogn::ui::SurfaceDifferentialProperties<cgogn::CMap2> sdp(app);
 	cgogn::ui::FitVolumeSurface<Surface, MRMesh> fvs(app);
 	LocalInterface interf(app);
+
+	xp_v.sdp = &sdp;
 
 	cgogn::ui::View* v1 = app.current_view();
 	v1->link_module(&mp);

@@ -37,6 +37,7 @@
 #include <cgogn/geometry/algos/selection.h>
 #include <cgogn/geometry/types/vector_traits.h>
 
+#include <cgogn/geometry/ui_modules/surface_differential_properties.h>
 #include <cgogn/rendering/frame_manipulator.h>
 #include <cgogn/rendering/shaders/shader_bold_line.h>
 #include <cgogn/rendering/shaders/shader_flat.h>
@@ -1259,6 +1260,10 @@ protected:
 					{
 						refresh_volume_skin();
 						surface_provider_->emit_attribute_changed(*volume_skin_, volume_skin_vertex_position_.get());
+						if (sdp)
+						{
+							sdp->update_normal();
+						}
 					}
 
 					if (take_screenshot_)
@@ -1319,6 +1324,7 @@ public:
 	std::shared_ptr<SurfaceAttribute<Vec3>> volume_skin_vertex_normal_ = nullptr;
 	std::shared_ptr<SurfaceAttribute<Vertex>> volume_skin_vertex_volume_vertex_ = nullptr;
 	ui::MeshProvider<SURFACE>* surface_provider_ = nullptr;
+	cgogn::ui::SurfaceDifferentialProperties<cgogn::CMap2>* sdp = nullptr;
 };
 
 } // namespace ui
