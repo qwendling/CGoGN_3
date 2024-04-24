@@ -376,6 +376,27 @@ void XPBD_Multiresolution::activate_remove_volume(MAP& m, std::vector<Volume>& l
 	}
 }
 
+void XPBD_Multiresolution::activate_volume_tree(MAP& m, std::vector<Volume>& list_Volumes)
+{
+	for (Volume v : list_Volumes)
+	{
+		tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
+
+		nb_volume_current += 7;
+		if (t->pere && t->pere->type != ROOT)
+		{
+			t->pere->type = NONE;
+		}
+		t->type = COARSE;
+		t->for_each_child([&](tree_volume* c) -> bool {
+			c->type = CURRENT;
+			return true;
+		});
+	}
+
+	activate_volume(m, list_Volumes);
+}
+
 void XPBD_Multiresolution::activate_volume(MAP& m, std::vector<Volume>& list_Volumes)
 {
 	CellMarkerStore<MAP, Volume> marked_Volumes(m);

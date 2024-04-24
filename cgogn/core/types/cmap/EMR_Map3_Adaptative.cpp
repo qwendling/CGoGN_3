@@ -329,7 +329,7 @@ uint32 EMR_Map3_Adaptative::get_dart_visibility(Dart d) const
 		std::get<2>(buffer) != current_level_)
 	{
 		auto p = (*dart_visibility_)[d.index];
-		
+
 		uint32 result = d_level;
 		if (p.first)
 			result = std::min(result, p.second);
@@ -348,7 +348,7 @@ uint32 EMR_Map3_Adaptative::get_dart_visibility(Dart d) const
 		}
 		else
 		{
-			
+
 			if (get_parent() != nullptr)
 			{
 				result = std::min(get_parent()->get_dart_visibility(d), result);
@@ -390,7 +390,6 @@ uint32 EMR_Map3_Adaptative::get_dart_visibility(Dart d) const
 					std::cout << "problem" << std::endl;
 				result = get_dart_visibility(tmp);
 			}*/
-			
 		}
 		std::get<3>(buffer) = result;
 		std::get<0>(buffer) = m_.clock_;
@@ -795,8 +794,8 @@ bool EMR_Map3_Adaptative::is_topologycal_volume(Dart d) const
 	{
 		return v_level == 0;
 	}
-	if (topology_->dart_is_visible(d))
-		return v_level == topology_->volume_level(d);
+	if (topology_->dart_is_visible(volume_oldest_dart(d)))
+		return v_level == topology_->volume_level(volume_oldest_dart(d));
 	return false;
 }
 

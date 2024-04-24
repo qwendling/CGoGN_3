@@ -51,6 +51,8 @@
 #include <libacc/bvh_tree.h>
 #include <libacc/kd_tree.h>
 
+#include <random>
+
 // using Mesh = cgogn::CMap3;
 
 using MRMesh = cgogn::EMR_Map3_Adaptative;
@@ -70,6 +72,8 @@ using Vertex2 = typename cgogn::mesh_traits<Surface>::Vertex;
 
 using Vec3 = cgogn::geometry::Vec3;
 using uint32 = cgogn::uint32;
+
+std::random_device rd;
 
 class LocalInterface : public cgogn::ui::ViewModule
 {
@@ -206,7 +210,7 @@ public:
 							return true;
 						});
 					}
-					simu_solver->activate_volume(*mesh_, list_volume_activate);
+					simu_solver->activate_volume_tree(*mesh_, list_volume_activate);
 				} while (!list_volume_activate.empty());
 
 				std::vector<Volume> list_volume_cut;
@@ -285,11 +289,6 @@ public:
 					mesh_provider_->emit_attribute_changed(*mesh_, attr.get());
 				}
 				mesh_provider_->emit_connectivity_changed(*mesh_);
-				for (auto attr : list_update_attribute)
-				{
-					mesh_provider_->emit_attribute_changed(*mesh_meca_, attr.get());
-				}
-				mesh_provider_->emit_connectivity_changed(*mesh_meca_);
 				// mesh_provider_->emit_connectivity_changed(*selected_mesh_->topology_);
 				xmv->refresh_volume_skin();
 				xmv->surface_provider_->emit_attribute_changed(*xmv->volume_skin_,
@@ -300,6 +299,29 @@ public:
 				if (is_running)
 					xmv->start();
 			}
+		}
+
+		if (ImGui::Button("Adapt max random"))
+		{
+			bool is_running = xmv->running_;
+			xmv->stop();
+			mesh_->start_writer();
+
+			std::vector<std::shared_ptr<Attribute<Vec3>>> list_update_attribute;
+			std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
+			std::uniform_real_distribution<> dis(0.0, 1.0);
+
+			xmv->simu_solver.Update_error_quotat(*mesh_, 2., [&](MRMesh&, Volume) -> double { return dis(gen); });
+
+			list_update_attribute.push_back(vertex_position_);
+			for (auto attr : list_update_attribute)
+			{
+				mesh_provider_->emit_attribute_changed(*mesh_, attr.get());
+			}
+			mesh_provider_->emit_connectivity_changed(*mesh_);
+			mesh_->end_writer();
+			if (is_running)
+				xmv->start();
 		}
 
 		if (ImGui::Button("Fix border"))

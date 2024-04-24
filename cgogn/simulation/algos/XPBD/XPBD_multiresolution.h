@@ -195,6 +195,8 @@ public:
 
 	void init_solver(MAP& m, std::shared_ptr<Attribute<Vec3>> pos);
 
+	void activate_volume_tree(MAP& m, std::vector<Volume>& list_Volumes);
+
 	void activate_volume(MAP& m, std::vector<Volume>& list_Volumes);
 	void remove_volume(MAP& m, std::vector<Volume>& list_Volumes);
 	void activate_remove_volume(MAP& m, std::vector<Volume>& list_activate, std::vector<Volume>& list_remove);
@@ -212,6 +214,132 @@ public:
 	void solver(MAP& m, MAP* geom, double timestep, bool allow_modif_topo = true);
 
 	void compute_error_point(MAP& m, const Vec3& p, double quotat);
+
+	template <typename FUNC>
+	void Update_error_quotat(MAP& m, double quotat, const FUNC& f_error)
+	{
+		std::vector<Volume> volume_activate;
+		std::vector<Volume> volume_disable;
+		std::forward_list<tree_volume*> list_volume_coarse;
+		std::forward_list<tree_volume*> list_volume_fine;
+		uint32 nb_fine = 0, nb_coarse = 0;
+		static uint32 clock_error = 0;
+		clock_error++;
+
+		foreach_cell(m, [&](Volume v) -> bool {
+			tree_volume* t = value<tree_volume*>(m, hierarchy_node_, v);
+			if (t->type == CURRENT && t->fils != nullptr)
+			{
+				list_volume_fine.push_front(t);
+				double error = f_error(m, Volume(t->volume_dart));
+				value<double>(m, error_volume_, Volume(t->volume_dart)) = error;
+				t->error = error;
+				nb_fine++;
+			}
+			if (!t->is_topo && t->pere != nullptr && t->pere->type == COARSE)
+			{
+				if (t->pere->clock == clock_error)
+					return true;
+				t->pere->clock = clock_error;
+				list_volume_coarse.push_front(t);
+				t->pere->error = 0;
+				t->pere->for_each_child([&](tree_volume* c) -> bool {
+					double error = f_error(m, Volume(c->volume_dart));
+					t->pere->error += error;
+					return true;
+				});
+				t->pere->error /= 8;
+				nb_coarse++;
+			}
+			return true;
+		});
+		list_volume_fine.sort([&](tree_volume* t1, tree_volume* t2) { return t1->error < t2->error; });
+		list_volume_coarse.sort([&](tree_volume* t1, tree_volume* t2) { return t1->pere->error > t2->pere->error; });
+
+		auto it = list_volume_coarse.begin();
+		double e_max = 0;
+		if (!list_volume_coarse.empty())
+		{
+			e_max = list_volume_coarse.front()->pere->error;
+		}
+
+		while (nb_volume_current < 1.1 * quotat * nb_volume_init)
+		{
+			if (list_volume_fine.empty())
+				break;
+
+			tree_volume* t = list_volume_fine.front();
+			list_volume_fine.pop_front();
+			double e = t->error;
+			if (e > e_max && nb_volume_current > quotat * nb_volume_init)
+			{
+				break;
+			}
+			if (e < e_max)
+			{
+				it++;
+				e_max = 0;
+				if (it != list_volume_coarse.end())
+				{
+					e_max = (*it)->pere->error;
+				}
+			}
+
+			nb_volume_current += 7;
+			volume_activate.push_back(Volume(t->volume_dart));
+			if (t->pere && t->pere->type != ROOT)
+			{
+				t->pere->type = NONE;
+			}
+			t->type = COARSE;
+			t->for_each_child([&](tree_volume* c) -> bool {
+				c->type = CURRENT;
+				return true;
+			});
+		}
+
+		while (nb_volume_current > quotat * nb_volume_init)
+		{
+			if (list_volume_coarse.empty())
+				break;
+			tree_volume* t = list_volume_coarse.front();
+			list_volume_coarse.pop_front();
+			if (t->pere->type != COARSE)
+				continue;
+			bool can_be_disable = true;
+			t->pere->for_each_child([&](tree_volume* c) -> bool {
+				can_be_disable = !m.is_topologycal_volume(c->volume_dart);
+				return true;
+			});
+			if (!can_be_disable)
+			{
+				continue;
+			}
+			nb_volume_current -= 7;
+			volume_disable.push_back(Volume(t->pere->volume_dart));
+			t->pere->type = CURRENT;
+			t->pere->for_each_child([&](tree_volume* c) -> bool {
+				c->type = NONE;
+				return true;
+			});
+			if (t->pere->pere != nullptr)
+			{
+				bool result = true;
+				t->pere->pere->for_each_child([&](tree_volume* c) -> bool {
+					if (c->type != CURRENT)
+					{
+						result = false;
+					}
+					return result;
+				});
+				if (result)
+				{
+					t->pere->pere->type = COARSE;
+				}
+			}
+		}
+		activate_remove_volume(m, volume_activate, volume_disable);
+	}
 
 	template <typename FUNC>
 	void compute_contact(MAP& m, MAP& geom, const FUNC& f_contact, uint32 max_level = 100u)
