@@ -149,8 +149,8 @@ public:
 		  take_screenshot_(false), ground_(false), inverse_control_(nullptr), draw_cylinder(false),
 		  radius_cylinder(50.0f), pos_cylinder1(-272, 31, -79), Zaxis_cylinder1(1. / sqrt(2.), 1. / sqrt(2.), 0),
 		  pos_cylinder2(-800, -1400, 5), Zaxis_cylinder2(0, 0, 1), pos_cylinder3(170, -2100, 5),
-		  Zaxis_cylinder3(0, 0, 1), pos_sphere(700, 0, 100), pos_sphere2(600, 400, 400), shape_(nullptr),
-		  show_sphere_(false), sphere_radius_(100.0f), gravity_intensity_(1.)
+		  Zaxis_cylinder3(0, 0, 1), pos_sphere(700, 0, 100), pos_sphere2(600, 400, 400), pos_sphere3(500, 500, 600),
+		  shape_(nullptr), show_sphere_(false), sphere_radius_(100.0f), gravity_intensity_(1.)
 	{
 		f_keypress = [](View*, MESH*, int32, CellsSet<MESH, Vertex>*, CellsSet<MESH, Edge>*) {};
 	}
@@ -362,6 +362,11 @@ protected:
 			draw_sphere2 = !draw_sphere2;
 			v->request_update();
 		}
+		if (key_code == GLFW_KEY_I)
+		{
+			draw_sphere3 = !draw_sphere3;
+			v->request_update();
+		}
 		if (key_code == GLFW_KEY_E)
 		{
 			if (selected_mesh_)
@@ -555,7 +560,7 @@ protected:
 	}
 
 public:
-#define TIME_STEP 0.001666f
+#define TIME_STEP 0.01666f
 	void start()
 	{
 		running_ = true;
@@ -713,6 +718,7 @@ public:
 											  Eigen::Translation3f(-cm.cast<float>());
 					pos_sphere = transfo * pos_sphere;
 				}
+
 				for (int i = 0; i < 1; i++)
 				{
 
@@ -730,6 +736,34 @@ public:
 						value<Vec3>(*selected_mesh_, p.vertex_forces_, v) = Vec3(0, 0, 0);
 						return true;
 					});
+				}
+				if (draw_sphere3)
+				{
+					parallel_foreach_cell(*selected_mesh_, [&](Vertex v) -> bool {
+						Vec3& pos = value<Vec3>(*selected_mesh_, p.vertex_position_.get(), v);
+						Vec3& speed = value<Vec3>(*selected_mesh_, simu_solver.speed_.get(), v);
+
+						Vec3 pos2 = pos - pos_sphere3.cast<double>();
+
+						double dist = pos2.norm() - sphere_radius3_;
+
+						if (dist < 0)
+						{
+							Vec3 dir_collision = -pos2.normalized() * dist;
+							pos += dir_collision;
+
+							Vec3 dir_col_norm = dir_collision.normalized();
+							double tmp = speed.dot(-dir_col_norm);
+							if (tmp > 0)
+							{
+								speed += dir_col_norm * tmp;
+							}
+							return true;
+						}
+						return true;
+					});
+					if (pos_sphere3.z() > 0.)
+						pos_sphere3 -= Eigen::Vector3f(0, 0, 1);
 				}
 				if (show_sphere_)
 				{
@@ -1122,6 +1156,11 @@ protected:
 			Eigen::Affine3f transfo = Eigen::Translation3f(pos_sphere2) * Eigen::Scaling(sphere_radius2_);
 			shape_->draw(rendering::ShapeDrawer::SPHERE, proj_matrix, view_matrix * transfo.matrix());
 		}
+		if (draw_sphere3)
+		{
+			Eigen::Affine3f transfo = Eigen::Translation3f(pos_sphere3) * Eigen::Scaling(sphere_radius3_);
+			shape_->draw(rendering::ShapeDrawer::SPHERE, proj_matrix, view_matrix * transfo.matrix());
+		}
 	}
 
 	void left_panel() override
@@ -1304,6 +1343,9 @@ public:
 	Eigen::Vector3f pos_sphere2;
 	bool draw_sphere2 = false;
 	float sphere_radius2_ = 150.0f;
+	Eigen::Vector3f pos_sphere3;
+	bool draw_sphere3 = false;
+	float sphere_radius3_ = 400.0f;
 	float radius_cylinder;
 	Eigen::Vector3f pos_cylinder1;
 	Vec3 Zaxis_cylinder1;

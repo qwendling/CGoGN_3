@@ -141,7 +141,10 @@ public:
 					taille_sphere +
 				pos;*/
 
-			Vec3 a(double(rand()) / double(RAND_MAX) - 0.5, double(rand()) / double(RAND_MAX) - 0.5, 0.);
+			std::uniform_real_distribution<> dis(-1.0, 1.0);
+			std::uniform_real_distribution<> dis2(0.2, 1.0);
+
+			Vec3 a(dis(gen), dis(gen), 0.);
 			a.normalize();
 			double d = pos.dot(a);
 			mesh_->start_writer();
@@ -151,9 +154,11 @@ public:
 			cgogn::CellMarker<MRMesh, Volume> cm_cut(*mesh_);
 
 			std::vector<Volume> list_volume;
+			std::vector<Volume> list_volume_topo;
 			std::vector<Volume> list_volume_not_cut;
 
 			cgogn::foreach_incident_volume(*mesh_->topology_, v_select, [&](Volume v) -> bool {
+				list_volume_topo.push_back(v);
 				std::vector<Volume> tmp = simu_solver->get_all_current_child(*mesh_->topology_, v);
 				for (Volume w : tmp)
 				{
@@ -166,54 +171,66 @@ public:
 				});
 				return true;
 			});
-			std::vector<Volume> list_volume_activate;
-			do
-			{
-				list_volume_activate.clear();
-				for (Volume v : list_volume)
+
+			auto fn_activate_volume = [&](MRMesh* m, std::vector<Volume> list_volume_, bool simu_activate) {
+				std::vector<Volume> list_volume_activate;
+				do
 				{
-					cm_cut.mark(v);
-					if (mesh_->volume_level(v.dart) == mesh_->maximum_level_)
-						continue;
-					Vec3 cm = cgogn::geometry::centroid<Vec3>(*mesh_, v, vertex_position_.get());
-					double dist_plan_volume = cm.dot(a) - d;
-					// double dist_sphere_volume = (centre_sphere - cm).norm() - taille_sphere;
-					cgogn::foreach_incident_vertex(*mesh_, v, [&](Vertex w) -> bool {
-						if ((cgogn::value<Vec3>(*mesh_, vertex_position_.get(), w).dot(a) - d) * dist_plan_volume < 0)
+					list_volume_activate.clear();
+					for (Volume v : list_volume_)
+					{
+						cm_cut.mark(v);
+						if (m->volume_level(v.dart) == m->maximum_level_)
+							continue;
+						Vec3 cm = cgogn::geometry::centroid<Vec3>(*m, v, vertex_position_.get());
+						double dist_plan_volume = cm.dot(a) - d;
+						// double dist_sphere_volume = (centre_sphere - cm).norm() - taille_sphere;
+						cgogn::foreach_incident_vertex(*m, v, [&](Vertex w) -> bool {
+							if ((cgogn::value<Vec3>(*m, vertex_position_.get(), w).dot(a) - d) * dist_plan_volume < 0)
+							{
+								list_volume_activate.push_back(v);
+								return false;
+							}
+							/*if (((cgogn::value<Vec3>(*mesh_, vertex_position_.get(), w) - centre_sphere).norm() -
+								 taille_sphere) *
+									dist_sphere_volume <
+								0)
+							{
+								list_volume_activate.push_back(v);
+								return false;
+							}*/
+							return true;
+						});
+					}
+
+					list_volume_.clear();
+					for (Volume v : list_volume_activate)
+					{
+						cgogn::foreach_incident_vertex(*m, v, [&](Vertex w) -> bool {
+							list_volume_.push_back(Volume(w.dart));
+							return true;
+						});
+					}
+					if (simu_activate)
+						simu_solver->activate_volume_tree(*m, list_volume_activate);
+					else
+						for (Volume v : list_volume_activate)
 						{
-							list_volume_activate.push_back(v);
-							return false;
+							m->activate_volume_subdivision(v);
 						}
-						/*if (((cgogn::value<Vec3>(*mesh_, vertex_position_.get(), w) - centre_sphere).norm() -
-							 taille_sphere) *
-								dist_sphere_volume <
-							0)
-						{
-							list_volume_activate.push_back(v);
-							return false;
-						}*/
-						return true;
-					});
-				}
+				} while (!list_volume_activate.empty());
+			};
 
-				list_volume.clear();
-				for (Volume v : list_volume_activate)
-				{
-					cgogn::foreach_incident_vertex(*mesh_, v, [&](Vertex w) -> bool {
-						list_volume.push_back(Volume(w.dart));
-						return true;
-					});
-				}
-				simu_solver->activate_volume_tree(*mesh_, list_volume_activate);
-			} while (!list_volume_activate.empty());
+			fn_activate_volume(mesh_, list_volume, true);
+			// fn_activate_volume(mesh_->topology_, list_volume_topo, false);
 
-			std::vector<Volume> list_volume_cut;
+			/*std::vector<Volume> list_volume_cut;
 
 			cgogn::foreach_cell(*mesh_, [&](Volume v) -> bool {
 				if (cm_cut.is_marked(v))
 					list_volume_cut.push_back(v);
 				return true;
-			});
+			});*/
 
 			std::vector<Face> face_unsew;
 
@@ -303,7 +320,7 @@ public:
 		std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
 		std::uniform_real_distribution<> dis(0.0, 1.0);
 
-		xmv->simu_solver.Update_error_quotat(*mesh_, 2., [&](MRMesh&, Volume) -> double { return dis(gen); });
+		xmv->simu_solver.Update_error_quotat(*mesh_, 7., [&](MRMesh&, Volume) -> double { return dis(gen); });
 
 		list_update_attribute.push_back(vertex_position_);
 		for (auto attr : list_update_attribute)
@@ -323,6 +340,21 @@ public:
 
 		vol_render_ = static_cast<cgogn::ui::VolumeRender<MRMesh>*>(
 			app_.module("VolumeRender (" + std::string{cgogn::mesh_traits<MRMesh>::name} + ")"));
+
+		shape_ = cgogn::rendering::ShapeDrawer::instance();
+		shape_->color(cgogn::rendering::ShapeDrawer::CYLINDER) = cgogn::rendering::GLColor(0.5294, 0.6078, 0.6078, 1);
+		shape_->color(cgogn::rendering::ShapeDrawer::CUBE) = cgogn::rendering::GLColor(0.5294, 0.6078, 0.6078, 1);
+		shape_->color(cgogn::rendering::ShapeDrawer::SPHERE) = cgogn::rendering::GLColor(0.88, 0.55, 0.17, 1);
+	}
+
+	void draw(cgogn::ui::View* view) override
+	{
+		using namespace cgogn;
+		const rendering::GLMat4& proj_matrix = view->projection_matrix();
+		const rendering::GLMat4& view_matrix = view->modelview_matrix();
+
+		// Eigen::Affine3f transfo = Eigen::Translation3f(Eigen::Vector3f(0., 0., 100.)) * Eigen::Scaling(500.f);
+		// shape_->draw(rendering::ShapeDrawer::SPHERE, proj_matrix, view_matrix * transfo.matrix());
 	}
 
 	void left_panel() override
@@ -342,32 +374,52 @@ public:
 			xmv->take_screenshot_ = true;
 			cgogn::launch_thread([this]() {
 				xmv->frame_number_ = 0;
-				for (int i = 0; i < 50; i++)
+				for (int i = 0; i < 10; i++)
 				{
-					for (int j = 0; j < 45; j++)
+					for (int j = 0; j < 25; j++)
 					{
 						while (xmv->need_update_)
 						{
-							std::this_thread::sleep_for(std::chrono::milliseconds(10));
+							std::this_thread::sleep_for(std::chrono::milliseconds(5));
 						}
 						mesh_->start_writer();
 						xmv->step();
 						mesh_->end_writer();
 						// xmv->selected_view_->request_update();
 					}
+					if (i % 2 == 0)
+					{
+						mesh_->start_writer();
+						std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
+						std::uniform_real_distribution<> dis(0.0, 1.0);
+						xmv->simu_solver.Update_error_quotat(*mesh_, 0.5,
+															 [&](MRMesh&, Volume) -> double { return dis(gen); });
+						// xmv->step();
+						xmv->simu_solver.Update_error_quotat(*mesh_, 0.5,
+															 [&](MRMesh&, Volume) -> double { return dis(gen); });
+						// xmv->step();
+						mesh_->end_writer();
 
-					apply_random_cut();
-					mesh_->start_writer();
-					xmv->step();
+						apply_random_cut();
+						mesh_->start_writer();
+						xmv->step();
+						xmv->simu_solver.Update_error_quotat(*mesh_, 7.,
+															 [&](MRMesh&, Volume) -> double { return dis(gen); });
+						mesh_->end_writer();
+					}
+					else
+					{
+						mesh_->start_writer();
+						// xmv->step();
 
-					std::vector<std::shared_ptr<Attribute<Vec3>>> list_update_attribute;
-					std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
-					std::uniform_real_distribution<> dis(0.0, 1.0);
+						std::vector<std::shared_ptr<Attribute<Vec3>>> list_update_attribute;
+						std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
+						std::uniform_real_distribution<> dis(0.0, 1.0);
 
-					xmv->simu_solver.Update_error_quotat(*mesh_, 7.,
-														 [&](MRMesh&, Volume) -> double { return dis(gen); });
-					mesh_->end_writer();
-					// adapt_random();
+						xmv->simu_solver.Update_error_quotat(*mesh_, 7.,
+															 [&](MRMesh&, Volume) -> double { return dis(gen); });
+						mesh_->end_writer();
+					}
 				}
 			});
 		}
@@ -482,6 +534,7 @@ public:
 	cgogn::ui::XPBD_Multiresolution_View<MRMesh>* xmv;
 	cgogn::ui::SurfaceDifferentialProperties<cgogn::CMap2>* sdp;
 	float expl_vol_;
+	cgogn::rendering::ShapeDrawer* shape_;
 };
 
 int main(int argc, char** argv)
@@ -587,6 +640,15 @@ int main(int argc, char** argv)
 	fvs.set_current_volume(geometry_mesh);
 	fvs.update_topo();
 	fvs.refresh_volume_skin();
+
+	mrsr.set_vertex_position(*v1, *geometry_mesh, nullptr);
+	mrsr.set_vertex_position(*v1, *geometry_mesh->topology_, nullptr);
+	mrsr.parameters_[mrsr.selected_view_][mrm].render_volumes_ = false;
+	mrsr.parameters_[mrsr.selected_view_][mrm].render_vertices_ = true;
+	mrsr.parameters_[mrsr.selected_view_][mrm].vertex_scale_factor_ = 0.3;
+
+	v1->update_scene_bb();
+	v1->request_update();
 
 	return app.launch();
 }
