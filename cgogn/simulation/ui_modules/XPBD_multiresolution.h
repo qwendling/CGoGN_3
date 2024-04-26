@@ -149,7 +149,7 @@ public:
 		  take_screenshot_(false), ground_(false), inverse_control_(nullptr), draw_cylinder(false),
 		  radius_cylinder(50.0f), pos_cylinder1(-272, 31, -79), Zaxis_cylinder1(1. / sqrt(2.), 1. / sqrt(2.), 0),
 		  pos_cylinder2(-800, -1400, 5), Zaxis_cylinder2(0, 0, 1), pos_cylinder3(170, -2100, 5),
-		  Zaxis_cylinder3(0, 0, 1), pos_sphere(700, 0, 100), pos_sphere2(600, 400, 400), pos_sphere3(500, 500, 600),
+		  Zaxis_cylinder3(0, 0, 1), pos_sphere(700, 0, 100), pos_sphere2(600, 400, 400), pos_sphere3(500, 500, -600),
 		  shape_(nullptr), show_sphere_(false), sphere_radius_(100.0f), gravity_intensity_(1.)
 	{
 		f_keypress = [](View*, MESH*, int32, CellsSet<MESH, Vertex>*, CellsSet<MESH, Edge>*) {};
@@ -745,7 +745,7 @@ public:
 
 						Vec3 pos2 = pos - pos_sphere3.cast<double>();
 
-						double dist = pos2.norm() - sphere_radius3_;
+						double dist = pos2.norm() - (sphere_radius3_ + 20.);
 
 						if (dist < 0)
 						{
@@ -762,8 +762,8 @@ public:
 						}
 						return true;
 					});
-					if (pos_sphere3.z() > 0.)
-						pos_sphere3 -= Eigen::Vector3f(0, 0, 1);
+					if (pos_sphere3.z() < 0.)
+						pos_sphere3 += Eigen::Vector3f(0, 0, 1);
 				}
 				if (show_sphere_)
 				{
@@ -1335,7 +1335,7 @@ public:
 	bool can_move_vertex_;
 	bool apply_gravity;
 	bool take_screenshot_;
-	int frame_number_;
+	int frame_number_ = 0;
 	bool ground_;
 	View* selected_view_;
 	bool inverse_control_;

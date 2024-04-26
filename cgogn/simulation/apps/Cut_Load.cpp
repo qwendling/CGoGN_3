@@ -79,6 +79,99 @@ std::random_device rd;
 class LocalInterface : public cgogn::ui::ViewModule
 {
 
+	struct Shape_Cut
+	{
+		enum eType
+		{
+			plan = 0,
+			cross = 1,
+			sphere = 2,
+			S_shape = 3
+		};
+		eType type_;
+
+		Vec3 normal_plan;
+		Vec3 normal_plan2;
+		double d_plan;
+		double d_plan2;
+
+		Vec3 centre_sphere;
+		double taille_sphere;
+		Vec3 centre_sphere2;
+
+		Shape_Cut(MRMesh* mesh_, Vertex v, Attribute<Vec3>* vertex_position_)
+		{
+			std::mt19937 gen(rd());
+			std::uniform_real_distribution<> dis(-1.0, 1.0);
+
+			std::uniform_int_distribution<> dis_int(0, 2);
+
+			Vec3 pos = cgogn::value<Vec3>(*mesh_, vertex_position_, v);
+			Vec3 pos_voisin = cgogn::value<Vec3>(*mesh_, vertex_position_, Vertex(phi2(*mesh_, v.dart)));
+
+			type_ = eType(dis_int(gen));
+
+			switch (this->type_)
+			{
+			case plan: {
+				normal_plan = Vec3(dis(gen), dis(gen), 0.);
+				normal_plan.normalize();
+				d_plan = pos.dot(normal_plan);
+				break;
+			}
+			case cross: {
+				normal_plan = Vec3(dis(gen), dis(gen), 0.);
+				normal_plan.normalize();
+
+				normal_plan2 = Vec3(normal_plan.y(), -normal_plan.x(), 0.);
+
+				d_plan = pos.dot(normal_plan);
+				d_plan2 = pos.dot(normal_plan2);
+				break;
+			}
+			case sphere: {
+				taille_sphere = (pos - pos_voisin).norm();
+				centre_sphere = pos + Vec3(dis(gen), dis(gen), 0.).normalized() * taille_sphere;
+				break;
+			}
+			case S_shape: {
+				taille_sphere = (pos - pos_voisin).norm();
+				centre_sphere = pos + Vec3(dis(gen), dis(gen), 0.).normalized() * taille_sphere;
+				centre_sphere2 = pos - Vec3(dis(gen), dis(gen), 0.).normalized() * taille_sphere;
+				Vec3 tmp = centre_sphere - centre_sphere2;
+				normal_plan = Vec3(tmp.y(), -tmp.x(), 0.);
+				d_plan = pos.dot(normal_plan);
+				break;
+			}
+			}
+		}
+
+		double distance(Vec3 p)
+		{
+			switch (this->type_)
+			{
+			case plan: {
+				return p.dot(normal_plan) - d_plan;
+			}
+			case cross: {
+				return (p.dot(normal_plan) - d_plan) * (p.dot(normal_plan2) - d_plan2);
+			}
+			case sphere: {
+				return (p - centre_sphere).norm() - taille_sphere;
+			}
+			case S_shape: {
+				if (p.dot(normal_plan) - d_plan < 0)
+				{
+					return -((p - centre_sphere).norm() - taille_sphere);
+				}
+				return ((p - centre_sphere2).norm() - taille_sphere);
+			}
+			default:
+				return 0;
+			}
+		}
+	};
+
 public:
 	LocalInterface(const cgogn::ui::App& app)
 		: cgogn::ui::ViewModule(app, "LocalInterface"), mesh_(nullptr), vertex_position_(nullptr),
@@ -147,6 +240,9 @@ public:
 			Vec3 a(dis(gen), dis(gen), 0.);
 			a.normalize();
 			double d = pos.dot(a);
+
+			Shape_Cut s_cut(mesh_, v_select, vertex_position_.get());
+
 			mesh_->start_writer();
 			std::vector<std::shared_ptr<Attribute<Vec3>>> list_update_attribute;
 			std::cout << "Début découpe" << std::endl;
@@ -183,10 +279,11 @@ public:
 						if (m->volume_level(v.dart) == m->maximum_level_)
 							continue;
 						Vec3 cm = cgogn::geometry::centroid<Vec3>(*m, v, vertex_position_.get());
-						double dist_plan_volume = cm.dot(a) - d;
+						double dist_plan_volume = s_cut.distance(cm);
 						// double dist_sphere_volume = (centre_sphere - cm).norm() - taille_sphere;
 						cgogn::foreach_incident_vertex(*m, v, [&](Vertex w) -> bool {
-							if ((cgogn::value<Vec3>(*m, vertex_position_.get(), w).dot(a) - d) * dist_plan_volume < 0)
+							if (s_cut.distance(cgogn::value<Vec3>(*m, vertex_position_.get(), w)) * dist_plan_volume <
+								0)
 							{
 								list_volume_activate.push_back(v);
 								return false;
@@ -244,8 +341,8 @@ public:
 				Vec3 cm1 = cgogn::geometry::centroid<Vec3>(*mesh_, v1, vertex_position_.get());
 				Vec3 cm2 = cgogn::geometry::centroid<Vec3>(*mesh_, v2, vertex_position_.get());
 
-				double d1 = cm1.dot(a) - d;
-				double d2 = cm2.dot(a) - d;
+				double d1 = s_cut.distance(cm1);
+				double d2 = s_cut.distance(cm2);
 
 				/*double d1_sphere = (centre_sphere - cm1).norm() - taille_sphere;
 				double d2_sphere = (centre_sphere - cm2).norm() - taille_sphere;*/
@@ -373,8 +470,7 @@ public:
 		{
 			xmv->take_screenshot_ = true;
 			cgogn::launch_thread([this]() {
-				xmv->frame_number_ = 0;
-				for (int i = 0; i < 10; i++)
+				for (int i = 0; i < 60; i++)
 				{
 					for (int j = 0; j < 25; j++)
 					{
@@ -421,6 +517,9 @@ public:
 						mesh_->end_writer();
 					}
 				}
+				xmv->draw_sphere3 = true;
+
+				xmv->start();
 			});
 		}
 
