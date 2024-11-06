@@ -83,11 +83,60 @@ bool import_PLY(MESH& m, const std::string& filename)
 
 template <typename MESH>
 void export_PLY(MESH& m, const typename mesh_traits<MESH>::template Attribute<geometry::Vec3>* vertex_position,
-				const std::string& filename)
+                const std::string& filename)
 {
-	static_assert(mesh_traits<MESH>::dimension == 2, "MESH dimension should be 2");
+    static_assert(mesh_traits<MESH>::dimension == 2, "MESH dimension should be 2");
 
-	// TODO
+    using Vertex = typename mesh_traits<MESH>::Vertex;
+    using Edge = typename mesh_traits<MESH>::Edge;
+    using Face = typename mesh_traits<MESH>::Face;
+    using Vec3 = geometry::Vec3;
+
+    auto vertex_id = add_attribute<uint32, Vertex>(m, "__vertex_id");
+
+    std::vector<std::array<double, 3>> position;
+    std::vector<std::vector<uint32>> face_indices;
+    std::vector<std::array<uint32, 2>> edge_indices;
+
+    uint32 nb_vertices = nb_cells<Vertex>(m);
+    uint32 nb_faces = nb_cells<Face>(m);
+    uint32 nb_edges = nb_cells<Edge>(m);
+
+    position.reserve(nb_vertices);
+    face_indices.reserve(nb_faces);
+    edge_indices.reserve(nb_edges);
+
+    uint32 id = 0;
+    foreach_cell(m, [&](Vertex v) -> bool {
+        const Vec3& p = value<geometry::Vec3>(m, vertex_position, v);
+        position.push_back({p.x(), p.y(), p.z()});
+        value<uint32>(m, vertex_id, v) = id++;
+        return true;
+    });
+
+    foreach_cell(m, [&](Face f) {
+        std::vector<uint32> face;
+        for (Vertex v : incident_vertices(m, f))
+            face.push_back(value<uint32>(m, vertex_id, v));
+        face_indices.push_back(face);
+        return true;
+    });
+
+    foreach_cell(m, [&](Edge e) {
+        if (degree(m, e) != 0)
+            return true;
+        std::vector<Vertex> vertices = incident_vertices(m, e);
+        edge_indices.push_back({value<uint32>(m, vertex_id, vertices[0]), value<uint32>(m, vertex_id, vertices[1])});
+        return true;
+    });
+
+    happly::PLYData plyOut;
+    plyOut.addVertexPositions(position);
+    plyOut.addFaceIndices(face_indices);
+    plyOut.addEdgeIndices(edge_indices);
+    plyOut.write(filename);
+
+    remove_attribute<Vertex>(m, vertex_id);
 }
 
 } // namespace io

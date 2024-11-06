@@ -279,6 +279,8 @@ public:
 		{
 			if (filetype.compare("off") == 0)
 				cgogn::io::export_OFF(m, vertex_position, filename + ".off");
+            if (filetype.compare("ply") == 0)
+                io::export_PLY(m, vertex_position, filename + ".ply");
 			else if (filetype.compare("ig") == 0)
 				cgogn::io::export_IG(m, vertex_position, filename + ".ig");
 		}

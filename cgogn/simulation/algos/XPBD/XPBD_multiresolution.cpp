@@ -138,6 +138,8 @@ void XPBD_Multiresolution::init_solver(MAP& m, std::shared_ptr<Attribute<Vec3>> 
 		return true;
 	});
 	nb_volume_current = nb_volume_init;
+	nb_dof_init = get_nb_dof(m);
+	nb_dof_current = nb_dof_init;
 
 	parallel_foreach_cell(m, [&](Volume v) -> bool {
 		double masse = 0;
@@ -1351,6 +1353,7 @@ void XPBD_Multiresolution::solver(MAP& m, MAP* geom, double timestep, bool allow
 #if SHOW_PERFORMANCE_LOG
 	std::cout << "\033[1;32mtime init XPBD : \033[0m" << duration << std::endl;
 	std::cout << "\033[1;32mnb DOFs : \033[0m" << vec_vertices.size() << std::endl;
+	std::cout << "\033[1;32mnb DOFs topo : \033[0m" << get_nb_dof(*m.topology_) << std::endl;
 #endif
 	srand(1547989);
 	std::random_shuffle(vec_volume.begin(), vec_volume.end());

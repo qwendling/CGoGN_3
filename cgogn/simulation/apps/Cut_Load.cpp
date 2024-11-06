@@ -243,7 +243,7 @@ public:
 
 			Shape_Cut s_cut(mesh_, v_select, vertex_position_.get());
 
-			mesh_->start_writer();
+			// mesh_->start_writer();
 			std::vector<std::shared_ptr<Attribute<Vec3>>> list_update_attribute;
 			std::cout << "Début découpe" << std::endl;
 
@@ -400,7 +400,7 @@ public:
 			xmv->surface_provider_->emit_attribute_changed(*xmv->volume_skin_,
 			xmv->volume_skin_vertex_position_.get());*/
 			// sdp->update_normal();
-			mesh_->end_writer();
+			// mesh_->end_writer();
 
 			if (is_running)
 				xmv->start();
@@ -458,7 +458,9 @@ public:
 	{
 		if (ImGui::Button("Perform random cut"))
 		{
+			mesh_->start_writer();
 			apply_random_cut();
+			mesh_->end_writer();
 		}
 
 		if (ImGui::Button("Adapt max random"))
@@ -494,12 +496,13 @@ public:
 						xmv->simu_solver.Update_error_quotat(*mesh_, 0.5,
 															 [&](MRMesh&, Volume) -> double { return dis(gen); });
 						// xmv->step();
-						mesh_->end_writer();
 
 						apply_random_cut();
-						mesh_->start_writer();
 						xmv->step();
-						xmv->simu_solver.Update_error_quotat(*mesh_, 7.,
+						xmv->simu_solver.Update_error_quotat(*mesh_, 6.,
+															 [&](MRMesh&, Volume) -> double { return dis(gen); });
+						xmv->step();
+						xmv->simu_solver.Update_error_quotat(*mesh_, 6.,
 															 [&](MRMesh&, Volume) -> double { return dis(gen); });
 						mesh_->end_writer();
 					}
@@ -512,14 +515,14 @@ public:
 						std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
 						std::uniform_real_distribution<> dis(0.0, 1.0);
 
-						xmv->simu_solver.Update_error_quotat(*mesh_, 7.,
+						xmv->simu_solver.Update_error_quotat(*mesh_, 6.,
 															 [&](MRMesh&, Volume) -> double { return dis(gen); });
 						mesh_->end_writer();
 					}
 				}
-				xmv->draw_sphere3 = true;
+				// xmv->draw_sphere3 = true;
 
-				xmv->start();
+				// xmv->start();
 			});
 		}
 

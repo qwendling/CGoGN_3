@@ -184,6 +184,8 @@ public:
 	std::shared_ptr<Attribute<tree_volume*>> hierarchy_node_;
 	uint32 nb_volume_current;
 	uint32 nb_volume_init;
+	uint32 nb_dof_init;
+	uint32 nb_dof_current;
 
 	XPBD_Multiresolution()
 		: init_pos_(nullptr), init_cm_(nullptr), masse_(nullptr), inv_Q_(nullptr), inc_vertices_(nullptr),
@@ -214,6 +216,18 @@ public:
 	void solver(MAP& m, MAP* geom, double timestep, bool allow_modif_topo = true);
 
 	void compute_error_point(MAP& m, const Vec3& p, double quotat);
+
+	int get_nb_dof(MAP& m)
+	{
+		int result = 0;
+
+		foreach_cell(m, [&](Vertex) -> bool {
+			result++;
+			return true;
+		});
+
+		return result;
+	}
 
 	std::vector<Volume> get_all_current_child(MAP& m, Volume v)
 	{
@@ -290,7 +304,7 @@ public:
 			e_max = list_volume_coarse.front()->pere->error;
 		}
 
-		while (nb_volume_current < 1.1 * quotat * nb_volume_init)
+		while (nb_dof_current < 1.1 * quotat * nb_dof_init)
 		{
 			if (list_volume_fine.empty())
 				break;
@@ -298,7 +312,7 @@ public:
 			tree_volume* t = list_volume_fine.front();
 			list_volume_fine.pop_front();
 			double e = t->error;
-			if (e > e_max && nb_volume_current > quotat * nb_volume_init)
+			if (e > e_max && nb_dof_current > quotat * nb_dof_init)
 			{
 				break;
 			}
@@ -313,6 +327,7 @@ public:
 			}
 
 			nb_volume_current += 7;
+			nb_dof_current += 19;
 			volume_activate.push_back(Volume(t->volume_dart));
 			if (t->pere && t->pere->type != ROOT)
 			{
@@ -325,7 +340,7 @@ public:
 			});
 		}
 
-		while (nb_volume_current > quotat * nb_volume_init)
+		while (nb_dof_current > quotat * nb_dof_init)
 		{
 			if (list_volume_coarse.empty())
 				break;
@@ -343,6 +358,8 @@ public:
 				continue;
 			}
 			nb_volume_current -= 7;
+			// nb_dof_current = get_nb_dof(m);
+			nb_dof_current -= 19;
 			volume_disable.push_back(Volume(t->pere->volume_dart));
 			t->pere->type = CURRENT;
 			t->pere->for_each_child([&](tree_volume* c) -> bool {
@@ -366,6 +383,7 @@ public:
 			}
 		}
 		activate_remove_volume(m, volume_activate, volume_disable);
+		nb_dof_current = get_nb_dof(m);
 	}
 
 	template <typename FUNC>
