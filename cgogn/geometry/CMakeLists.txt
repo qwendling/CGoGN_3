@@ -18,9 +18,12 @@ set(src_list
 	    "${CMAKE_CURRENT_LIST_DIR}/types/grid.h"
 	    "${CMAKE_CURRENT_LIST_DIR}/types/quadric.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/slab_quadric.h"
+
 		"${CMAKE_CURRENT_LIST_DIR}/types/rigid_transformation.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/dual_quaternion.h"
 		"${CMAKE_CURRENT_LIST_DIR}/types/animation/keyframed_animation.h"
+
+                "${CMAKE_CURRENT_LIST_DIR}/types/spherical_quadric.h"
 
 		"${CMAKE_CURRENT_LIST_DIR}/functions/angle.h"
 		"${CMAKE_CURRENT_LIST_DIR}/functions/area.h"
@@ -40,6 +43,7 @@ set(src_list
         "${CMAKE_CURRENT_LIST_DIR}/algos/distance.h"
         "${CMAKE_CURRENT_LIST_DIR}/algos/ear_triangulation.h"
 		"${CMAKE_CURRENT_LIST_DIR}/algos/filtering.h"
+		"${CMAKE_CURRENT_LIST_DIR}/algos/fitting.h"
 		"${CMAKE_CURRENT_LIST_DIR}/algos/gradient.h"
         "${CMAKE_CURRENT_LIST_DIR}/algos/hex_quality.h"
 		"${CMAKE_CURRENT_LIST_DIR}/algos/laplacian.h"

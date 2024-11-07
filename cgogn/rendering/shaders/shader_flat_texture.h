@@ -21,47 +21,44 @@
  *                                                                              *
  *******************************************************************************/
 
-#ifndef CGOGN_UI_INPUTS_H_
-#define CGOGN_UI_INPUTS_H_
+#ifndef CGOGN_RENDERING_SHADERS_FLAT_TEXTURE_H_
+#define CGOGN_RENDERING_SHADERS_FLAT_TEXTURE_H_
 
-#include <cgogn/core/utils/numerics.h>
-#include <cgogn/ui/cgogn_ui_export.h>
-
+#include <cgogn/rendering/cgogn_rendering_export.h>
+#include <cgogn/rendering/shader_program.h>
+#include <cgogn/rendering/texture.h>
 namespace cgogn
 {
 
-namespace ui
+namespace rendering
 {
+DECLARE_SHADER_CLASS(FlatTexture, false, CGOGN_STR(FlatTexture))
 
-struct CGOGN_UI_EXPORT Inputs
+class CGOGN_RENDERING_EXPORT ShaderParamFlatTexture : public ShaderParam
 {
-	Inputs()
-		: wheel_sensitivity_(0.0025), mouse_sensitivity_(0.005), spin_sensitivity_(0.025), double_click_timeout_(0.3),
-		  mouse_buttons_(0), shift_pressed_(false), control_pressed_(false), alt_pressed_(false), meta_pressed_(false)
+	void set_uniforms() override;
+
+	enum VBOName : uint32
+	{
+		VERTEX_POSITION = 0,
+		VERTEX_TC
+	};
+
+public:
+	GLVec3 light_position_;
+	std::shared_ptr<Texture2D> texture_;
+	bool draw_param_;
+
+	using ShaderType = ShaderFlatTexture;
+
+	ShaderParamFlatTexture(ShaderType* sh)
+		: ShaderParam(sh), light_position_(1000, 10000, 100000), texture_(nullptr), draw_param_(false)
 	{
 	}
-
-	float64 wheel_sensitivity_;
-	float64 mouse_sensitivity_;
-	float64 spin_sensitivity_;
-	float64 double_click_timeout_;
-
-	int32 mouse_x_;
-	int32 mouse_y_;
-	int32 previous_mouse_x_;
-	int32 previous_mouse_y_;
-	float64 previous_click_time_;
-
-	uint32 mouse_buttons_;
-
-	bool shift_pressed_;
-	bool control_pressed_;
-	bool alt_pressed_;
-	bool meta_pressed_;
 };
 
-} // namespace ui
+} // namespace rendering
 
 } // namespace cgogn
 
-#endif // CGOGN_UI_INPUTS_H_
+#endif // CGOGN_RENDERING_SHADERS_FLAT_TEXTURE_H__

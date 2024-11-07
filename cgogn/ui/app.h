@@ -68,6 +68,11 @@ public:
 	static float64 frame_time_;
 
 	View* add_view();
+
+	void set_views_3_columns();
+
+	void set_views_4_columns();
+
 	inline View* current_view() const
 	{
 		return current_view_;
@@ -122,6 +127,8 @@ public:
 	// 	return static_cast<float>(GetSystemMetrics(SM_CXSCREEN)) / 1920.f;
 	// }
 
+	rendering::GLVec4 background_color_;
+
 private:
 	void close_event();
 	void adapt_views_geometry();
@@ -135,8 +142,6 @@ private:
 	int32 window_height_;
 	int32 framebuffer_width_;
 	int32 framebuffer_height_;
-
-	rendering::GLVec4 background_color_;
 
 	float32 interface_scaling_;
 	float32 mouse_scroll_speed_;
