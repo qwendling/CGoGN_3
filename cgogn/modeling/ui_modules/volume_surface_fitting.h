@@ -390,6 +390,7 @@ public:
 		auto& cs = volume_provider_->mesh_data(*volume_).template
 				get_or_add_cells_set<VolumeVertex>(CORE_VERTEX_SET_NAME);
 		cs.select_if([&](VolumeVertex v) { return value<bool>(*volume_, volume_vertex_core_mark_, v); });
+        set_frozen_vertices(&cs);
 	}
 
 	/// @brief Updates the mark color attribute from the current marking of core vertices.
@@ -751,46 +752,47 @@ public:
 		if (refresh_volume_skin_)
 			refresh_volume_skin();
 
-		parallel_foreach_cell(*volume_skin_, [&](SurfaceVertex v) -> bool {
+        /*parallel_foreach_cell(*volume_skin_, [&](SurfaceVertex v) -> bool {
 			const Vec3& p = value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v);
 			Vec3 proj = closest_surface_point(p);
 			value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v) = proj;
 			value<Vec3>(*volume_, volume_vertex_position_,
 						value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v)) = proj;
 			return true;
-		});
+        });*/
 
-		// parallel_foreach_cell(*volume_skin_, [&](SurfaceVertex v) -> bool {
-		// 	const Vec3& p = value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v);
-		// 	Vec3 n{0, 0, 0};
-		// 	foreach_incident_face(*volume_skin_, v, [&](SurfaceFace f) -> bool {
-		// 		Vec3 nf = geometry::normal(*volume_skin_, f, volume_skin_vertex_position_.get());
-		// 		Vec3 cf = geometry::centroid<Vec3>(*volume_skin_, f, volume_skin_vertex_position_.get());
-		// 		bool inside = is_inside_surface(cf);
-		// 		if (!inside)
-		// 			nf *= -1;
-		// 		BVH_Hit h = intersect_bvh({cf, nf, 0, acc::inf});
-		// 		if (h.hit)
-		// 			n += inside ? h.pos - cf : cf - h.pos;
-		// 		return true;
-		// 	});
-		// 	n.normalize();
+         parallel_foreach_cell(*volume_skin_, [&](SurfaceVertex v) -> bool {
+            const Vec3& p = value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v);
+            Vec3 n{0, 0, 0};
+            foreach_incident_face(*volume_skin_, v, [&](SurfaceFace f) -> bool {
+                Vec3 nf = geometry::normal(*volume_skin_, f, volume_skin_vertex_position_.get());
+                Vec3 cf = geometry::centroid<Vec3>(*volume_skin_, f, volume_skin_vertex_position_.get());
+                bool inside = is_inside_surface(cf);
+                if (!inside)
+                    nf *= -1;
+                BVH_Hit h = intersect_bvh({cf, nf, 0, acc::inf});
+                if (h.hit)
+                    n += inside ? h.pos - cf : cf - h.pos;
+                return true;
+            });
+            n.normalize();
 
-		// 	if (!is_inside_surface(p))
-		// 		n *= -1;
+            if (!is_inside_surface(p))
+                n *= -1;
 
-		// 	BVH_Hit h = intersect_bvh({p, n, 0, acc::inf});
-		// 	Vec3 pos;
-		// 	if (h.hit)
-		// 		pos = h.pos;
-		// 	else
-		// 		pos = closest_surface_point(p);
+            BVH_Hit h = intersect_bvh({p, n, 0, acc::inf});
+            Vec3 pos;
+            if (h.hit)
+                pos = 0.1*(h.pos-p)+p;
+            /*else
+                pos = closest_surface_point(p);*/
 
-		// 	value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v) = pos;
-		// 	value<Vec3>(*volume_, volume_vertex_position_,
-		// 				value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v)) = pos;
-		// 	return true;
-		// });
+
+            value<Vec3>(*volume_skin_, volume_skin_vertex_position_, v) = pos;
+            value<Vec3>(*volume_, volume_vertex_position_,
+                        value<VolumeVertex>(*volume_skin_, volume_skin_vertex_volume_vertex_, v)) = pos;
+            return true;
+         });
 
 		volume_provider_->emit_attribute_changed(*volume_, volume_vertex_position_.get());
 		surface_provider_->emit_attribute_changed(*volume_skin_, volume_skin_vertex_position_.get());

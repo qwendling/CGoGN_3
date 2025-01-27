@@ -24,6 +24,8 @@
 #include <cctype>
 #include <unordered_map>
 
+#include <cgogn/core/types/maps/map_base.h>
+#include <cgogn/core/types/maps/cmap/cmap2.h>
 #include <cgogn/core/types/maps/cmap/cmap3.h>
 #include <cgogn/core/types/animation/animation_skeleton.h>
 #include <cgogn/geometry/types/vector_traits.h>
@@ -50,6 +52,7 @@ using Skeleton = cgogn::AnimationSkeleton;
 template <typename T>
 using AttributeM = typename cgogn::mesh_traits<Volume>::Attribute<T>;
 using Vertex = typename cgogn::mesh_traits<Volume>::Vertex;
+using Vertex2 = typename cgogn::mesh_traits<Surface>::Vertex;
 
 template <typename T>
 using AttributeS = typename cgogn::mesh_traits<Skeleton>::Attribute<T>;
@@ -66,6 +69,8 @@ using cgogn::geometry::DualQuaternion;
 
 using ASC_RT = cgogn::ui::AnimationSkeletonController<std::vector, double, RigidTransformation>;
 using ASC_DQ = cgogn::ui::AnimationSkeletonController<std::vector, double, DualQuaternion>;
+
+using KA_RT = cgogn::geometry::KeyframedAnimation<std::vector, double, RigidTransformation>;
 
 using namespace cgogn::numerics;
 
@@ -157,11 +162,11 @@ int main(int argc, char** argv)
 	auto& mp_as = *sp_mp_as;
 	cgogn::ui::FbxIO<Surface> fbx_io(app, sp_mp_sf, sp_mp_as);
 	ASC_RT asc_rt(app);
-	ASC_DQ asc_dq(app);
+    //ASC_DQ asc_dq(app);
 	cgogn::ui::SkinningController<Surface, RigidTransformation> skc_s_rt(app);
-	cgogn::ui::SkinningController<Surface, DualQuaternion> skc_s_dq(app);
+    //cgogn::ui::SkinningController<Surface, DualQuaternion> skc_s_dq(app);
 	cgogn::ui::SkinningController<Volume, RigidTransformation> skc_v_rt(app);
-	cgogn::ui::SkinningController<Volume, DualQuaternion> skc_v_dq(app);
+    //cgogn::ui::SkinningController<Volume, DualQuaternion> skc_v_dq(app);
 	cgogn::ui::SurfaceModeling<Surface> sm(app);
 	cgogn::ui::SkinnedVolumeSurfaceFitting<Surface, Volume> vsf(app);
 	cgogn::ui::AnimationSkeletonRender<RigidTransformation, DualQuaternion> asr(app);
@@ -189,6 +194,8 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
+
+
 	std::vector<uint32> vertex_id_after_import;
 	Volume* m = mp.load_volume_from_file(argv[1], &vertex_id_after_import);
 	if (!m)
@@ -204,6 +211,61 @@ int main(int argc, char** argv)
 	}
 
 	mp.set_mesh_bb_vertex_position(*m, cgogn::get_attribute<Vec3, Vertex>(*m, "position"));
+
+    auto rt_bind_attr = cgogn::get_attribute<KA_RT, Skeleton::Bone>(*sk, "RT_bind");
+    asc_rt.set_skeleton(sk);
+    asc_rt.set_animation(rt_bind_attr);
+    asc_rt.set_time_start();
+
+    Surface* sf = nullptr;
+
+    mp_sf.foreach_mesh([&](Surface& s, const std::string&){
+        sm.triangulate_mesh(s,cgogn::get_attribute<Vec3,Vertex2>(s,"position").get());
+        if(sf == nullptr)
+            sf = &s;
+
+    });
+
+    auto wi = cgogn::get_attribute<Vec4i, Vertex>(*m, "weight_index");
+    auto wv = cgogn::get_attribute<Vec4, Vertex>(*m, "weight_value");
+
+    vsf.set_current_volume(m);
+    vsf.set_current_volume_vertex_skinning_weight_index(wi);
+    vsf.set_current_volume_vertex_skinning_weight_value(wv);
+
+    vsf.set_current_surface(sf);
+    vsf.set_current_surface_vertex_position(cgogn::get_attribute<Vec3,Vertex2>(*sf,"position"));
+    vsf.set_current_surface_vertex_skinning_weight_index(wi);
+    vsf.set_current_surface_vertex_skinning_weight_value(wv);
+
+    vsf.project_on_surface();
+    vsf.subdivide_volume();
+
+    for(int i=0;i<1000;i++){
+        vsf.project_on_surface();
+    }
+    for(int i=0;i<3;i++){
+        vsf.optimize_volume_vertices(20.,10.,cgogn::geometry::ProximityPolicy(cgogn::geometry::NEAREST_POINT),false);
+    }
+
+    vsf.mark_volume_core_vertices();
+    vsf.select_volume_vertices_from_core_mark();
+
+    vsf.subdivide_volume();
+
+    for(int i=0;i<10;i++){
+        vsf.project_on_surface();
+    }
+
+    for(int i=0;i<3;i++){
+        vsf.optimize_volume_vertices(20.,10.,cgogn::geometry::ProximityPolicy(cgogn::geometry::NEAREST_POINT),false);
+    }
+
+   /* vsf.subdivide_volume();
+    vsf.mark_volume_core_vertices();
+    vsf.subdivide_volume();
+    vsf.add_volume_padding(1.);
+    vsf.select_volume_vertices_from_core_mark();*/
 
 	return app.launch();
 }

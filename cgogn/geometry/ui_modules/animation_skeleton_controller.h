@@ -173,6 +173,10 @@ public:
 		}
 	}
 
+    void set_time_start(){
+        set_time(TimePoint::Start);
+    }
+
 	/// @brief Sets the animation, if any, to pause or resume.
 	/// @param play_mode see `PlayMode`
 	void set_play_mode(PlayMode play_mode)
