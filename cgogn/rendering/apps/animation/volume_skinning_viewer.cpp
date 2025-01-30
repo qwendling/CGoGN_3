@@ -229,14 +229,23 @@ int main(int argc, char** argv)
     auto wi = cgogn::get_attribute<Vec4i, Vertex>(*m, "weight_index");
     auto wv = cgogn::get_attribute<Vec4, Vertex>(*m, "weight_value");
 
+    auto wi_s = cgogn::get_attribute<Vec4i, Vertex2>(*sf, "weight_index");
+    auto wv_s = cgogn::get_attribute<Vec4, Vertex2>(*sf, "weight_value");
+
     vsf.set_current_volume(m);
     vsf.set_current_volume_vertex_skinning_weight_index(wi);
     vsf.set_current_volume_vertex_skinning_weight_value(wv);
 
     vsf.set_current_surface(sf);
     vsf.set_current_surface_vertex_position(cgogn::get_attribute<Vec3,Vertex2>(*sf,"position"));
-    vsf.set_current_surface_vertex_skinning_weight_index(wi);
-    vsf.set_current_surface_vertex_skinning_weight_value(wv);
+    vsf.set_current_surface_vertex_skinning_weight_index(wi_s);
+    vsf.set_current_surface_vertex_skinning_weight_value(wv_s);
+
+    vsf.set_current_animation_skeleton(*sk);
+    vsf.set_current_animation_skeleton_joint_position(cgogn::get_attribute<Vec3, Skeleton::Joint>(*sk, "position"));
+
+    //vsf.mark_volume_core_vertices();
+    //vsf.select_volume_vertices_from_core_mark();
 
     vsf.project_on_surface();
     vsf.subdivide_volume();
@@ -261,11 +270,7 @@ int main(int argc, char** argv)
         vsf.optimize_volume_vertices(20.,10.,cgogn::geometry::ProximityPolicy(cgogn::geometry::NEAREST_POINT),false);
     }
 
-   /* vsf.subdivide_volume();
-    vsf.mark_volume_core_vertices();
-    vsf.subdivide_volume();
-    vsf.add_volume_padding(1.);
-    vsf.select_volume_vertices_from_core_mark();*/
+    vsf.transfer_skinning_weights_to_skin();
 
 	return app.launch();
 }
