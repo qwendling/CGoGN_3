@@ -142,6 +142,8 @@ bool load_weights(const Skeleton& sk, Volume& m, const std::vector<uint32>& vert
 
 int main(int argc, char** argv)
 {
+
+    using PropagationDirection = cgogn::ui::SkinnedVolumeSurfaceFitting<Surface, Volume>::PropagationDirection;
 	if (argc < 4)
 	{
 		std::cerr << "Wrong number of arguments, requires a mesh path, a weight file path, "
@@ -254,11 +256,10 @@ int main(int argc, char** argv)
         vsf.project_on_surface();
     }
     for(int i=0;i<3;i++){
-        vsf.optimize_volume_vertices(20.,10.,cgogn::geometry::ProximityPolicy(cgogn::geometry::NEAREST_POINT),false);
+        vsf.optimize_volume_vertices(10.,10.,cgogn::geometry::ProximityPolicy(cgogn::geometry::NEAREST_POINT),false);
     }
 
     vsf.mark_volume_core_vertices();
-    vsf.select_volume_vertices_from_core_mark();
 
     vsf.subdivide_volume();
 
@@ -266,11 +267,39 @@ int main(int argc, char** argv)
         vsf.project_on_surface();
     }
 
-    for(int i=0;i<3;i++){
-        vsf.optimize_volume_vertices(20.,10.,cgogn::geometry::ProximityPolicy(cgogn::geometry::NEAREST_POINT),false);
+    for(int i=0;i<5;i++){
+        vsf.optimize_volume_vertices(1.,10.,cgogn::geometry::ProximityPolicy(cgogn::geometry::NEAREST_POINT),false);
+
+    }
+    for(int i=0;i<5;i++){
+        vsf.optimize_volume_vertices(5.,10.,cgogn::geometry::ProximityPolicy(cgogn::geometry::NEAREST_POINT),false);
+
     }
 
+
+    vsf.select_volume_vertices_from_core_mark();
+
     vsf.transfer_skinning_weights_to_skin();
+    vsf.propagate_skinning_weights<PropagationDirection::BoundaryToCenter>(1, false);
+
+    skc_s_rt.set_mesh(sf);
+    skc_s_rt.set_vertex_weight_index(wi_s);
+    skc_s_rt.set_vertex_weight_value(wv_s);
+    skc_s_rt.set_skeleton(sk);
+    skc_s_rt.set_bone_world_transform(asc_rt.selected_bone_world_transform_);
+
+
+    skc_v_rt.set_mesh(m);
+    skc_v_rt.set_vertex_weight_index(wi);
+    skc_v_rt.set_vertex_weight_value(wv);
+    skc_v_rt.set_skeleton(sk);
+    skc_v_rt.set_bone_world_transform(asc_rt.selected_bone_world_transform_);
+
+    rt_bind_attr = cgogn::get_attribute<KA_RT, Skeleton::Bone>(*sk, "RT");
+    asc_rt.set_skeleton(sk);
+    asc_rt.set_animation(rt_bind_attr);
+    asc_rt.set_time_start();
+
 
 	return app.launch();
 }

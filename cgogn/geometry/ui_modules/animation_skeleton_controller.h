@@ -534,7 +534,6 @@ public:
 	static constexpr const char* GENERATED_BONE_COLOR_ATTRIBUTE_NAME = "generated_bone_color";
 	static constexpr const char* GENERATED_PARENT_BONE_COLOR_ATTRIBUTE_NAME = "generated_parent_bone_color";
 
-private:
 	PlayMode play_mode_ = PlayMode::Pause;
 	decltype(App::frame_time_) last_frame_time_ = 0;
 	TimeT time_ = TimeT{};

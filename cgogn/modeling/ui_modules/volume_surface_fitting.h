@@ -2171,7 +2171,6 @@ private:
 public:
 	static constexpr const char* CORE_VERTEX_SET_NAME = "vertex_core_mark";
 
-protected:
 	MeshProvider<AnimationSkeleton>* animation_skeleton_provider_ = nullptr;
 	MeshProvider<SURFACE>* surface_provider_ = nullptr;
 	MeshProvider<VOLUME>* volume_provider_ = nullptr;
@@ -2205,7 +2204,6 @@ private:
 public:
 	bool refresh_edge_target_length_ = true;
 
-private:
 	std::shared_ptr<SurfaceAttribute<Vec4i>> surface_vertex_skinning_weight_index_;
 	std::shared_ptr<SurfaceAttribute<Vec4>> surface_vertex_skinning_weight_value_;
 
