@@ -31,6 +31,10 @@
 #include <cgogn/geometry/types/vector_traits.h>
 #include <cgogn/core/utils/numerics.h>
 #include <cgogn/io/utils.h>
+#include <cgogn/core/types/incidence_graph/incidence_graph.h>
+#include <cgogn/io/graph/graph_import.h>
+#include <cgogn/io/incidence_graph/incidence_graph_import.h>
+
 
 #include <cgogn/ui/app.h>
 #include <cgogn/ui/view.h>
@@ -44,15 +48,18 @@
 #include <cgogn/rendering/ui_modules/volume_render.h>
 #include <cgogn/core/ui_modules/mesh_provider.h>
 #include <cgogn/io/ui_modules/fbx_io.h>
+#include <cgogn/rendering/ui_modules/graph_render.h>
 
 using Surface = cgogn::CMap2;
 using Volume = cgogn::CMap3;
 using Skeleton = cgogn::AnimationSkeleton;
+using Graph = cgogn::IncidenceGraph;
 
 template <typename T>
 using AttributeM = typename cgogn::mesh_traits<Volume>::Attribute<T>;
 using Vertex = typename cgogn::mesh_traits<Volume>::Vertex;
 using Vertex2 = typename cgogn::mesh_traits<Surface>::Vertex;
+using VertexIg = typename cgogn::mesh_traits<Graph>::Vertex;
 
 template <typename T>
 using AttributeS = typename cgogn::mesh_traits<Skeleton>::Attribute<T>;
@@ -140,6 +147,62 @@ bool load_weights(const Skeleton& sk, Volume& m, const std::vector<uint32>& vert
 	return true;
 }
 
+Graph* skeleton_to_graph(Skeleton& sk, cgogn::ui::MeshProvider<Graph>& mpg, AttributeS<Vec3>* pos_s)
+{
+
+	cgogn::io::IncidenceGraphImportData incidence_graph_data;
+	Graph* result = mpg.add_mesh("extract_ig");
+
+	uint32 nb_vertices = 0;
+	 uint32 nb_edges = sk.nb_bones();
+	const uint32 nb_faces = 0;
+
+	auto id_joint = cgogn::add_attribute<uint32, Joint>(sk, "id_joint");
+
+	cgogn::foreach_cell(sk, [&](Joint j) -> bool { 
+		if (j.index_ == 0)
+			return true;
+		std::cout << j.index_ << " pos : " << cgogn::value<Vec3>(sk, pos_s, j) << std::endl;
+		cgogn::value<uint32>(sk,id_joint,j) = nb_vertices++;
+		return true;
+	});
+
+	std::cout << "Nb vertices : " << nb_vertices << std::endl;
+	std::cout << "Nb edges : " << nb_edges << std::endl;
+
+	incidence_graph_data.reserve(nb_vertices, nb_edges, nb_faces);
+
+	cgogn::foreach_cell(sk, [&](Joint j) -> bool {
+		if (j.index_ == 0)
+			return true;
+		incidence_graph_data.vertex_position_.push_back(cgogn::value<Vec3>(sk,pos_s,j));
+		return true;
+	});
+
+	cgogn::foreach_cell(sk, [&](Bone b) -> bool {
+		if (cgogn::get_base_joint(sk, b).index_ == 0)
+			return true;
+		std::cout << cgogn::value<uint32>(sk, id_joint, cgogn::get_base_joint(sk, b)) << ":"
+				  << cgogn::value<uint32>(sk, id_joint, cgogn::get_tip_joint(sk, b)) << std::endl;
+		const uint32 base = cgogn::value<uint32>(sk, id_joint, cgogn::get_base_joint(sk, b));
+		const uint32 tip = cgogn::value<uint32>(sk, id_joint, cgogn::get_tip_joint(sk, b));
+		incidence_graph_data.edges_vertex_indices_.push_back(base);
+		incidence_graph_data.edges_vertex_indices_.push_back(tip);
+		return true;
+	});
+
+
+
+	cgogn::io::import_incidence_graph_data(*result, incidence_graph_data);
+	auto pos_ig = cgogn::get_attribute<Vec3, VertexIg>(*result, "position");
+
+
+	mpg.emit_connectivity_changed(*result);
+	mpg.emit_attribute_changed(*result, pos_ig.get());
+
+	return result;
+}
+
 int main(int argc, char** argv)
 {
 
@@ -158,6 +221,7 @@ int main(int argc, char** argv)
 	app.set_window_size(1000, 800);
 
 	cgogn::ui::MeshProvider<Volume> mp(app);
+	cgogn::ui::MeshProvider<Graph> mpg(app);
 	auto sp_mp_sf = std::make_shared<cgogn::ui::MeshProvider<Surface>>(app);
 	auto sp_mp_as = std::make_shared<cgogn::ui::MeshProvider<Skeleton>>(app);
 	auto& mp_sf = *sp_mp_sf;
@@ -174,6 +238,7 @@ int main(int argc, char** argv)
 	cgogn::ui::AnimationSkeletonRender<RigidTransformation, DualQuaternion> asr(app);
 	cgogn::ui::SurfaceRender<Surface> sr(app);
 	cgogn::ui::VolumeRender<Volume> vr(app);
+	cgogn::ui::GraphRender<Graph> gr(app);
 
 	app.init_modules();
 
@@ -185,6 +250,7 @@ int main(int argc, char** argv)
 	v1->link_module(&asr);
 	v1->link_module(&sr);
 	v1->link_module(&vr);
+	v1->link_module(&gr);
 
 	Skeleton* sk{};
 	fbx_io.load_file(argv[3]);
@@ -195,6 +261,8 @@ int main(int argc, char** argv)
 		std::cout << "Skeleton could not be loaded" << std::endl;
 		return 1;
 	}
+
+	
 
 
 
@@ -299,6 +367,11 @@ int main(int argc, char** argv)
     asc_rt.set_skeleton(sk);
     asc_rt.set_animation(rt_bind_attr);
     asc_rt.set_time_start();
+
+
+	auto pos_sk = cgogn::get_attribute<Vec3, Joint>(*sk, "position");
+
+	Graph* g = skeleton_to_graph(*sk, mpg,pos_sk.get());
 
 
 	return app.launch();
