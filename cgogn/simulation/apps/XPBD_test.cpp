@@ -69,6 +69,66 @@ using Vertex2 = typename cgogn::mesh_traits<Surface>::Vertex;
 using Vec3 = cgogn::geometry::Vec3;
 using uint32 = cgogn::uint32;
 
+
+void CMap3_to_obj(MRMesh& m,Attribute<Vec3>* vertex_pos){
+    std::shared_ptr<Attribute<int>> id_vertex = cgogn::get_or_add_attribute<int, Vertex>(m, "id_obj_vertex");
+    int id=1;
+    cgogn::foreach_cell(m,[&](Vertex v)->bool{
+        cgogn::value<int>(m,id_vertex.get(),v) = id++;
+        Vec3 pos = cgogn::value<Vec3>(m,vertex_pos,v);
+        std::cout << "v " << pos.x() << " "  << pos.y() << " " << pos.z() << std::endl;
+        return true;
+    });
+
+    cgogn::foreach_cell(m,[&](Face f)->bool{
+        std::cout << "f ";
+
+        cgogn::foreach_incident_vertex(m,f,[&](Vertex v)->bool{
+           std::cout << cgogn::value<int>(m,id_vertex.get(),v) << " ";
+           return true;
+        });
+
+        std::cout << std::endl;
+        return true;
+    });
+
+}
+
+void CMap3_to_obj_explode(MRMesh& m,Attribute<Vec3>* vertex_pos,std::ofstream& file){
+    std::shared_ptr<Attribute<int>> id_vertex = cgogn::get_or_add_attribute<int, Vertex>(m, "id_obj_vertex");
+    int id=1;
+
+    cgogn::foreach_cell(m,[&](Volume v)->bool{
+        Vec3 centroid = cgogn::geometry::centroid<Vec3>(m,v,vertex_pos);
+
+        cgogn::foreach_incident_vertex(m,v,[&](Vertex w)->bool{
+            Vec3 pos = cgogn::value<Vec3>(m,vertex_pos,w);
+            pos = pos + 0.1*(centroid-pos);
+            file << "v " << pos.x() << " "  << pos.y() << " " << pos.z() << std::endl;
+           return true;
+        });
+        return true;
+    });
+
+    cgogn::foreach_cell(m,[&](Volume v)->bool{
+
+        cgogn::foreach_incident_vertex(m,v,[&](Vertex w)->bool{
+            cgogn::value<int>(m,id_vertex.get(),w) = id++;
+           return true;
+        });
+        cgogn::foreach_incident_face(m,v,[&](Face f)->bool{
+            file << "f ";
+            cgogn::foreach_incident_vertex(m,f,[&](Vertex w)->bool{
+               file << cgogn::value<int>(m,id_vertex.get(),w) << " ";
+               return true;
+            });
+            file << std::endl;
+           return true;
+        });
+        return true;
+    });
+}
+
 struct BVH_Hit
 {
 	bool hit = false;
@@ -174,6 +234,9 @@ int main(int argc, char** argv)
 	geometry_mesh->parent = mrm;
 
 	std::shared_ptr<Attribute<Vec3>> position = cgogn::get_attribute<Vec3, Vertex>(*mrm, "position");
+
+
+
 	std::shared_ptr<Attribute<Vec3>> normal = cgogn::add_attribute<Vec3, Vertex>(*m, "normal__anim_multires");
 	if (have_fine_mesh)
 	{
@@ -435,6 +498,28 @@ int main(int argc, char** argv)
 
 	vmrm.changed_connectivity(*mrm, position.get());
 	vmrm.changed_connectivity(*geometry_mesh, position.get());
+
+
+
+    std::ofstream out_file;
+
+    out_file.open("Lvl0.obj");
+    CMap3_to_obj_explode(*mrm,position.get(),out_file);
+    out_file.close();
+
+    mrm->current_level_ = 1;
+
+    out_file.open("Lvl1.obj");
+    CMap3_to_obj_explode(*mrm,position.get(),out_file);
+    out_file.close();
+
+    mrm->current_level_ = 2;
+
+    out_file.open("Lvl2.obj");
+    CMap3_to_obj_explode(*mrm,position.get(),out_file);
+    out_file.close();
+
+    mrm->current_level_ = 0;
 
 	return app.launch();
 }

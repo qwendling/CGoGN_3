@@ -133,7 +133,7 @@ void export_PLY(MESH& m, const typename mesh_traits<MESH>::template Attribute<ge
     happly::PLYData plyOut;
     plyOut.addVertexPositions(position);
     plyOut.addFaceIndices(face_indices);
-    plyOut.addEdgeIndices(edge_indices);
+    //plyOut.addEdgeIndices(edge_indices);
     plyOut.write(filename);
 
     remove_attribute<Vertex>(m, vertex_id);
